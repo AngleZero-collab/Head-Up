@@ -21,7 +21,11 @@ async def register(
     session: AsyncSession = Depends(get_db_session),
 ) -> User:
     normalized_email = payload.email.lower()
-    user = User(email=normalized_email, hashed_password=hash_password(payload.password))
+    user = User(
+        email=normalized_email,
+        hashed_password=hash_password(payload.password),
+        subscription_tier=payload.subscription_tier,
+    )
     session.add(user)
     try:
         await session.commit()

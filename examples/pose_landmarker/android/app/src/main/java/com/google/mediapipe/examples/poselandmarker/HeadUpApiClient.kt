@@ -1,5 +1,6 @@
 package com.google.mediapipe.examples.poselandmarker
 
+import android.content.Context
 import com.google.gson.annotations.SerializedName
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -9,7 +10,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
-import retrofit2.http.Header
 import retrofit2.http.POST
 import java.util.concurrent.TimeUnit
 
@@ -21,6 +21,7 @@ data class RegisterRequest(
 data class UserResponse(
     val id: String,
     val email: String,
+    @SerializedName("subscription_tier") val subscriptionTier: String = "free",
 )
 
 data class TokenResponse(
@@ -30,11 +31,11 @@ data class TokenResponse(
     @SerializedName("user_id") val userId: String,
 )
 
-data class SyncPostureRecordRequest(
-    @SerializedName("user_id") val userId: String,
-    @SerializedName("daily_slouch_count") val dailySlouchCount: Int,
-    @SerializedName("ai_intercept_rate") val aiInterceptRate: Float,
+data class DailyReportSyncRequest(
     @SerializedName("record_date") val recordDate: String,
+    @SerializedName("slouch_count") val slouchCount: Int,
+    @SerializedName("ai_intercept_rate") val aiInterceptRate: Float,
+    @SerializedName("pet_exp") val petExp: Int,
 )
 
 data class SyncResponse(
@@ -52,15 +53,28 @@ interface HeadUpApiService {
         @Field("password") password: String,
     ): TokenResponse
 
-    @POST("api/v1/records/sync")
-    suspend fun syncRecords(
-        @Header("Authorization") authorization: String,
-        @Body records: List<SyncPostureRecordRequest>,
+    @POST("api/v1/reports/sync")
+    suspend fun syncDailyReports(
+        @Body reports: List<DailyReportSyncRequest>,
     ): Response<SyncResponse>
 }
 
 object HeadUpApiClient {
+    @Volatile
+    private var authenticatedService: HeadUpApiService? = null
+
     val service: HeadUpApiService by lazy {
+        createService()
+    }
+
+    fun authenticatedService(context: Context): HeadUpApiService =
+        authenticatedService ?: synchronized(this) {
+            authenticatedService ?: createService {
+                HeadUpAuthStore.accessToken(context.applicationContext)
+            }.also { authenticatedService = it }
+        }
+
+    private fun createService(tokenProvider: (() -> String?)? = null): HeadUpApiService {
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
         }
@@ -68,10 +82,22 @@ object HeadUpApiClient {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val token = tokenProvider?.invoke()
+                val request = if (token.isNullOrBlank()) {
+                    chain.request()
+                } else {
+                    chain.request()
+                        .newBuilder()
+                        .header("Authorization", "Bearer $token")
+                        .build()
+                }
+                chain.proceed(request)
+            }
             .addInterceptor(logging)
             .build()
 
-        Retrofit.Builder()
+        return Retrofit.Builder()
             .baseUrl(BuildConfig.HEADUP_API_BASE_URL)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())

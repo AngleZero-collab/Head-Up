@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session
 from app.dependencies import get_current_user
-from app.models import PostureRecord, User
+from app.models import DailyReport, User
 from app.schemas import PostureRecordCreate, RecordsSyncResponse
 
 router = APIRouter(prefix="/records", tags=["records"])
@@ -20,11 +20,12 @@ async def sync_records(
         return RecordsSyncResponse(inserted=0)
 
     posture_records = [
-        PostureRecord(
-            user_id=record.user_id,
-            daily_slouch_count=record.daily_slouch_count,
+        DailyReport(
+            user_id=current_user.id,
+            slouch_count=record.daily_slouch_count,
             ai_intercept_rate=record.ai_intercept_rate,
             record_date=record.record_date,
+            pet_exp=0,
         )
         for record in records
     ]

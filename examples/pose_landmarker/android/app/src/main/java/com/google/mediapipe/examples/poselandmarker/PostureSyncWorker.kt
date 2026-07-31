@@ -29,12 +29,14 @@ class PostureSyncWorker(
             val pending = dao.unsyncedRecords(SYNC_BATCH_LIMIT)
             if (pending.isEmpty()) return@withContext Result.success()
 
-            val token = HeadUpAuthStore.accessToken(applicationContext)
-                ?: return@withContext Result.success()
+            if (HeadUpAuthStore.accessToken(applicationContext).isNullOrBlank()) {
+                return@withContext Result.success()
+            }
             val payload = pending.toDailySyncPayload()
             if (payload.isEmpty()) return@withContext Result.success()
 
-            val response = HeadUpApiClient.service.syncRecords("Bearer $token", payload)
+            val response = HeadUpApiClient.authenticatedService(applicationContext)
+                .syncDailyReports(payload)
             if (response.isSuccessful) {
                 dao.markSynced(pending.map { it.id }, System.currentTimeMillis())
                 Result.success()
@@ -49,17 +51,17 @@ class PostureSyncWorker(
         }
     }
 
-    private fun List<PostureRecordEntity>.toDailySyncPayload(): List<SyncPostureRecordRequest> =
+    private fun List<PostureRecordEntity>.toDailySyncPayload(): List<DailyReportSyncRequest> =
         groupBy { it.recordDateIso() }
             .map { (recordDate, records) ->
                 val dangerEvents = records.countDangerEvents()
                 val rapidFalls = records.count { it.isRapidFall }
                 val denominator = maxOf(dangerEvents, rapidFalls, 1)
-                SyncPostureRecordRequest(
-                    userId = records.first().userId,
-                    dailySlouchCount = dangerEvents,
-                    aiInterceptRate = (rapidFalls.toFloat() / denominator.toFloat()).coerceIn(0f, 1f),
+                DailyReportSyncRequest(
                     recordDate = recordDate,
+                    slouchCount = dangerEvents,
+                    aiInterceptRate = (rapidFalls.toFloat() / denominator.toFloat()).coerceIn(0f, 1f),
+                    petExp = records.petExp(),
                 )
             }
 
@@ -76,6 +78,13 @@ class PostureSyncWorker(
 
     private fun PostureRecordEntity.recordDateIso(): String =
         DATE_FORMAT.get()!!.format(Date(timestampMs))
+
+    private fun List<PostureRecordEntity>.petExp(): Int =
+        filter { it.zone == PostureZone.SAFE.name }
+            .sumOf { it.durationMs }
+            .div(60_000L)
+            .toInt()
+            .coerceAtLeast(0)
 
     companion object {
         private const val TAG = "PostureSyncWorker"
