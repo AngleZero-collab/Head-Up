@@ -5,8 +5,6 @@ import android.content.SharedPreferences
 import android.util.Base64
 import android.util.Log
 import androidx.core.content.edit
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
 import java.io.File
@@ -29,16 +27,7 @@ object HeadUpDatabasePassphrase {
     }
 
     private fun getOrCreatePassphrase(context: Context): String {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        val prefs = EncryptedSharedPreferences.create(
-            context,
-            PREFS_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+        val prefs = securePrefs(context)
         prefs.getString(KEY_SQLCIPHER_PASSPHRASE, null)?.let { return it }
 
         val bytes = ByteArray(PASSPHRASE_BYTES)
@@ -61,11 +50,16 @@ object HeadUpDatabasePassphrase {
             prefs.edit { putBoolean(KEY_DATABASE_ENCRYPTED, true) }
             return
         }
+        if (databaseOpensWithPassphrase(databaseFile, passphrase)) {
+            prefs.edit { putBoolean(KEY_DATABASE_ENCRYPTED, true) }
+            return
+        }
 
         val encryptedFile = File(context.cacheDir, "$databaseName.encrypted")
         encryptedFile.delete()
+        var plaintextDatabase: SQLiteDatabase? = null
         try {
-            val plaintextDatabase = SQLiteDatabase.openDatabase(
+            plaintextDatabase = SQLiteDatabase.openDatabase(
                 databaseFile.absolutePath,
                 "",
                 null,
@@ -77,6 +71,7 @@ object HeadUpDatabasePassphrase {
             plaintextDatabase.rawExecSQL("SELECT sqlcipher_export('encrypted')")
             plaintextDatabase.rawExecSQL("DETACH DATABASE encrypted")
             plaintextDatabase.close()
+            plaintextDatabase = null
 
             databaseFile.delete()
             File("${databaseFile.absolutePath}-wal").delete()
@@ -85,20 +80,74 @@ object HeadUpDatabasePassphrase {
             prefs.edit { putBoolean(KEY_DATABASE_ENCRYPTED, true) }
         } catch (error: Exception) {
             encryptedFile.delete()
-            Log.w(TAG, "Plaintext database migration was skipped", error)
+            Log.w(TAG, "Plaintext database migration failed; backing up legacy database.", error)
+            backupAndResetLegacyDatabase(context, databaseFile, databaseName, prefs)
+        } finally {
+            try {
+                plaintextDatabase?.close()
+            } catch (_: Exception) {
+                Unit
+            }
         }
     }
 
+    private fun databaseOpensWithPassphrase(databaseFile: File, passphrase: String): Boolean {
+        var database: SQLiteDatabase? = null
+        return try {
+            database = SQLiteDatabase.openDatabase(
+                databaseFile.absolutePath,
+                passphrase,
+                null,
+                SQLiteDatabase.OPEN_READONLY,
+            )
+            database.rawQuery("PRAGMA user_version", emptyArray()).use { it.moveToFirst() }
+            true
+        } catch (_: Exception) {
+            false
+        } finally {
+            try {
+                database?.close()
+            } catch (_: Exception) {
+                Unit
+            }
+        }
+    }
+
+    private fun backupAndResetLegacyDatabase(
+        context: Context,
+        databaseFile: File,
+        databaseName: String,
+        prefs: SharedPreferences,
+    ) {
+        val backupFile = File(context.noBackupFilesDir, "$databaseName.legacy-${System.currentTimeMillis()}.db")
+        backupFile.parentFile?.mkdirs()
+        val moved = databaseFile.renameTo(backupFile)
+        val removed = if (moved) {
+            true
+        } else {
+            try {
+                databaseFile.copyTo(backupFile, overwrite = true)
+                databaseFile.delete()
+            } catch (error: Exception) {
+                Log.e(TAG, "Unable to back up incompatible posture database.", error)
+                false
+            }
+        }
+
+        if (removed || !databaseFile.exists()) {
+            deleteSidecars(databaseFile)
+            prefs.edit { putBoolean(KEY_DATABASE_ENCRYPTED, true) }
+            Log.w(TAG, "Legacy posture database moved to ${backupFile.absolutePath}")
+        }
+    }
+
+    private fun deleteSidecars(databaseFile: File) {
+        File("${databaseFile.absolutePath}-wal").delete()
+        File("${databaseFile.absolutePath}-shm").delete()
+    }
+
     private fun securePrefs(context: Context): SharedPreferences =
-        EncryptedSharedPreferences.create(
-            context,
-            PREFS_NAME,
-            MasterKey.Builder(context)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build(),
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+        HeadUpPrefs.encryptedOrPrivate(context.applicationContext, PREFS_NAME)
 
     private fun String.sqlEscaped(): String = replace("'", "''")
 

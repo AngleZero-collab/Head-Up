@@ -21,6 +21,7 @@
     <string name="login_invalid_password">Password must be at least 8 characters.</string>
     <string name="login_connecting">Connecting...</string>
     <string name="login_success">Signed in. Background sync is enabled.</string>
+    <string name="login_guest_started">Guest mode is ready. Records stay on this device.</string>
     <string name="login_failed">Could not sign in: %1$s</string>
 
     <string name="settings_title">Settings</string>

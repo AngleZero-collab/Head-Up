@@ -2,8 +2,6 @@ package com.google.mediapipe.examples.poselandmarker
 
 import android.content.Context
 import androidx.core.content.edit
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import java.util.UUID
 
 object HeadUpAuthStore {
@@ -17,6 +15,15 @@ object HeadUpAuthStore {
             putString(KEY_ACCESS_TOKEN, accessToken)
             putString(KEY_USER_ID, userId)
         }
+    }
+
+    fun startGuestSession(context: Context): String {
+        val guestId = getOrCreateDeviceUserId(context)
+        prefs(context).edit {
+            remove(KEY_ACCESS_TOKEN)
+            putString(KEY_USER_ID, guestId)
+        }
+        return guestId
     }
 
     fun clearSession(context: Context) {
@@ -46,13 +53,6 @@ object HeadUpAuthStore {
         return id
     }
 
-    private fun prefs(context: Context) = EncryptedSharedPreferences.create(
-        context.applicationContext,
-        PREFS_NAME,
-        MasterKey.Builder(context.applicationContext)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build(),
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-    )
+    private fun prefs(context: Context) =
+        HeadUpPrefs.encryptedOrPrivate(context.applicationContext, PREFS_NAME)
 }

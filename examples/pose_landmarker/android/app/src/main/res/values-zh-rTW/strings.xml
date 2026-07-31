@@ -21,6 +21,7 @@
     <string name="login_invalid_password">密碼至少需要 8 個字元。</string>
     <string name="login_connecting">連線中...</string>
     <string name="login_success">登入成功，背景同步已啟用。</string>
+    <string name="login_guest_started">訪客模式已啟用，紀錄會保存在此裝置。</string>
     <string name="login_failed">無法登入：%1$s</string>
 
     <string name="settings_title">設定</string>

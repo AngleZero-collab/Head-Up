@@ -33,7 +33,12 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.guestButton.setOnClickListener { navigateToNext() }
+        binding.guestButton.setOnClickListener {
+            binding.guestButton.isEnabled = false
+            HeadUpAuthStore.startGuestSession(requireContext())
+            Toast.makeText(requireContext(), R.string.login_guest_started, Toast.LENGTH_SHORT).show()
+            navigateToNext()
+        }
         binding.loginButton.setOnClickListener {
             val email = binding.emailInput.text.toString().trim()
             val password = binding.passwordInput.text.toString()
@@ -79,7 +84,10 @@ class LoginFragment : Fragment() {
     }
 
     private fun navigateToNext() {
-        findNavController().navigate(R.id.action_login_to_permissions)
+        val navController = findNavController()
+        if (navController.currentDestination?.id == R.id.login_fragment) {
+            navController.navigate(R.id.action_login_to_permissions)
+        }
     }
 
     override fun onDestroyView() {

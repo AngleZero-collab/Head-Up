@@ -1,6 +1,7 @@
 package com.google.mediapipe.examples.poselandmarker
 
 import android.content.Context
+import android.util.Log
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -23,16 +24,16 @@ class PostureSyncWorker(
     workerParameters: WorkerParameters,
 ) : CoroutineWorker(appContext, workerParameters) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val dao = PostureDatabase.getInstance(applicationContext).postureRecordDao()
-        val pending = dao.unsyncedRecords(SYNC_BATCH_LIMIT)
-        if (pending.isEmpty()) return@withContext Result.success()
-
-        val token = HeadUpAuthStore.accessToken(applicationContext)
-            ?: return@withContext Result.retry()
-        val payload = pending.toDailySyncPayload()
-        if (payload.isEmpty()) return@withContext Result.success()
-
         try {
+            val dao = PostureDatabase.getInstance(applicationContext).postureRecordDao()
+            val pending = dao.unsyncedRecords(SYNC_BATCH_LIMIT)
+            if (pending.isEmpty()) return@withContext Result.success()
+
+            val token = HeadUpAuthStore.accessToken(applicationContext)
+                ?: return@withContext Result.success()
+            val payload = pending.toDailySyncPayload()
+            if (payload.isEmpty()) return@withContext Result.success()
+
             val response = HeadUpApiClient.service.syncRecords("Bearer $token", payload)
             if (response.isSuccessful) {
                 dao.markSynced(pending.map { it.id }, System.currentTimeMillis())
@@ -43,6 +44,7 @@ class PostureSyncWorker(
                 Result.failure()
             }
         } catch (_: Exception) {
+            Log.w(TAG, "Posture sync failed; WorkManager will retry later.")
             Result.retry()
         }
     }
@@ -73,9 +75,10 @@ class PostureSyncWorker(
     }
 
     private fun PostureRecordEntity.recordDateIso(): String =
-        DATE_FORMAT.get().format(Date(timestampMs))
+        DATE_FORMAT.get()!!.format(Date(timestampMs))
 
     companion object {
+        private const val TAG = "PostureSyncWorker"
         private const val SYNC_BATCH_LIMIT = 1_000
         private val DATE_FORMAT = object : ThreadLocal<SimpleDateFormat>() {
             override fun initialValue(): SimpleDateFormat =

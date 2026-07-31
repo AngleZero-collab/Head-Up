@@ -2,11 +2,10 @@ package com.google.mediapipe.examples.poselandmarker
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.core.content.edit
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -15,6 +14,7 @@ import java.util.concurrent.Executors
 import kotlin.math.roundToLong
 
 object HeadUpRepository {
+    private const val TAG = "HeadUpRepository"
     private const val PREFS_NAME = "headup_secure_prefs"
     private const val KEY_GOOD_SECONDS = "good_seconds"
     private const val KEY_WARNING_SECONDS = "warning_seconds"
@@ -146,7 +146,7 @@ object HeadUpRepository {
                 isRapidFall = metrics.isRapidFall,
                 isSynced = false,
             )
-            databaseExecutor.execute {
+            executeDatabaseTask {
                 val dao = PostureDatabase.getInstance(appContext).postureRecordDao()
                 dao.insert(record)
                 if (now - lastDashboardRefreshMs >= 5_000L) {
@@ -193,7 +193,7 @@ object HeadUpRepository {
 
     fun refreshDashboard(context: Context) {
         val appContext = context.applicationContext
-        databaseExecutor.execute {
+        executeDatabaseTask {
             refreshDashboardInternal(appContext, PostureDatabase.getInstance(appContext).postureRecordDao())
         }
     }
@@ -203,7 +203,7 @@ object HeadUpRepository {
         getPrefs(appContext).edit { clear() }
         stateLiveData.postValue(HeadUpUiState())
         dashboardLiveData.postValue(PostureDashboard())
-        databaseExecutor.execute {
+        executeDatabaseTask {
             PostureDatabase.getInstance(appContext).postureRecordDao().deleteAll()
         }
         PostureAnalyzer.resetSmoothing()
@@ -240,7 +240,7 @@ object HeadUpRepository {
 
     fun getAllRecordsAsCsv(context: Context, callback: (String) -> Unit) {
         val appContext = context.applicationContext
-        databaseExecutor.execute {
+        executeDatabaseTask {
             val records = PostureDatabase.getInstance(appContext).postureRecordDao()
                 .recordsBetween(0, System.currentTimeMillis())
             val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -260,7 +260,7 @@ object HeadUpRepository {
 
     fun getRecordStats(context: Context, callback: (count: Int, unsynced: Int, sizeKb: Long) -> Unit) {
         val appContext = context.applicationContext
-        databaseExecutor.execute {
+        executeDatabaseTask {
             val dao = PostureDatabase.getInstance(appContext).postureRecordDao()
             val count = dao.recordsBetween(0, System.currentTimeMillis()).size
             val unsynced = dao.unsyncedCount()
@@ -392,17 +392,17 @@ object HeadUpRepository {
             sharedPrefs ?: createEncryptedPrefs(context.applicationContext).also { sharedPrefs = it }
         }
 
-    private fun createEncryptedPrefs(context: Context): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        return EncryptedSharedPreferences.create(
-            context,
-            PREFS_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+    private fun createEncryptedPrefs(context: Context): SharedPreferences =
+        HeadUpPrefs.encryptedOrPrivate(context.applicationContext, PREFS_NAME)
+
+    private fun executeDatabaseTask(task: () -> Unit) {
+        databaseExecutor.execute {
+            try {
+                task()
+            } catch (error: Exception) {
+                Log.e(TAG, "Posture database task failed.", error)
+            }
+        }
     }
 
     private fun startOfDay(timeMs: Long): Long = Calendar.getInstance().run {
