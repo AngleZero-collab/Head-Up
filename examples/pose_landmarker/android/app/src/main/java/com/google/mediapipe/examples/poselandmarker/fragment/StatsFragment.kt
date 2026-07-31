@@ -12,7 +12,9 @@ import androidx.navigation.fragment.findNavController
 import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
 import com.google.mediapipe.examples.poselandmarker.HeadUpTask
 import com.google.mediapipe.examples.poselandmarker.HeadUpUiState
+import com.google.mediapipe.examples.poselandmarker.InsightLevel
 import com.google.mediapipe.examples.poselandmarker.PostureDashboard
+import com.google.mediapipe.examples.poselandmarker.PostureInsight
 import com.google.mediapipe.examples.poselandmarker.PostureZone
 import com.google.mediapipe.examples.poselandmarker.R
 import com.google.mediapipe.examples.poselandmarker.databinding.FragmentStatsBinding
@@ -78,6 +80,36 @@ class StatsFragment : Fragment() {
         binding.safePercentText.text = getString(R.string.safe_posture_percent, safePercent)
         binding.badPercentText.text = getString(R.string.bad_posture_percent, badPercent)
         binding.trackedTimeText.text = getString(R.string.tracked_time, formatDuration(total))
+
+        renderInsights(dashboard.insights)
+    }
+
+    private fun renderInsights(insights: List<PostureInsight>) {
+        binding.insightsContainer.removeAllViews()
+        if (insights.isEmpty()) {
+            binding.insightsTitle.visibility = View.GONE
+            return
+        }
+
+        binding.insightsTitle.visibility = View.VISIBLE
+        val inflater = LayoutInflater.from(requireContext())
+        insights.forEach { insight ->
+            val itemView = inflater.inflate(R.layout.item_posture_insight, binding.insightsContainer, false)
+            val titleView = itemView.findViewById<android.widget.TextView>(R.id.insight_title)
+            val descView = itemView.findViewById<android.widget.TextView>(R.id.insight_description)
+            val iconView = itemView.findViewById<android.widget.ImageView>(R.id.insight_icon)
+
+            titleView.text = insight.title
+            descView.text = insight.description
+
+            val colorRes = when (insight.level) {
+                InsightLevel.SUCCESS -> R.color.headup_safe
+                InsightLevel.WARNING -> R.color.headup_danger
+                InsightLevel.INFO -> R.color.headup_primary
+            }
+            iconView.setColorFilter(ContextCompat.getColor(requireContext(), colorRes))
+            binding.insightsContainer.addView(itemView)
+        }
     }
 
     private fun handleTaskClick(task: HeadUpTask) {

@@ -90,6 +90,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        viewModel.initSettings(requireContext())
         backgroundExecutor = Executors.newSingleThreadExecutor()
         binding.viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         initializeResultRows()
@@ -262,8 +263,8 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
             viewModel.setMinPoseDetectionConfidence(poseLandmarkerHelper.minPoseDetectionConfidence)
             viewModel.setMinPoseTrackingConfidence(poseLandmarkerHelper.minPoseTrackingConfidence)
             viewModel.setMinPosePresenceConfidence(poseLandmarkerHelper.minPosePresenceConfidence)
-            viewModel.setDelegate(poseLandmarkerHelper.currentDelegate)
-            viewModel.setModel(poseLandmarkerHelper.currentModel)
+            viewModel.setDelegate(requireContext(), poseLandmarkerHelper.currentDelegate)
+            viewModel.setModel(requireContext(), poseLandmarkerHelper.currentModel)
             backgroundExecutor.execute { poseLandmarkerHelper.clearPoseLandmarker() }
         }
         PostureAnalyzer.resetSmoothing()

@@ -112,7 +112,20 @@ data class DailyPostureSummary(
     val dangerEvents: Int,
 )
 
+data class PostureInsight(
+    val title: String,
+    val description: String,
+    val level: InsightLevel = InsightLevel.INFO,
+)
+
+enum class InsightLevel {
+    INFO,
+    SUCCESS,
+    WARNING,
+}
+
 data class PostureDashboard(
     val today: DailyPostureSummary = DailyPostureSummary(0L, 0L, 0L, 0L, 0),
     val week: List<DailyPostureSummary> = emptyList(),
+    val insights: List<PostureInsight> = emptyList(),
 )

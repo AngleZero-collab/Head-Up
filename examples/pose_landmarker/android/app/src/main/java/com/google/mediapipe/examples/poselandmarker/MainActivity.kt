@@ -1,7 +1,3 @@
-/*
- * Copyright 2023 The TensorFlow Authors. All Rights Reserved.
- * Licensed under the Apache License, Version 2.0.
- */
 package com.google.mediapipe.examples.poselandmarker
 
 import android.Manifest
@@ -18,11 +14,13 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.os.LocaleListCompat
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.google.mediapipe.examples.poselandmarker.databinding.ActivityMainBinding
 import com.google.mediapipe.examples.poselandmarker.fragment.PermissionsFragment
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -50,6 +48,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.notificationButton.setOnClickListener { openNotificationControls() }
         binding.settingsButton.setOnClickListener { showSettingsDialog() }
+        PostureSyncScheduler.schedulePeriodic(this)
         initPermissionFlow()
     }
 
@@ -90,22 +89,89 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSettingsDialog() {
         val items = arrayOf(
+            getString(R.string.settings_account, HeadUpAuthStore.userLabel(this)),
+            getString(R.string.settings_sync_now),
             getString(R.string.settings_language),
             getString(R.string.settings_overlay),
             getString(R.string.settings_calibration),
+            getString(R.string.settings_data_management),
+            getString(R.string.settings_logout),
             getString(R.string.settings_reset_data),
         )
         AlertDialog.Builder(this)
             .setTitle(R.string.settings_title)
             .setItems(items) { _, index ->
                 when (index) {
-                    0 -> showLanguagePicker()
-                    1 -> openOverlaySettingsIfNeeded()
-                    2 -> navigateToCalibration()
-                    3 -> confirmResetData()
+                    0 -> showAccountDialog()
+                    1 -> enqueueManualSync()
+                    2 -> showLanguagePicker()
+                    3 -> openOverlaySettingsIfNeeded()
+                    4 -> navigateToCalibration()
+                    5 -> showDataManagementDialog()
+                    6 -> confirmLogout()
+                    7 -> confirmResetData()
                 }
             }
             .show()
+    }
+
+    private fun showAccountDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.account_title)
+            .setMessage(getString(R.string.account_message, HeadUpAuthStore.currentUserId(this)))
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun enqueueManualSync() {
+        PostureSyncScheduler.enqueueOneTime(this)
+        Toast.makeText(this, R.string.sync_queued, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun confirmLogout() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.logout_title)
+            .setMessage(R.string.logout_message)
+            .setPositiveButton(R.string.logout_confirm) { _, _ ->
+                HeadUpAuthStore.clearSession(this)
+                Toast.makeText(this, R.string.logout_complete, Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showDataManagementDialog() {
+        HeadUpRepository.getRecordStats(this) { count, unsynced, sizeKb ->
+            runOnUiThread {
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.data_management_title)
+                    .setMessage(getString(R.string.data_management_message, count, unsynced, sizeKb))
+                    .setPositiveButton(android.R.string.ok, null)
+                    .setNeutralButton(R.string.export_csv) { _, _ -> exportDataToCsv() }
+                    .show()
+            }
+        }
+    }
+
+    private fun exportDataToCsv() {
+        HeadUpRepository.getAllRecordsAsCsv(this) { csvString ->
+            runOnUiThread {
+                try {
+                    val file = File(cacheDir, "HeadUp_Data_${System.currentTimeMillis()}.csv")
+                    file.writeText(csvString)
+                    val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/csv"
+                        putExtra(Intent.EXTRA_SUBJECT, "HeadUp Posture Data Export")
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(intent, getString(R.string.export_csv)))
+                } catch (error: Exception) {
+                    Toast.makeText(this, getString(R.string.export_failed, error.message), Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun navigateToCalibration() {

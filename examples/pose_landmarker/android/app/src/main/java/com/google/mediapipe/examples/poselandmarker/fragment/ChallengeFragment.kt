@@ -149,9 +149,12 @@ class ChallengeFragment : Fragment() {
     }
 
     private fun updateDragonVideo(videoResId: Int) {
-        if (currentVideoResId == videoResId && mediaPlayer?.isPlaying == true) return
+        if (currentVideoResId == videoResId && mediaPlayer != null) return
+        val surface = currentSurface ?: run {
+            currentVideoResId = videoResId
+            return
+        }
         currentVideoResId = videoResId
-        val surface = currentSurface ?: return
         releaseMediaPlayer()
         try {
             val descriptor = resources.openRawResourceFd(videoResId)
@@ -161,6 +164,7 @@ class ChallengeFragment : Fragment() {
                 isLooping = true
                 setVolume(0f, 0f)
                 setOnPreparedListener { it.start() }
+                setOnErrorListener { _, _, _ -> true }
                 prepareAsync()
             }
             descriptor.close()

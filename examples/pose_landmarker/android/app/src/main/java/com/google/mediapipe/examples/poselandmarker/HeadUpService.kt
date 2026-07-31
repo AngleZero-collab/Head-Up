@@ -154,6 +154,8 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 poseLandmarkerHelper = PoseLandmarkerHelper(
                     context = applicationContext,
                     runningMode = RunningMode.LIVE_STREAM,
+                    currentModel = HeadUpRepository.getSelectedModel(applicationContext),
+                    currentDelegate = HeadUpRepository.getSelectedDelegate(applicationContext),
                     poseLandmarkerHelperListener = this,
                 )
             } else if (poseLandmarkerHelper.isClose()) {

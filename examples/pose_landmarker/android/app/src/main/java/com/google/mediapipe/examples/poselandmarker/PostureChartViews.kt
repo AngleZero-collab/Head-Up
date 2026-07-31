@@ -32,6 +32,7 @@ class PosturePieChartView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        if (isInEditMode) return
         val stroke = 18f * resources.displayMetrics.density
         val size = minOf(width, height).toFloat() - stroke * 1.5f
         val oval = RectF(
@@ -90,6 +91,7 @@ class PostureLineChartView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        if (isInEditMode) return
         val padding = 18f * resources.displayMetrics.density
         val chartWidth = (width - padding * 2f).coerceAtLeast(1f)
         val chartHeight = (height - padding * 2f).coerceAtLeast(1f)
