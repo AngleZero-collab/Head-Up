@@ -16,6 +16,8 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.os.LocaleListCompat
+import androidx.navigation.NavController
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.google.mediapipe.examples.poselandmarker.databinding.ActivityMainBinding
@@ -24,6 +26,8 @@ import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
+    private lateinit var navController: NavController
+    private var suppressBackgroundGuardResume = false
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -43,8 +47,10 @@ class MainActivity : AppCompatActivity() {
 
         val navHost = supportFragmentManager
             .findFragmentById(R.id.fragment_container) as NavHostFragment
-        binding.navigation.setupWithNavController(navHost.navController)
+        navController = navHost.navController
+        binding.navigation.setupWithNavController(navController)
         binding.navigation.setOnItemReselectedListener { }
+        configureNavigationChrome()
 
         binding.notificationButton.setOnClickListener { openNotificationControls() }
         binding.settingsButton.setOnClickListener { showSettingsDialog() }
@@ -59,6 +65,8 @@ class MainActivity : AppCompatActivity() {
             Intent(this, HeadUpService::class.java).setAction(action),
         )
     }
+
+    fun shouldResumeBackgroundGuard(): Boolean = !suppressBackgroundGuardResume
 
     private fun playLaunchAnimation() {
         binding.splashLogo.apply {
@@ -134,10 +142,34 @@ class MainActivity : AppCompatActivity() {
             .setMessage(R.string.logout_message)
             .setPositiveButton(R.string.logout_confirm) { _, _ ->
                 HeadUpAuthStore.clearSession(this)
+                suppressBackgroundGuardResume = true
+                HeadUpRepository.setForegroundScanActive(this, false)
+                stopService(Intent(this, HeadUpService::class.java))
+                navigateToLogin()
                 Toast.makeText(this, R.string.logout_complete, Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    private fun navigateToLogin() {
+        val options = NavOptions.Builder()
+            .setLaunchSingleTop(true)
+            .setPopUpTo(navController.graph.id, true)
+            .build()
+        navController.navigate(R.id.login_fragment, null, options)
+    }
+
+    private fun configureNavigationChrome() {
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            val showAppChrome = destination.id != R.id.login_fragment &&
+                destination.id != R.id.permissions_fragment
+            if (showAppChrome) {
+                suppressBackgroundGuardResume = false
+            }
+            binding.headupTopBar.visibility = if (showAppChrome) View.VISIBLE else View.GONE
+            binding.navigationShell.visibility = if (showAppChrome) View.VISIBLE else View.GONE
+        }
     }
 
     private fun showDataManagementDialog() {
