@@ -7,13 +7,13 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
-    subscription_tier: str = Field(default="free", min_length=1, max_length=32)
 
 
 class UserRead(BaseModel):
     id: uuid.UUID
     email: EmailStr
     subscription_tier: str
+    role: str
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -22,6 +22,7 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None
     password: str | None = Field(default=None, min_length=8, max_length=128)
     subscription_tier: str | None = Field(default=None, min_length=1, max_length=32)
+    role: str | None = Field(default=None, min_length=1, max_length=32)
 
 
 class DailyReportCreate(BaseModel):
@@ -65,3 +66,5 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user_id: str
+    subscription_tier: str
+    role: str

@@ -43,7 +43,13 @@ class LoginFragment : Fragment() {
             val email = binding.emailInput.text.toString().trim()
             val password = binding.passwordInput.text.toString()
             if (!validateInput(email, password)) return@setOnClickListener
-            loginOrRegister(email, password)
+            login(email, password)
+        }
+        binding.registerButton.setOnClickListener {
+            val email = binding.emailInput.text.toString().trim()
+            val password = binding.passwordInput.text.toString()
+            if (!validateInput(email, password)) return@setOnClickListener
+            register(email, password)
         }
     }
 
@@ -59,28 +65,73 @@ class LoginFragment : Fragment() {
         return true
     }
 
-    private fun loginOrRegister(email: String, password: String) {
-        binding.loginButton.isEnabled = false
+    private fun login(email: String, password: String) {
+        setAuthButtonsEnabled(false)
         binding.loginButton.setText(R.string.login_connecting)
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val token = try {
-                    HeadUpApiClient.service.login(email, password)
-                } catch (error: HttpException) {
-                    if (error.code() != 401) throw error
-                    HeadUpApiClient.service.register(RegisterRequest(email, password))
-                    HeadUpApiClient.service.login(email, password)
-                }
-                HeadUpAuthStore.saveSession(requireContext(), token.accessToken, token.userId)
+                val token = HeadUpApiClient.service.login(email, password)
+                saveToken(token)
                 Toast.makeText(requireContext(), R.string.login_success, Toast.LENGTH_SHORT).show()
                 navigateToNext()
+            } catch (error: HttpException) {
+                val message = if (error.code() == 401) {
+                    getString(R.string.login_bad_credentials)
+                } else {
+                    getString(R.string.login_failed, "HTTP ${error.code()}")
+                }
+                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
             } catch (error: Exception) {
                 Toast.makeText(requireContext(), getString(R.string.login_failed, error.message), Toast.LENGTH_LONG).show()
             } finally {
-                _binding?.loginButton?.isEnabled = true
+                setAuthButtonsEnabled(true)
                 _binding?.loginButton?.setText(R.string.login_button)
             }
         }
+    }
+
+    private fun register(email: String, password: String) {
+        setAuthButtonsEnabled(false)
+        binding.registerButton.setText(R.string.register_connecting)
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val response = HeadUpApiClient.service.register(RegisterRequest(email, password))
+                if (!response.isSuccessful) {
+                    val message = if (response.code() == 409) {
+                        getString(R.string.register_email_exists)
+                    } else {
+                        getString(R.string.register_failed, "HTTP ${response.code()}")
+                    }
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                val token = HeadUpApiClient.service.login(email, password)
+                saveToken(token)
+                Toast.makeText(requireContext(), R.string.register_success, Toast.LENGTH_SHORT).show()
+                navigateToNext()
+            } catch (error: Exception) {
+                Toast.makeText(requireContext(), getString(R.string.register_failed, error.message), Toast.LENGTH_LONG).show()
+            } finally {
+                setAuthButtonsEnabled(true)
+                _binding?.registerButton?.setText(R.string.register_button)
+            }
+        }
+    }
+
+    private fun saveToken(token: com.google.mediapipe.examples.poselandmarker.TokenResponse) {
+        HeadUpAuthStore.saveSession(
+            requireContext(),
+            token.accessToken,
+            token.userId,
+            token.subscriptionTier,
+            token.role,
+        )
+    }
+
+    private fun setAuthButtonsEnabled(enabled: Boolean) {
+        _binding?.loginButton?.isEnabled = enabled
+        _binding?.registerButton?.isEnabled = enabled
+        _binding?.guestButton?.isEnabled = enabled
     }
 
     private fun navigateToNext() {

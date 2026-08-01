@@ -9,11 +9,21 @@ object HeadUpAuthStore {
     private const val KEY_ACCESS_TOKEN = "access_token"
     private const val KEY_USER_ID = "user_id"
     private const val KEY_DEVICE_USER_ID = "device_user_id"
+    private const val KEY_SUBSCRIPTION_TIER = "subscription_tier"
+    private const val KEY_ROLE = "role"
 
-    fun saveSession(context: Context, accessToken: String, userId: String) {
+    fun saveSession(
+        context: Context,
+        accessToken: String,
+        userId: String,
+        subscriptionTier: String = "free",
+        role: String = "user",
+    ) {
         prefs(context).edit {
             putString(KEY_ACCESS_TOKEN, accessToken)
             putString(KEY_USER_ID, userId)
+            putString(KEY_SUBSCRIPTION_TIER, subscriptionTier)
+            putString(KEY_ROLE, role)
         }
     }
 
@@ -22,6 +32,8 @@ object HeadUpAuthStore {
         prefs(context).edit {
             remove(KEY_ACCESS_TOKEN)
             putString(KEY_USER_ID, guestId)
+            putString(KEY_SUBSCRIPTION_TIER, "guest")
+            putString(KEY_ROLE, "guest")
         }
         return guestId
     }
@@ -30,6 +42,8 @@ object HeadUpAuthStore {
         prefs(context).edit {
             remove(KEY_ACCESS_TOKEN)
             remove(KEY_USER_ID)
+            remove(KEY_SUBSCRIPTION_TIER)
+            remove(KEY_ROLE)
         }
     }
 
@@ -44,6 +58,12 @@ object HeadUpAuthStore {
 
     fun userLabel(context: Context): String =
         if (isSignedIn(context)) currentUserId(context) else "Guest ${getOrCreateDeviceUserId(context).takeLast(6)}"
+
+    fun subscriptionTier(context: Context): String =
+        prefs(context).getString(KEY_SUBSCRIPTION_TIER, null) ?: if (isSignedIn(context)) "free" else "guest"
+
+    fun role(context: Context): String =
+        prefs(context).getString(KEY_ROLE, null) ?: if (isSignedIn(context)) "user" else "guest"
 
     private fun getOrCreateDeviceUserId(context: Context): String {
         val encryptedPrefs = prefs(context)

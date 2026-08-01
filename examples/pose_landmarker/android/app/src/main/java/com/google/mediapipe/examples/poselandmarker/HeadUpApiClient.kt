@@ -22,6 +22,7 @@ data class UserResponse(
     val id: String,
     val email: String,
     @SerializedName("subscription_tier") val subscriptionTier: String = "free",
+    val role: String = "user",
 )
 
 data class TokenResponse(
@@ -29,6 +30,8 @@ data class TokenResponse(
     @SerializedName("token_type") val tokenType: String,
     @SerializedName("expires_in") val expiresIn: Int,
     @SerializedName("user_id") val userId: String,
+    @SerializedName("subscription_tier") val subscriptionTier: String = "free",
+    val role: String = "user",
 )
 
 data class DailyReportSyncRequest(

@@ -14,15 +14,21 @@
     <string name="login_subtitle">Secure posture protection for study time</string>
     <string name="login_email">Email</string>
     <string name="login_password">Password</string>
-    <string name="login_button">Log in / Register</string>
+    <string name="login_button">Log in</string>
+    <string name="register_button">Create account</string>
     <string name="login_guest">Continue offline as guest</string>
     <string name="login_hint">Only de-identified posture summaries are synced.</string>
     <string name="login_invalid_email">Enter a valid email address.</string>
     <string name="login_invalid_password">Password must be at least 8 characters.</string>
     <string name="login_connecting">Connecting...</string>
+    <string name="register_connecting">Creating account...</string>
     <string name="login_success">Signed in. Background sync is enabled.</string>
     <string name="login_guest_started">Guest mode is ready. Records stay on this device.</string>
+    <string name="login_bad_credentials">Incorrect email or password.</string>
     <string name="login_failed">Could not sign in: %1$s</string>
+    <string name="register_success">Account created and signed in.</string>
+    <string name="register_email_exists">This email is already registered. Please log in.</string>
+    <string name="register_failed">Could not create account: %1$s</string>
 
     <string name="settings_title">Settings</string>
     <string name="settings_account">Account: %1$s</string>
@@ -34,7 +40,7 @@
     <string name="settings_logout">Log out</string>
     <string name="settings_reset_data">Reset posture records</string>
     <string name="account_title">Account</string>
-    <string name="account_message">Current de-identified user id:\n%1$s</string>
+    <string name="account_message">Current user id:\n%1$s\n\nRole: %2$s\nPlan: %3$s</string>
     <string name="sync_queued">Sync will run on Wi-Fi when battery is not low.</string>
     <string name="logout_title">Log out?</string>
     <string name="logout_message">This removes the saved JWT token from this device. Local data stays on the phone.</string>

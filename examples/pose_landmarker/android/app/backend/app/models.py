@@ -15,6 +15,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     subscription_tier: Mapped[str] = mapped_column(String(32), nullable=False, default="free")
+    role: Mapped[str] = mapped_column(String(32), nullable=False, default="user")
 
     daily_reports: Mapped[list["DailyReport"]] = relationship(
         back_populates="user",

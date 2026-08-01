@@ -126,7 +126,14 @@ class MainActivity : AppCompatActivity() {
     private fun showAccountDialog() {
         AlertDialog.Builder(this)
             .setTitle(R.string.account_title)
-            .setMessage(getString(R.string.account_message, HeadUpAuthStore.currentUserId(this)))
+            .setMessage(
+                getString(
+                    R.string.account_message,
+                    HeadUpAuthStore.currentUserId(this),
+                    HeadUpAuthStore.role(this),
+                    HeadUpAuthStore.subscriptionTier(this),
+                ),
+            )
             .setPositiveButton(android.R.string.ok, null)
             .show()
     }
