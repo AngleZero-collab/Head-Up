@@ -9,9 +9,17 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class GuestLoginRequest(BaseModel):
+    device_id: str = Field(
+        min_length=8,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+    )
+
+
 class UserRead(BaseModel):
     id: uuid.UUID
-    email: EmailStr
+    email: str
     subscription_tier: str
     role: str
 
@@ -37,6 +45,12 @@ class DailyReportRead(DailyReportCreate):
     user_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DailyReportAdminRead(DailyReportRead):
+    user_email: str
+    user_role: str
+    subscription_tier: str
 
 
 class DailyReportUpdate(BaseModel):

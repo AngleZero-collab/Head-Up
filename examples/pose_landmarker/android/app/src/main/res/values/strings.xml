@@ -21,9 +21,13 @@
     <string name="login_invalid_email">Enter a valid email address.</string>
     <string name="login_invalid_password">Password must be at least 8 characters.</string>
     <string name="login_connecting">Connecting...</string>
+    <string name="guest_connecting">Connecting guest...</string>
     <string name="register_connecting">Creating account...</string>
     <string name="login_success">Signed in. Background sync is enabled.</string>
     <string name="login_guest_started">Guest mode is ready. Records stay on this device.</string>
+    <string name="login_guest_synced">Guest mode is ready. De-identified records will sync to the backend.</string>
+    <string name="login_guest_offline_started">Guest offline mode is ready. Records will sync after the backend is available.</string>
+    <string name="login_guest_offline_backend_unavailable">Backend is unavailable. Guest records will stay on this device and sync later.</string>
     <string name="login_bad_credentials">Incorrect email or password.</string>
     <string name="login_backend_unavailable">Could not reach the HeadUp backend. Start backend/start_dev_backend.ps1 and try again.</string>
     <string name="login_failed">Could not sign in: %1$s</string>

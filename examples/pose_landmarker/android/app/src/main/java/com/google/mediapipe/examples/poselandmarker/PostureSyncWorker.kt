@@ -29,8 +29,8 @@ class PostureSyncWorker(
             val pending = dao.unsyncedRecords(SYNC_BATCH_LIMIT)
             if (pending.isEmpty()) return@withContext Result.success()
 
-            if (HeadUpAuthStore.accessToken(applicationContext).isNullOrBlank()) {
-                return@withContext Result.success()
+            if (!ensureSyncToken()) {
+                return@withContext Result.retry()
             }
             val payload = pending.toDailySyncPayload()
             if (payload.isEmpty()) return@withContext Result.success()
@@ -48,6 +48,27 @@ class PostureSyncWorker(
         } catch (_: Exception) {
             Log.w(TAG, "Posture sync failed; WorkManager will retry later.")
             Result.retry()
+        }
+    }
+
+    private suspend fun ensureSyncToken(): Boolean {
+        if (!HeadUpAuthStore.accessToken(applicationContext).isNullOrBlank()) return true
+
+        return try {
+            val token = HeadUpApiClient.service.guest(
+                GuestLoginRequest(HeadUpAuthStore.deviceUserId(applicationContext)),
+            )
+            HeadUpAuthStore.saveSession(
+                applicationContext,
+                token.accessToken,
+                token.userId,
+                token.subscriptionTier,
+                token.role,
+            )
+            true
+        } catch (error: Exception) {
+            Log.w(TAG, "Unable to create backend guest session for posture sync.", error)
+            false
         }
     }
 

@@ -9,8 +9,10 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.google.mediapipe.examples.poselandmarker.GuestLoginRequest
 import com.google.mediapipe.examples.poselandmarker.HeadUpApiClient
 import com.google.mediapipe.examples.poselandmarker.HeadUpAuthStore
+import com.google.mediapipe.examples.poselandmarker.PostureSyncScheduler
 import com.google.mediapipe.examples.poselandmarker.R
 import com.google.mediapipe.examples.poselandmarker.RegisterRequest
 import com.google.mediapipe.examples.poselandmarker.databinding.FragmentLoginBinding
@@ -37,10 +39,7 @@ class LoginFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.guestButton.setOnClickListener {
-            binding.guestButton.isEnabled = false
-            HeadUpAuthStore.startGuestSession(requireContext())
-            Toast.makeText(requireContext(), R.string.login_guest_started, Toast.LENGTH_SHORT).show()
-            navigateToNext()
+            startGuest()
         }
         binding.loginButton.setOnClickListener {
             val email = binding.emailInput.text.toString().trim()
@@ -95,6 +94,35 @@ class LoginFragment : Fragment() {
             } finally {
                 setAuthButtonsEnabled(true)
                 _binding?.loginButton?.setText(R.string.login_button)
+            }
+        }
+    }
+
+    private fun startGuest() {
+        setAuthButtonsEnabled(false)
+        binding.guestButton.setText(R.string.guest_connecting)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val appContext = requireContext().applicationContext
+            try {
+                val token = HeadUpApiClient.service.guest(
+                    GuestLoginRequest(HeadUpAuthStore.deviceUserId(appContext)),
+                )
+                saveToken(token)
+                PostureSyncScheduler.enqueueOneTime(appContext)
+                Toast.makeText(requireContext(), R.string.login_guest_synced, Toast.LENGTH_SHORT).show()
+                navigateToNext()
+            } catch (error: Exception) {
+                HeadUpAuthStore.startGuestSession(appContext)
+                val message = when (error) {
+                    is ConnectException, is SocketTimeoutException, is UnknownHostException ->
+                        R.string.login_guest_offline_backend_unavailable
+                    else -> R.string.login_guest_offline_started
+                }
+                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                navigateToNext()
+            } finally {
+                setAuthButtonsEnabled(true)
+                _binding?.guestButton?.setText(R.string.login_guest)
             }
         }
     }

@@ -53,11 +53,14 @@ object HeadUpAuthStore {
     fun currentUserId(context: Context): String =
         prefs(context).getString(KEY_USER_ID, null) ?: getOrCreateDeviceUserId(context)
 
+    fun deviceUserId(context: Context): String =
+        getOrCreateDeviceUserId(context)
+
     fun isSignedIn(context: Context): Boolean =
         !accessToken(context).isNullOrBlank()
 
     fun userLabel(context: Context): String =
-        if (isSignedIn(context)) currentUserId(context) else "Guest ${getOrCreateDeviceUserId(context).takeLast(6)}"
+        if (role(context) == "guest") "Guest ${getOrCreateDeviceUserId(context).takeLast(6)}" else currentUserId(context)
 
     fun subscriptionTier(context: Context): String =
         prefs(context).getString(KEY_SUBSCRIPTION_TIER, null) ?: if (isSignedIn(context)) "free" else "guest"

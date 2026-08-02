@@ -21,9 +21,13 @@
     <string name="login_invalid_email">請輸入有效的電子信箱。</string>
     <string name="login_invalid_password">密碼至少需要 8 個字元。</string>
     <string name="login_connecting">連線中...</string>
+    <string name="guest_connecting">訪客連線中...</string>
     <string name="register_connecting">建立帳號中...</string>
     <string name="login_success">登入成功，背景同步已啟用。</string>
     <string name="login_guest_started">訪客模式已啟用，紀錄會保存在此裝置。</string>
+    <string name="login_guest_synced">訪客模式已啟用，去識別化紀錄會同步到後端。</string>
+    <string name="login_guest_offline_started">訪客離線模式已啟用，後端可用後會自動同步。</string>
+    <string name="login_guest_offline_backend_unavailable">後端目前無法連線，訪客紀錄會先保存在此裝置並稍後同步。</string>
     <string name="login_bad_credentials">電子信箱或密碼錯誤。</string>
     <string name="login_backend_unavailable">無法連到 HeadUp 後端，請先啟動 backend/start_dev_backend.ps1 後再試一次。</string>
     <string name="login_failed">無法登入：%1$s</string>

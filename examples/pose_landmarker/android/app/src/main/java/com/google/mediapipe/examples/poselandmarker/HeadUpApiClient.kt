@@ -18,6 +18,10 @@ data class RegisterRequest(
     val password: String,
 )
 
+data class GuestLoginRequest(
+    @SerializedName("device_id") val deviceId: String,
+)
+
 data class UserResponse(
     val id: String,
     val email: String,
@@ -55,6 +59,9 @@ interface HeadUpApiService {
         @Field("username") email: String,
         @Field("password") password: String,
     ): TokenResponse
+
+    @POST("api/v1/auth/guest")
+    suspend fun guest(@Body request: GuestLoginRequest): TokenResponse
 
     @POST("api/v1/reports/sync")
     suspend fun syncDailyReports(
