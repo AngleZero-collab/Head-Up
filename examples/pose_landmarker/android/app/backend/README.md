@@ -67,9 +67,21 @@ On startup, the backend creates this account if it does not exist. If the email 
 
 Open `http://127.0.0.1:8000/dashboard` to use the built-in chart dashboard. Log in with the seeded admin account, then review the user distribution chart, seven-day slouch trend, user table, and report table.
 
+Open `http://127.0.0.1:8000/download` to download the current debug demo APK from the backend website. If other phones are on the same Wi-Fi or hotspot, use your Windows IP instead, for example `http://172.20.10.5:8000/download`.
+
 Open `http://127.0.0.1:8000/docs`, call `POST /api/v1/auth/login` with the seeded admin account, click **Authorize**, paste the JWT as `Bearer <token>`, then call:
 
 - `GET /api/v1/users` to see every registered and guest user.
 - `GET /api/v1/reports` to see all synced posture reports.
 
 Guest users appear with `role = guest` and an email like `guest-xxxxxxxx@guest.headup.local`.
+
+## APK Distribution
+
+For demos, run `:app:assembleDebug`, keep the backend running, and share:
+
+```text
+http://YOUR_WINDOWS_IP:8000/download
+```
+
+For public release, create a signed release APK or Android App Bundle. Do not commit keystores or signing passwords to Git.

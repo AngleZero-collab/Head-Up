@@ -1,7 +1,19 @@
-from fastapi import APIRouter
-from fastapi.responses import HTMLResponse
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
 
 router = APIRouter(tags=["dashboard"])
+
+ANDROID_APP_DIR = Path(__file__).resolve().parents[2]
+APK_CANDIDATES = (
+    ANDROID_APP_DIR / "build" / "outputs" / "apk" / "debug" / "app-debug.apk",
+    ANDROID_APP_DIR / "build" / "intermediates" / "apk" / "debug" / "app-debug.apk",
+)
+
+
+def find_debug_apk() -> Path | None:
+    return next((path for path in APK_CANDIDATES if path.exists()), None)
 
 
 DASHBOARD_HTML = """
@@ -334,6 +346,7 @@ DASHBOARD_HTML = """
         </div>
         <div class="actions">
           <button id="refreshButton" class="button primary" type="button">重新整理</button>
+          <button id="downloadButton" class="button" type="button">下載 APK</button>
           <button id="docsButton" class="button" type="button">API 文件</button>
           <button id="logoutButton" class="button" type="button">登出</button>
         </div>
@@ -468,6 +481,9 @@ DASHBOARD_HTML = """
     });
     document.getElementById("docsButton").addEventListener("click", () => {
       window.location.href = "/docs";
+    });
+    document.getElementById("downloadButton").addEventListener("click", () => {
+      window.location.href = "/download";
     });
 
     function showDashboard() {
@@ -748,3 +764,143 @@ DASHBOARD_HTML = """
 @router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard() -> HTMLResponse:
     return HTMLResponse(DASHBOARD_HTML)
+
+
+DOWNLOAD_HTML = """
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Download HeadUp APK</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071426;
+      --panel: rgba(20, 35, 66, 0.86);
+      --line: rgba(94, 214, 255, 0.24);
+      --text: #f4f8ff;
+      --muted: #9fb1cf;
+      --cyan: #38cfff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      font-family: Inter, "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 26% 16%, rgba(56, 207, 255, 0.18), transparent 28rem),
+        linear-gradient(180deg, #071426 0%, #0a1024 100%);
+      color: var(--text);
+    }
+
+    .card {
+      width: min(680px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--panel);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+      padding: clamp(24px, 6vw, 42px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 26px;
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #5de1ff, #1399d8);
+      box-shadow: 0 0 30px rgba(56, 207, 255, 0.34);
+      font-size: 42px;
+      font-weight: 900;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--cyan);
+      font-size: clamp(34px, 8vw, 54px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    .download {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 54px;
+      margin-top: 28px;
+      padding: 0 24px;
+      border-radius: 14px;
+      color: #06101f;
+      background: linear-gradient(180deg, #62dfff, #23bde9);
+      font-weight: 900;
+      text-decoration: none;
+      box-shadow: 0 0 28px rgba(56, 207, 255, 0.24);
+    }
+
+    .note {
+      margin-top: 22px;
+      padding: 16px;
+      border: 1px solid rgba(148, 170, 216, 0.16);
+      border-radius: 16px;
+      background: rgba(5, 14, 31, 0.52);
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">
+      <div class="logo">↑</div>
+      <div>
+        <h1>HeadUp</h1>
+        <p>Android Demo APK 下載</p>
+      </div>
+    </div>
+    <p>點擊下方按鈕下載目前伺服器上的 HeadUp demo APK。下載後 Android 會要求允許「安裝未知來源應用程式」。</p>
+    <a class="download" href="/downloads/headup-debug.apk">下載 HeadUp APK</a>
+    <div class="note">
+      <p>這是 debug demo APK，適合展示與測試。正式大量發佈前，請改用簽署過的 release APK 或 Google Play / AAB 發佈流程。</p>
+    </div>
+  </main>
+</body>
+</html>
+"""
+
+
+@router.get("/download", response_class=HTMLResponse, include_in_schema=False)
+async def download_page() -> HTMLResponse:
+    return HTMLResponse(DOWNLOAD_HTML)
+
+
+@router.get("/downloads/headup-debug.apk", include_in_schema=False)
+async def download_debug_apk() -> FileResponse:
+    apk_path = find_debug_apk()
+    if apk_path is None:
+        raise HTTPException(
+            status_code=404,
+            detail="HeadUp debug APK was not found. Run :app:assembleDebug before downloading.",
+        )
+    return FileResponse(
+        apk_path,
+        media_type="application/vnd.android.package-archive",
+        filename="HeadUp-demo-debug.apk",
+    )
