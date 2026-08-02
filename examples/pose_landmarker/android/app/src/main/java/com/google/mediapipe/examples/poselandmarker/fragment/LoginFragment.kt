@@ -16,6 +16,9 @@ import com.google.mediapipe.examples.poselandmarker.RegisterRequest
 import com.google.mediapipe.examples.poselandmarker.databinding.FragmentLoginBinding
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 class LoginFragment : Fragment() {
     private var _binding: FragmentLoginBinding? = null
@@ -81,6 +84,12 @@ class LoginFragment : Fragment() {
                     getString(R.string.login_failed, "HTTP ${error.code()}")
                 }
                 Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+            } catch (error: ConnectException) {
+                Toast.makeText(requireContext(), R.string.login_backend_unavailable, Toast.LENGTH_LONG).show()
+            } catch (error: SocketTimeoutException) {
+                Toast.makeText(requireContext(), R.string.login_backend_unavailable, Toast.LENGTH_LONG).show()
+            } catch (error: UnknownHostException) {
+                Toast.makeText(requireContext(), R.string.login_backend_unavailable, Toast.LENGTH_LONG).show()
             } catch (error: Exception) {
                 Toast.makeText(requireContext(), getString(R.string.login_failed, error.message), Toast.LENGTH_LONG).show()
             } finally {
@@ -110,7 +119,12 @@ class LoginFragment : Fragment() {
                 Toast.makeText(requireContext(), R.string.register_success, Toast.LENGTH_SHORT).show()
                 navigateToNext()
             } catch (error: Exception) {
-                Toast.makeText(requireContext(), getString(R.string.register_failed, error.message), Toast.LENGTH_LONG).show()
+                val message = when (error) {
+                    is ConnectException, is SocketTimeoutException, is UnknownHostException ->
+                        getString(R.string.login_backend_unavailable)
+                    else -> getString(R.string.register_failed, error.message)
+                }
+                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
             } finally {
                 setAuthButtonsEnabled(true)
                 _binding?.registerButton?.setText(R.string.register_button)

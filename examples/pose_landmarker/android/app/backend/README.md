@@ -12,6 +12,20 @@ copy .env.example .env
 uvicorn app.main:app --reload
 ```
 
+For Android Emulator login testing, use the included helper:
+
+```powershell
+.\start_dev_backend.ps1
+```
+
+The default local `.env.example` uses SQLite so login/register can work before PostgreSQL is installed. The Android debug build calls `http://10.0.2.2:8000/`, which maps the emulator to this backend running on your Windows machine.
+
+For a production PostgreSQL deployment, install the PostgreSQL driver as well:
+
+```powershell
+pip install -r requirements-postgres.txt
+```
+
 `POST /api/v1/auth/register` creates an account.
 `POST /api/v1/auth/login` returns a 30 minute JWT token.
 `GET /api/v1/auth/me` returns the current authenticated account.
