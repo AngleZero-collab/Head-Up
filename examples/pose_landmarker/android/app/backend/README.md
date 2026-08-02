@@ -20,6 +20,18 @@ For Android Emulator login testing, use the included helper:
 
 The default local `.env.example` uses SQLite so login/register can work before PostgreSQL is installed. The Android debug build calls `http://10.0.2.2:8000/`, which maps the emulator to this backend running on your Windows machine.
 
+If you are testing on a real Android phone or a non-Android-Studio emulator, `10.0.2.2` will usually not work. Add your Windows machine IP to `examples/pose_landmarker/android/app/local.properties`:
+
+```properties
+headupApiBaseUrl=http://YOUR_WINDOWS_IP:8000/
+```
+
+For example, if `ipconfig` shows your Wi-Fi IPv4 address is `172.20.10.5`, use:
+
+```properties
+headupApiBaseUrl=http://172.20.10.5:8000/
+```
+
 For a production PostgreSQL deployment, install the PostgreSQL driver as well:
 
 ```powershell

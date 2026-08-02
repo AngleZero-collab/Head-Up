@@ -22,6 +22,14 @@ plugins {
     // id 'com.google.gms.google-services'
 }
 
+def appLocalProperties = new Properties()
+def appLocalPropertiesFile = project.file("local.properties")
+if (appLocalPropertiesFile.exists()) {
+    appLocalPropertiesFile.withInputStream { appLocalProperties.load(it) }
+}
+def headupApiBaseUrl = appLocalProperties.getProperty("headupApiBaseUrl", "http://10.0.2.2:8000/")
+def escapedHeadupApiBaseUrl = headupApiBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")
+
 android {
     namespace 'com.google.mediapipe.examples.poselandmarker'
     compileSdk 34
@@ -32,7 +40,7 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
-        buildConfigField "String", "HEADUP_API_BASE_URL", "\"http://10.0.2.2:8000/\""
+        buildConfigField "String", "HEADUP_API_BASE_URL", "\"${escapedHeadupApiBaseUrl}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
