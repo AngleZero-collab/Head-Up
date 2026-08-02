@@ -65,6 +65,8 @@ On startup, the backend creates this account if it does not exist. If the email 
 
 ## Viewing All User Data
 
+Open `http://127.0.0.1:8000/dashboard` to use the built-in chart dashboard. Log in with the seeded admin account, then review the user distribution chart, seven-day slouch trend, user table, and report table.
+
 Open `http://127.0.0.1:8000/docs`, call `POST /api/v1/auth/login` with the seeded admin account, click **Authorize**, paste the JWT as `Bearer <token>`, then call:
 
 - `GET /api/v1/users` to see every registered and guest user.

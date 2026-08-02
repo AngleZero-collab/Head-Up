@@ -7,6 +7,7 @@ from sqlalchemy import inspect, select, text, update
 
 from app.api.v1.router import api_router
 from app.config import get_settings
+from app.dashboard import router as dashboard_router
 from app.database import Base, engine
 from app.models import User
 from app.security import hash_password
@@ -72,6 +73,7 @@ if settings.cors_origins:
     )
 
 app.include_router(api_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/health")
