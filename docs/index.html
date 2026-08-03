@@ -14,13 +14,16 @@
       --bg: #071426;
       --bg2: #0b1024;
       --panel: rgba(20, 35, 66, 0.78);
-      --panel-strong: rgba(28, 45, 84, 0.94);
+      --panel-strong: rgba(28, 45, 84, 0.95);
       --line: rgba(94, 214, 255, 0.22);
       --text: #f4f8ff;
       --muted: #a8b8d4;
       --cyan: #38cfff;
       --green: #7fe39a;
-      --shadow: rgba(0, 0, 0, 0.35);
+      --yellow: #ffd166;
+      --coral: #ff6b6b;
+      --purple: #a989ff;
+      --shadow: rgba(0, 0, 0, 0.34);
     }
 
     * {
@@ -38,7 +41,7 @@
       color: var(--text);
       background:
         radial-gradient(circle at 20% 8%, rgba(56, 207, 255, 0.18), transparent 26rem),
-        radial-gradient(circle at 82% 16%, rgba(169, 137, 255, 0.15), transparent 24rem),
+        radial-gradient(circle at 84% 12%, rgba(169, 137, 255, 0.14), transparent 24rem),
         linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
     }
 
@@ -47,15 +50,20 @@
       text-decoration: none;
     }
 
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
     .shell {
-      width: min(1160px, calc(100% - 32px));
+      width: min(1180px, calc(100% - 32px));
       margin: 0 auto;
     }
 
     .nav {
       position: sticky;
       top: 0;
-      z-index: 4;
+      z-index: 10;
       backdrop-filter: blur(18px);
       background: rgba(7, 20, 38, 0.78);
       border-bottom: 1px solid rgba(94, 214, 255, 0.12);
@@ -66,15 +74,15 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 20px;
+      gap: 18px;
     }
 
     .brand {
       display: inline-flex;
       align-items: center;
       gap: 12px;
-      font-weight: 900;
       color: var(--cyan);
+      font-weight: 900;
       letter-spacing: 0;
     }
 
@@ -95,7 +103,7 @@
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 18px;
+      gap: 16px;
       color: var(--muted);
       font-size: 14px;
     }
@@ -114,7 +122,7 @@
       border-radius: 14px;
       color: var(--text);
       background: rgba(23, 39, 74, 0.76);
-      font-weight: 800;
+      font-weight: 850;
       transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
     }
 
@@ -134,16 +142,14 @@
     .hero {
       min-height: calc(100vh - 72px);
       display: grid;
-      grid-template-columns: minmax(0, 1.02fr) minmax(310px, 0.8fr);
+      grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
       align-items: center;
-      gap: clamp(32px, 7vw, 80px);
-      padding: 58px 0 70px;
+      gap: clamp(30px, 6vw, 72px);
+      padding: 56px 0 70px;
     }
 
     .eyebrow {
       display: inline-flex;
-      align-items: center;
-      gap: 8px;
       margin-bottom: 18px;
       padding: 8px 12px;
       border: 1px solid rgba(127, 227, 154, 0.28);
@@ -151,15 +157,14 @@
       color: var(--green);
       background: rgba(127, 227, 154, 0.08);
       font-size: 13px;
-      font-weight: 800;
+      font-weight: 850;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(46px, 8vw, 88px);
+      font-size: clamp(46px, 8vw, 86px);
       line-height: 0.96;
       letter-spacing: 0;
-      color: var(--text);
     }
 
     .hero-title strong {
@@ -167,7 +172,7 @@
     }
 
     .hero-copy {
-      max-width: 640px;
+      max-width: 650px;
       margin: 24px 0 0;
       color: var(--muted);
       font-size: clamp(17px, 2.4vw, 21px);
@@ -209,228 +214,41 @@
       line-height: 1.45;
     }
 
-    .phone-wrap {
-      position: relative;
-      min-height: 620px;
+    .hero-gallery {
       display: grid;
-      place-items: center;
-    }
-
-    .phone {
-      position: relative;
-      width: min(340px, 88vw);
-      aspect-ratio: 9 / 18.9;
-      border: 10px solid rgba(255, 255, 255, 0.11);
-      border-radius: 44px;
-      background: linear-gradient(180deg, #09172d, #101b3d);
-      box-shadow: 0 34px 90px var(--shadow), 0 0 70px rgba(56, 207, 255, 0.16);
-      padding: 28px 18px 18px;
-      overflow: hidden;
-    }
-
-    .phone::before {
-      content: "";
-      position: absolute;
-      width: 120px;
-      height: 22px;
-      left: 50%;
-      top: 0;
-      transform: translateX(-50%);
-      border-radius: 0 0 18px 18px;
-      background: #020712;
-    }
-
-    .app-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: 14px;
-    }
-
-    .app-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--cyan);
-      font-size: 26px;
-      font-weight: 900;
-    }
-
-    .mini-logo {
-      width: 38px;
-      height: 38px;
-      display: grid;
-      place-items: center;
-      border-radius: 12px;
-      background: linear-gradient(180deg, #5de1ff, #1399d8);
-      color: #fff;
-      font-weight: 900;
-    }
-
-    .icon-dot {
-      width: 38px;
-      height: 38px;
-      border-radius: 12px;
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    .scan-card,
-    .metric-card,
-    .dragon-card {
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      background: rgba(30, 46, 86, 0.72);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    }
-
-    .scan-card {
-      position: relative;
-      height: 240px;
-      margin-top: 24px;
-      overflow: hidden;
-      background:
-        linear-gradient(180deg, rgba(226, 236, 226, 0.95), rgba(220, 226, 216, 0.92)),
-        rgba(255, 255, 255, 0.9);
-    }
-
-    .person {
-      position: absolute;
-      left: 50%;
-      bottom: 0;
-      width: 164px;
-      height: 190px;
-      transform: translateX(-50%);
-    }
-
-    .head {
-      position: absolute;
-      left: 48px;
-      top: 12px;
-      width: 70px;
-      height: 82px;
-      border-radius: 32px 32px 36px 36px;
-      background: #d1a27f;
-    }
-
-    .hair {
-      position: absolute;
-      left: 42px;
-      top: 0;
-      width: 82px;
-      height: 42px;
-      border-radius: 40px 40px 10px 10px;
-      background: #182033;
-    }
-
-    .body {
-      position: absolute;
-      left: 22px;
-      bottom: 0;
-      width: 124px;
-      height: 102px;
-      border-radius: 34px 34px 0 0;
-      background: #162238;
-    }
-
-    .phone-in-hand {
-      position: absolute;
-      left: 54px;
-      bottom: 24px;
-      width: 58px;
-      height: 72px;
-      border-radius: 10px;
-      background: #27364d;
-      border: 3px solid #b9c6d8;
-    }
-
-    .pose-ring {
-      position: absolute;
-      left: 50%;
-      top: 42px;
-      width: 168px;
-      height: 168px;
-      transform: translateX(-50%);
-      border: 6px solid rgba(127, 227, 154, 0.72);
-      border-radius: 50%;
-      box-shadow: 0 0 28px rgba(127, 227, 154, 0.32);
-    }
-
-    .pose-line {
-      position: absolute;
-      left: 62px;
-      right: 62px;
-      top: 170px;
-      height: 5px;
-      border-radius: 999px;
-      background: rgba(127, 227, 154, 0.78);
-      transform: rotate(4deg);
-    }
-
-    .metric-card {
-      padding: 16px;
-      margin-top: 16px;
-    }
-
-    .metric-title {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .angle {
-      margin-top: 6px;
-      color: var(--cyan);
-      font-size: 56px;
-      font-weight: 900;
-      line-height: 1;
-    }
-
-    .progress {
-      height: 12px;
-      margin-top: 12px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.1);
-      overflow: hidden;
-    }
-
-    .progress span {
-      display: block;
-      width: 72%;
-      height: 100%;
-      border-radius: inherit;
-      background: linear-gradient(90deg, var(--cyan), var(--green));
-    }
-
-    .dragon-card {
-      display: flex;
-      align-items: center;
+      grid-template-columns: 1.1fr 0.9fr;
       gap: 14px;
-      padding: 14px;
-      margin-top: 14px;
+      align-items: center;
     }
 
-    .dragon {
-      width: 70px;
-      height: 70px;
-      border-radius: 22px;
+    .shot {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: rgba(20, 35, 66, 0.58);
+      box-shadow: 0 28px 80px var(--shadow);
+      overflow: hidden;
+    }
+
+    .shot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .shot.primary-shot {
+      aspect-ratio: 628 / 1460;
+      max-height: 720px;
+    }
+
+    .shot-stack {
       display: grid;
-      place-items: center;
-      color: #062137;
-      background: radial-gradient(circle at 35% 30%, #9bf0ff, #4fc7f7 62%, #2a9dcc);
-      font-size: 38px;
-      font-weight: 900;
+      gap: 14px;
     }
 
-    .dragon-info b {
-      display: block;
-      margin-bottom: 4px;
-    }
-
-    .dragon-info span {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.4;
+    .shot.small-shot {
+      aspect-ratio: 622 / 1024;
+      max-height: 350px;
     }
 
     section {
@@ -438,7 +256,7 @@
     }
 
     .section-head {
-      max-width: 720px;
+      max-width: 780px;
       margin-bottom: 26px;
     }
 
@@ -463,7 +281,8 @@
 
     .feature-card,
     .download-panel,
-    .step {
+    .step,
+    .pain-card {
       border: 1px solid var(--line);
       border-radius: 20px;
       background: var(--panel);
@@ -471,7 +290,7 @@
     }
 
     .feature-card {
-      min-height: 212px;
+      min-height: 220px;
       padding: 20px;
     }
 
@@ -488,17 +307,101 @@
     }
 
     .feature-card h3,
-    .step h3 {
+    .step h3,
+    .pain-copy h3 {
       margin: 0;
       font-size: 20px;
     }
 
     .feature-card p,
-    .step p {
+    .step p,
+    .pain-copy p {
       margin: 12px 0 0;
       color: var(--muted);
       line-height: 1.65;
       font-size: 15px;
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .demo-card {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      overflow: hidden;
+      background: rgba(20, 35, 66, 0.62);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    }
+
+    .demo-card img {
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      object-fit: cover;
+      object-position: top center;
+    }
+
+    .demo-card figcaption {
+      padding: 14px 16px 16px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .demo-card b {
+      display: block;
+      color: var(--text);
+      margin-bottom: 4px;
+      font-size: 16px;
+    }
+
+    .pain-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .pain-card {
+      overflow: hidden;
+      background: var(--panel-strong);
+    }
+
+    .pain-card img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      object-position: center;
+      border-bottom: 1px solid rgba(94, 214, 255, 0.16);
+    }
+
+    .pain-copy {
+      padding: 22px;
+    }
+
+    .pain-tag {
+      display: inline-flex;
+      margin-bottom: 14px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: #071426;
+      background: var(--yellow);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .pain-card:nth-child(2) .pain-tag {
+      background: var(--coral);
+      color: #fff;
+    }
+
+    .notice {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
     }
 
     .download-panel {
@@ -561,39 +464,47 @@
       flex-wrap: wrap;
     }
 
-    @media (max-width: 940px) {
-      .hero {
+    @media (max-width: 980px) {
+      .hero,
+      .download-panel {
         grid-template-columns: 1fr;
-        padding-top: 46px;
       }
 
-      .phone-wrap {
-        min-height: auto;
+      .hero-gallery {
+        grid-template-columns: 0.95fr 1.05fr;
       }
 
       .feature-grid,
+      .demo-grid,
       .steps {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .download-panel {
+      .pain-grid {
         grid-template-columns: 1fr;
       }
     }
 
     @media (max-width: 640px) {
       .shell {
-        width: min(100% - 22px, 1160px);
+        width: min(100% - 22px, 1180px);
       }
 
       .nav-links {
         display: none;
       }
 
+      .hero-gallery,
       .trust-row,
       .feature-grid,
+      .demo-grid,
       .steps {
         grid-template-columns: 1fr;
+      }
+
+      .shot.primary-shot,
+      .shot.small-shot {
+        max-height: none;
       }
 
       section {
@@ -611,8 +522,8 @@
       </a>
       <div class="nav-links">
         <a href="#features">功能</a>
+        <a href="#pain">衛教痛點</a>
         <a href="#download">下載 Demo</a>
-        <a href="#install">安裝說明</a>
         <a class="button primary" href="https://github.com/t110590455-creator/Head-Up/releases/latest/download/HeadUp-demo-debug.apk">下載 APK</a>
       </div>
     </div>
@@ -646,37 +557,17 @@
         </div>
       </div>
 
-      <div class="phone-wrap" aria-label="HeadUp app preview">
-        <div class="phone">
-          <div class="app-head">
-            <div class="app-brand">
-              <span class="mini-logo">↑</span>
-              <span>HeadUp</span>
-            </div>
-            <span class="icon-dot"></span>
-          </div>
-          <div class="scan-card">
-            <div class="person">
-              <div class="body"></div>
-              <div class="head"></div>
-              <div class="hair"></div>
-              <div class="phone-in-hand"></div>
-            </div>
-            <div class="pose-ring"></div>
-            <div class="pose-line"></div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-title">Current Neck Angle</div>
-            <div class="angle">12°</div>
-            <div class="progress"><span></span></div>
-          </div>
-          <div class="dragon-card">
-            <div class="dragon">龍</div>
-            <div class="dragon-info">
-              <b>Vision Dragon</b>
-              <span>能量 75%，今天表現很好。</span>
-            </div>
-          </div>
+      <div class="hero-gallery" aria-label="HeadUp demo screenshots">
+        <figure class="shot primary-shot">
+          <img src="assets/demo-scan.png" alt="HeadUp 姿勢掃描 demo 畫面" />
+        </figure>
+        <div class="shot-stack">
+          <figure class="shot small-shot">
+            <img src="assets/demo-stats.png" alt="HeadUp 家長守護報表 demo 畫面" />
+          </figure>
+          <figure class="shot small-shot">
+            <img src="assets/demo-challenge-blue.png" alt="HeadUp Vision Dragon 挑戰 demo 畫面" />
+          </figure>
         </div>
       </div>
     </div>
@@ -691,7 +582,7 @@
           <article class="feature-card">
             <div class="feature-icon">01</div>
             <h3>即時姿勢偵測</h3>
-            <p>前鏡頭辨識眼睛、鼻子、肩膀等點位，推估頭前傾與頸部姿勢狀態。</p>
+            <p>前鏡頭辨識眼睛、鼻子、肩膀等點位，推估頭前傾、頸椎曲線、肩膀平衡與螢幕距離。</p>
           </article>
           <article class="feature-card">
             <div class="feature-icon">02</div>
@@ -709,6 +600,57 @@
             <p>以 Q 版 Vision Dragon、任務和獎勵提升學生持續使用動機。</p>
           </article>
         </div>
+
+        <div class="demo-grid">
+          <figure class="demo-card">
+            <img src="assets/demo-scan-results.png" alt="姿勢掃描結果四項指標" />
+            <figcaption><b>姿勢掃描結果</b>頭部前傾、頸椎曲線、肩膀平衡與螢幕距離一目了然。</figcaption>
+          </figure>
+          <figure class="demo-card">
+            <img src="assets/demo-stats-alert.png" alt="資料頁紅框提醒" />
+            <figcaption><b>危險紅框提醒</b>偵測到不良姿勢時，以柔和紅框提示抬頭休息。</figcaption>
+          </figure>
+          <figure class="demo-card">
+            <img src="assets/demo-challenge-rest.png" alt="Vision Dragon 需要休息" />
+            <figcaption><b>遊戲化任務</b>Little Blue 會根據姿勢表現改變能量與狀態。</figcaption>
+          </figure>
+          <figure class="demo-card">
+            <img src="assets/demo-shop.png" alt="HeadUp 商店頁" />
+            <figcaption><b>健康積分商店</b>以造型、背景與獎勵兌換鼓勵孩子維持好習慣。</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="pain">
+      <div class="shell">
+        <div class="section-head">
+          <h2>衛教宣導痛點</h2>
+          <p>HeadUp 不是醫療診斷工具，而是把日常風險變成孩子看得懂、家長看得到的提醒與紀錄。</p>
+        </div>
+        <div class="pain-grid">
+          <article class="pain-card">
+            <img src="assets/pain-neck-load.png" alt="低頭角度與頸椎壓力衛教圖" />
+            <div class="pain-copy">
+              <span class="pain-tag">痛點 1</span>
+              <h3>低頭角度越大，頸椎承受越多隱形重量</h3>
+              <p>
+                孩子長時間低頭看書、滑手機或使用平板時，頭頸角度會把負擔集中到頸椎。HeadUp 以 25 度作為不良姿勢警戒，提醒孩子及早抬頭與休息。
+              </p>
+            </div>
+          </article>
+          <article class="pain-card">
+            <img src="assets/pain-myopia-risk.png" alt="高度近視與視網膜風險衛教圖" />
+            <div class="pain-copy">
+              <span class="pain-tag">痛點 2</span>
+              <h3>高度近視與長時間近距離用眼，需要被日常管理</h3>
+              <p>
+                近距離閱讀與螢幕使用時間拉長，會讓家長更難掌握孩子的用眼習慣。HeadUp 將護眼任務、休息紀錄與家長報表整合，讓衛教不只停在口頭提醒。
+              </p>
+            </div>
+          </article>
+        </div>
+        <p class="notice">衛教圖表與數值用於產品宣導與風險溝通；若有眼科或頸椎相關症狀，仍應由專業醫療人員評估。</p>
       </div>
     </section>
 
@@ -717,7 +659,7 @@
         <div class="download-panel">
           <div>
             <h2>下載 HeadUp Demo APK</h2>
-            <p>這個按鈕會連到 GitHub Releases 最新版本。請先建立 release，並上傳檔名為 <strong>HeadUp-demo-debug.apk</strong> 的 APK。</p>
+            <p>下載按鈕連到 GitHub Releases 最新版本，Android 手機可直接下載安裝 Demo。</p>
           </div>
           <a class="button primary" href="https://github.com/t110590455-creator/Head-Up/releases/latest/download/HeadUp-demo-debug.apk">下載 Demo</a>
         </div>
