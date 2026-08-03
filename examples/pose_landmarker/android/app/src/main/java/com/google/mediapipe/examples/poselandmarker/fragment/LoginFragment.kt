@@ -41,6 +41,9 @@ class LoginFragment : Fragment() {
         binding.guestButton.setOnClickListener {
             startGuest()
         }
+        binding.quickUseButton.setOnClickListener {
+            startQuickUse()
+        }
         binding.loginButton.setOnClickListener {
             val email = binding.emailInput.text.toString().trim()
             val password = binding.passwordInput.text.toString()
@@ -96,6 +99,16 @@ class LoginFragment : Fragment() {
                 _binding?.loginButton?.setText(R.string.login_button)
             }
         }
+    }
+
+    private fun startQuickUse() {
+        setAuthButtonsEnabled(false)
+        val appContext = requireContext().applicationContext
+        HeadUpAuthStore.startGuestSession(appContext)
+        PostureSyncScheduler.schedulePeriodic(appContext)
+        PostureSyncScheduler.enqueueOneTime(appContext)
+        Toast.makeText(requireContext(), R.string.login_quick_use_started, Toast.LENGTH_LONG).show()
+        navigateToNext()
     }
 
     private fun startGuest() {
@@ -173,6 +186,7 @@ class LoginFragment : Fragment() {
     private fun setAuthButtonsEnabled(enabled: Boolean) {
         _binding?.loginButton?.isEnabled = enabled
         _binding?.registerButton?.isEnabled = enabled
+        _binding?.quickUseButton?.isEnabled = enabled
         _binding?.guestButton?.isEnabled = enabled
     }
 

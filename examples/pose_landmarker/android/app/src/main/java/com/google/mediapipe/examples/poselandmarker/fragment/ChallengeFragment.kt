@@ -44,7 +44,7 @@ class ChallengeFragment : Fragment() {
         binding.dragonVideoView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
                 currentSurface = Surface(texture)
-                updateDragonVideo(currentVideoResId.takeIf { it != 0 } ?: R.raw.blue_dragon)
+                updateDragonVideo(currentVideoResId.takeIf { it != 0 } ?: R.raw.happy_dragon)
             }
 
             override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
@@ -124,7 +124,7 @@ class ChallengeFragment : Fragment() {
         val goodTask = state.tasks.first { it.id == "good_posture" }
         binding.claimMaintainButton.isEnabled = goodTask.isComplete && !goodTask.claimed
         binding.claimMaintainButton.setText(if (goodTask.claimed) R.string.claimed else R.string.claim_reward)
-        updateDragonVideo(if (state.metrics.zone == PostureZone.DANGER) R.raw.angry_dragon else R.raw.blue_dragon)
+        updateDragonVideo(if (state.metrics.zone == PostureZone.DANGER) R.raw.angry_dragon else R.raw.happy_dragon)
     }
 
     private fun claimGoodPostureReward() {

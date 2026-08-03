@@ -10,12 +10,17 @@
     <string name="menu_shop">商店</string>
     <string name="headup_notification">通知</string>
     <string name="headup_settings">設定</string>
+    <string name="guard_stop">停止守護</string>
+    <string name="guard_start">重新啟動守護</string>
+    <string name="guard_stopped">HeadUp 背景守護已停止。</string>
+    <string name="guard_started">HeadUp 背景守護已重新啟動。</string>
 
     <string name="login_subtitle">守護讀書時間的安全姿勢防護</string>
     <string name="login_email">電子信箱</string>
     <string name="login_password">密碼</string>
     <string name="login_button">登入</string>
     <string name="register_button">註冊新帳號</string>
+    <string name="login_quick_use">快速使用</string>
     <string name="login_guest">以訪客離線使用</string>
     <string name="login_hint">只會同步去識別化姿勢摘要。</string>
     <string name="login_invalid_email">請輸入有效的電子信箱。</string>
@@ -24,6 +29,7 @@
     <string name="guest_connecting">訪客連線中...</string>
     <string name="register_connecting">建立帳號中...</string>
     <string name="login_success">登入成功，背景同步已啟用。</string>
+    <string name="login_quick_use_started">快速使用已啟用，資料會先保存在手機，之後有連線再自動同步。</string>
     <string name="login_guest_started">訪客模式已啟用，紀錄會保存在此裝置。</string>
     <string name="login_guest_synced">訪客模式已啟用，去識別化紀錄會同步到後端。</string>
     <string name="login_guest_offline_started">訪客離線模式已啟用，後端可用後會自動同步。</string>

@@ -269,11 +269,11 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
         }
         PostureAnalyzer.resetSmoothing()
 
-        if (handOffToService && context != null &&
-            (activity as? MainActivity)?.shouldResumeBackgroundGuard() != false
-        ) {
+        if (handOffToService && context != null) {
             HeadUpRepository.setForegroundScanActive(requireContext(), false)
-            (activity as? MainActivity)?.startHeadUpService(HeadUpService.ACTION_RESUME_CAMERA)
+            if ((activity as? MainActivity)?.shouldResumeBackgroundGuard() != false) {
+                (activity as? MainActivity)?.startHeadUpService(HeadUpService.ACTION_RESUME_CAMERA)
+            }
         }
     }
 

@@ -10,12 +10,17 @@
     <string name="menu_shop">Shop</string>
     <string name="headup_notification">Notifications</string>
     <string name="headup_settings">Settings</string>
+    <string name="guard_stop">Stop protection</string>
+    <string name="guard_start">Resume protection</string>
+    <string name="guard_stopped">HeadUp background protection stopped.</string>
+    <string name="guard_started">HeadUp background protection resumed.</string>
 
     <string name="login_subtitle">Secure posture protection for study time</string>
     <string name="login_email">Email</string>
     <string name="login_password">Password</string>
     <string name="login_button">Log in</string>
     <string name="register_button">Create account</string>
+    <string name="login_quick_use">Quick use</string>
     <string name="login_guest">Continue offline as guest</string>
     <string name="login_hint">Only de-identified posture summaries are synced.</string>
     <string name="login_invalid_email">Enter a valid email address.</string>
@@ -24,6 +29,7 @@
     <string name="guest_connecting">Connecting guest...</string>
     <string name="register_connecting">Creating account...</string>
     <string name="login_success">Signed in. Background sync is enabled.</string>
+    <string name="login_quick_use_started">Quick use is ready. Data stays on this phone first and syncs later when connected.</string>
     <string name="login_guest_started">Guest mode is ready. Records stay on this device.</string>
     <string name="login_guest_synced">Guest mode is ready. De-identified records will sync to the backend.</string>
     <string name="login_guest_offline_started">Guest offline mode is ready. Records will sync after the backend is available.</string>

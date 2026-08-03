@@ -34,6 +34,7 @@ object HeadUpRepository {
     private const val KEY_OWNED_ITEMS = "owned_items"
     private const val KEY_CLAIMED_TASKS = "claimed_tasks"
     private const val KEY_ALARM_ENABLED = "alarm_enabled"
+    private const val KEY_BACKGROUND_GUARD_ENABLED = "background_guard_enabled"
     private const val KEY_CALIBRATION_REQUESTED = "calibration_requested"
     private const val KEY_SELECTED_MODEL = "selected_model"
     private const val KEY_SELECTED_DELEGATE = "selected_delegate"
@@ -221,6 +222,14 @@ object HeadUpRepository {
 
     fun setAlarmEnabled(context: Context, enabled: Boolean) {
         getPrefs(context).edit { putBoolean(KEY_ALARM_ENABLED, enabled) }
+        currentState(context)
+    }
+
+    fun isBackgroundGuardEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean(KEY_BACKGROUND_GUARD_ENABLED, true)
+
+    fun setBackgroundGuardEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_BACKGROUND_GUARD_ENABLED, enabled) }
         currentState(context)
     }
 

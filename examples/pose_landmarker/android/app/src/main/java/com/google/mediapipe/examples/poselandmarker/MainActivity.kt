@@ -53,12 +53,15 @@ class MainActivity : AppCompatActivity() {
         configureNavigationChrome()
 
         binding.notificationButton.setOnClickListener { openNotificationControls() }
+        binding.stopGuardButton.setOnClickListener { toggleBackgroundGuard() }
         binding.settingsButton.setOnClickListener { showSettingsDialog() }
+        updateGuardButton()
         PostureSyncScheduler.schedulePeriodic(this)
         initPermissionFlow()
     }
 
     fun startHeadUpService(action: String = HeadUpService.ACTION_PAUSE_CAMERA) {
+        if (!HeadUpRepository.isBackgroundGuardEnabled(this)) return
         if (!PermissionsFragment.hasPermissions(this)) return
         ContextCompat.startForegroundService(
             this,
@@ -66,7 +69,8 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    fun shouldResumeBackgroundGuard(): Boolean = !suppressBackgroundGuardResume
+    fun shouldResumeBackgroundGuard(): Boolean =
+        !suppressBackgroundGuardResume && HeadUpRepository.isBackgroundGuardEnabled(this)
 
     private fun playLaunchAnimation() {
         binding.splashLogo.apply {
@@ -176,7 +180,40 @@ class MainActivity : AppCompatActivity() {
             }
             binding.headupTopBar.visibility = if (showAppChrome) View.VISIBLE else View.GONE
             binding.navigationShell.visibility = if (showAppChrome) View.VISIBLE else View.GONE
+            updateGuardButton()
         }
+    }
+
+    private fun toggleBackgroundGuard() {
+        val enabled = HeadUpRepository.isBackgroundGuardEnabled(this)
+        if (enabled) {
+            HeadUpRepository.setBackgroundGuardEnabled(this, false)
+            suppressBackgroundGuardResume = true
+            stopService(Intent(this, HeadUpService::class.java))
+            Toast.makeText(this, R.string.guard_stopped, Toast.LENGTH_SHORT).show()
+        } else {
+            HeadUpRepository.setBackgroundGuardEnabled(this, true)
+            suppressBackgroundGuardResume = false
+            val action = if (HeadUpRepository.isForegroundScanActive(this)) {
+                HeadUpService.ACTION_PAUSE_CAMERA
+            } else {
+                HeadUpService.ACTION_RESUME_CAMERA
+            }
+            startHeadUpService(action)
+            Toast.makeText(this, R.string.guard_started, Toast.LENGTH_SHORT).show()
+        }
+        updateGuardButton()
+    }
+
+    private fun updateGuardButton() {
+        if (!::binding.isInitialized) return
+        val enabled = HeadUpRepository.isBackgroundGuardEnabled(this)
+        binding.stopGuardButton.setImageResource(
+            if (enabled) R.drawable.ic_stop_headup else R.drawable.ic_play_headup,
+        )
+        binding.stopGuardButton.contentDescription = getString(
+            if (enabled) R.string.guard_stop else R.string.guard_start,
+        )
     }
 
     private fun showDataManagementDialog() {
@@ -225,6 +262,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage(R.string.reset_data_message)
             .setPositiveButton(R.string.reset_data_confirm) { _, _ ->
                 HeadUpRepository.resetAllData(this)
+                updateGuardButton()
                 Toast.makeText(this, R.string.reset_data_complete, Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(android.R.string.cancel, null)
