@@ -1,7 +1,9 @@
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+
+from app.config import get_settings
 
 router = APIRouter(tags=["dashboard"])
 
@@ -892,7 +894,11 @@ async def download_page() -> HTMLResponse:
 
 
 @router.get("/downloads/headup-debug.apk", include_in_schema=False)
-async def download_debug_apk() -> FileResponse:
+async def download_debug_apk() -> Response:
+    settings = get_settings()
+    if settings.apk_download_url:
+        return RedirectResponse(settings.apk_download_url)
+
     apk_path = find_debug_apk()
     if apk_path is None:
         raise HTTPException(

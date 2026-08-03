@@ -85,3 +85,5 @@ http://YOUR_WINDOWS_IP:8000/download
 ```
 
 For public release, create a signed release APK or Android App Bundle. Do not commit keystores or signing passwords to Git.
+
+For a public website deployment, see `DEPLOYMENT.md`.

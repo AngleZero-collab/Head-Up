@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     admin_email: str | None = Field(default=None, alias="ADMIN_EMAIL")
     admin_password: str | None = Field(default=None, alias="ADMIN_PASSWORD")
     admin_subscription_tier: str = Field(default="admin", alias="ADMIN_SUBSCRIPTION_TIER")
+    apk_download_url: str | None = Field(default=None, alias="APK_DOWNLOAD_URL")
     jwt_algorithm: str = "HS256"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
