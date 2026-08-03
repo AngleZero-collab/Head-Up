@@ -61,7 +61,7 @@ async def seed_admin_account(connection) -> None:
 
 
 settings = get_settings()
-app = FastAPI(title="HeadUp API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Head Up API", version="1.0.0", lifespan=lifespan)
 
 if settings.cors_origins:
     app.add_middleware(

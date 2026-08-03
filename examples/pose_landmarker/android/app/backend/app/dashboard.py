@@ -24,7 +24,7 @@ DASHBOARD_HTML = """
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HeadUp Data Dashboard</title>
+  <title>Head Up Data Dashboard</title>
   <style>
     :root {
       color-scheme: dark;
@@ -317,7 +317,7 @@ DASHBOARD_HTML = """
       <div class="brand">
         <div class="logo">↑</div>
         <div>
-          <h1>HeadUp</h1>
+          <h1>Head Up</h1>
           <p class="subtitle">後端資料圖表中心</p>
         </div>
       </div>
@@ -342,7 +342,7 @@ DASHBOARD_HTML = """
         <div class="brand">
           <div class="logo">↑</div>
           <div>
-            <h1>HeadUp Data Dashboard</h1>
+            <h1>Head Up Data Dashboard</h1>
             <p class="subtitle">即時查看所有用戶與訪客的去識別化姿勢摘要。</p>
           </div>
         </div>
@@ -774,7 +774,7 @@ DOWNLOAD_HTML = """
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Download HeadUp APK</title>
+  <title>Download Head Up APK</title>
   <style>
     :root {
       color-scheme: dark;
@@ -873,12 +873,12 @@ DOWNLOAD_HTML = """
     <div class="brand">
       <div class="logo">↑</div>
       <div>
-        <h1>HeadUp</h1>
+        <h1>Head Up</h1>
         <p>Android Demo APK 下載</p>
       </div>
     </div>
-    <p>點擊下方按鈕下載目前伺服器上的 HeadUp demo APK。下載後 Android 會要求允許「安裝未知來源應用程式」。</p>
-    <a class="download" href="/downloads/headup-debug.apk">下載 HeadUp APK</a>
+    <p>點擊下方按鈕下載目前伺服器上的 Head Up demo APK。下載後 Android 會要求允許「安裝未知來源應用程式」。</p>
+    <a class="download" href="/downloads/headup-debug.apk">下載 Head Up APK</a>
     <div class="note">
       <p>這是 debug demo APK，適合展示與測試。正式大量發佈前，請改用簽署過的 release APK 或 Google Play / AAB 發佈流程。</p>
     </div>
@@ -903,10 +903,10 @@ async def download_debug_apk() -> Response:
     if apk_path is None:
         raise HTTPException(
             status_code=404,
-            detail="HeadUp debug APK was not found. Run :app:assembleDebug before downloading.",
+            detail="Head Up debug APK was not found. Run :app:assembleDebug before downloading.",
         )
     return FileResponse(
         apk_path,
         media_type="application/vnd.android.package-archive",
-        filename="HeadUp-demo-debug.apk",
+        filename="Head Up-demo-debug.apk",
     )

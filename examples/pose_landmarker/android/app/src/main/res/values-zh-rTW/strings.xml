@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">HeadUp</string>
+    <string name="app_name">Head Up</string>
     <string name="media_pipe">MediaPipe</string>
 
     <string name="menu_camera">掃描</string>
@@ -12,8 +12,8 @@
     <string name="headup_settings">設定</string>
     <string name="guard_stop">停止守護</string>
     <string name="guard_start">重新啟動守護</string>
-    <string name="guard_stopped">HeadUp 背景守護已停止。</string>
-    <string name="guard_started">HeadUp 背景守護已重新啟動。</string>
+    <string name="guard_stopped">Head Up 背景守護已停止。</string>
+    <string name="guard_started">Head Up 背景守護已重新啟動。</string>
 
     <string name="login_subtitle">守護讀書時間的安全姿勢防護</string>
     <string name="login_email">電子信箱</string>
@@ -35,7 +35,7 @@
     <string name="login_guest_offline_started">訪客離線模式已啟用，後端可用後會自動同步。</string>
     <string name="login_guest_offline_backend_unavailable">後端目前無法連線，訪客紀錄會先保存在此裝置並稍後同步。</string>
     <string name="login_bad_credentials">電子信箱或密碼錯誤。</string>
-    <string name="login_backend_unavailable">無法連到 HeadUp 後端，請先啟動 backend/start_dev_backend.ps1 後再試一次。</string>
+    <string name="login_backend_unavailable">無法連到 Head Up 後端，請先啟動 backend/start_dev_backend.ps1 後再試一次。</string>
     <string name="login_failed">無法登入：%1$s</string>
     <string name="register_success">帳號建立成功，已自動登入。</string>
     <string name="register_email_exists">這個電子信箱已註冊，請直接登入。</string>
@@ -64,10 +64,10 @@
     <string name="language_title">選擇語言</string>
     <string name="language_english">English</string>
     <string name="language_chinese">繁體中文</string>
-    <string name="notification_permission_granted">HeadUp 通知已啟用</string>
+    <string name="notification_permission_granted">Head Up 通知已啟用</string>
     <string name="notification_permission_denied">通知未啟用，背景守護仍會繼續執行。</string>
     <string name="overlay_permission_title">啟用姿勢警告框</string>
-    <string name="overlay_permission_message">允許 HeadUp 顯示在其他 App 上層，連續姿勢不良超過 3 秒時才會顯示紅色邊框。</string>
+    <string name="overlay_permission_message">允許 Head Up 顯示在其他 App 上層，連續姿勢不良超過 3 秒時才會顯示紅色邊框。</string>
     <string name="overlay_permission_open">前往設定</string>
     <string name="overlay_permission_later">稍後</string>
     <string name="overlay_permission_enabled">紅色警告框已啟用</string>
@@ -175,12 +175,12 @@
     <string name="reset_data_title">重設所有姿勢資料？</string>
     <string name="reset_data_message">這會刪除本機姿勢歷史、校準、任務進度與獎勵。</string>
     <string name="reset_data_confirm">重設</string>
-    <string name="reset_data_complete">HeadUp 本機資料已重設。</string>
+    <string name="reset_data_complete">Head Up 本機資料已重設。</string>
 
-    <string name="notification_guard_title">HeadUp 背景守護</string>
+    <string name="notification_guard_title">Head Up 背景守護</string>
     <string name="notification_guard_text">%1$d 度 - %2$s</string>
-    <string name="notification_channel_name">HeadUp 姿勢偵測服務</string>
-    <string name="posture_status_safe">姿勢很好，保持 HeadUp！</string>
+    <string name="notification_channel_name">Head Up 姿勢偵測服務</string>
+    <string name="posture_status_safe">姿勢很好，保持 Head Up！</string>
     <string name="posture_status_warning">接近警戒區，慢慢抬頭。</string>
     <string name="posture_status_danger">偵測到姿勢不良，請抬頭休息。</string>
 </resources>

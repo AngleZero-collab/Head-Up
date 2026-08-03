@@ -1,6 +1,6 @@
-# HeadUp FastAPI Backend
+# Head Up FastAPI Backend
 
-Minimal async FastAPI service for central HeadUp user accounts and de-identified daily report sync.
+Minimal async FastAPI service for central Head Up user accounts and de-identified daily report sync.
 
 ## Run Locally
 
@@ -45,7 +45,7 @@ pip install -r requirements-postgres.txt
 `POST /api/v1/auth/guest` creates or reuses a de-identified backend guest account for one device.
 `GET /api/v1/auth/me` returns the current authenticated account.
 `GET /api/v1/users` lists all registered and guest accounts for admin users.
-`POST /api/v1/reports/sync` accepts authenticated daily HeadUp reports and stores them in the database.
+`POST /api/v1/reports/sync` accepts authenticated daily Head Up reports and stores them in the database.
 `GET /api/v1/reports` lists all synced posture reports for admin users.
 `POST /api/v1/records/sync` remains as a legacy compatibility endpoint.
 

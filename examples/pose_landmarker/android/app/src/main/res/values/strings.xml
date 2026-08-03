@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">HeadUp</string>
+    <string name="app_name">Head Up</string>
     <string name="media_pipe">MediaPipe</string>
 
     <string name="menu_camera">Scan</string>
@@ -12,8 +12,8 @@
     <string name="headup_settings">Settings</string>
     <string name="guard_stop">Stop protection</string>
     <string name="guard_start">Resume protection</string>
-    <string name="guard_stopped">HeadUp background protection stopped.</string>
-    <string name="guard_started">HeadUp background protection resumed.</string>
+    <string name="guard_stopped">Head Up background protection stopped.</string>
+    <string name="guard_started">Head Up background protection resumed.</string>
 
     <string name="login_subtitle">Secure posture protection for study time</string>
     <string name="login_email">Email</string>
@@ -35,7 +35,7 @@
     <string name="login_guest_offline_started">Guest offline mode is ready. Records will sync after the backend is available.</string>
     <string name="login_guest_offline_backend_unavailable">Backend is unavailable. Guest records will stay on this device and sync later.</string>
     <string name="login_bad_credentials">Incorrect email or password.</string>
-    <string name="login_backend_unavailable">Could not reach the HeadUp backend. Start backend/start_dev_backend.ps1 and try again.</string>
+    <string name="login_backend_unavailable">Could not reach the Head Up backend. Start backend/start_dev_backend.ps1 and try again.</string>
     <string name="login_failed">Could not sign in: %1$s</string>
     <string name="register_success">Account created and signed in.</string>
     <string name="register_email_exists">This email is already registered. Please log in.</string>
@@ -64,10 +64,10 @@
     <string name="language_title">Choose language</string>
     <string name="language_english">English</string>
     <string name="language_chinese">Traditional Chinese</string>
-    <string name="notification_permission_granted">HeadUp notifications enabled</string>
+    <string name="notification_permission_granted">Head Up notifications enabled</string>
     <string name="notification_permission_denied">Notifications are off. Background protection will continue.</string>
     <string name="overlay_permission_title">Enable posture warning border</string>
-    <string name="overlay_permission_message">Allow HeadUp to draw over other apps so it can show a red border after 3 seconds of continuous poor posture.</string>
+    <string name="overlay_permission_message">Allow Head Up to draw over other apps so it can show a red border after 3 seconds of continuous poor posture.</string>
     <string name="overlay_permission_open">Open settings</string>
     <string name="overlay_permission_later">Later</string>
     <string name="overlay_permission_enabled">Red warning border is enabled</string>
@@ -175,12 +175,12 @@
     <string name="reset_data_title">Reset all posture data?</string>
     <string name="reset_data_message">This deletes local posture history, calibration, task progress, and rewards.</string>
     <string name="reset_data_confirm">Reset</string>
-    <string name="reset_data_complete">Local HeadUp data reset.</string>
+    <string name="reset_data_complete">Local Head Up data reset.</string>
 
-    <string name="notification_guard_title">HeadUp background protection</string>
+    <string name="notification_guard_title">Head Up background protection</string>
     <string name="notification_guard_text">%1$d degrees - %2$s</string>
-    <string name="notification_channel_name">HeadUp posture detection</string>
-    <string name="posture_status_safe">Good posture. Keep your HeadUp!</string>
+    <string name="notification_channel_name">Head Up posture detection</string>
+    <string name="posture_status_safe">Good posture. Keep your Head Up!</string>
     <string name="posture_status_warning">Approaching the warning range.</string>
     <string name="posture_status_danger">Poor posture detected. Please look up.</string>
 

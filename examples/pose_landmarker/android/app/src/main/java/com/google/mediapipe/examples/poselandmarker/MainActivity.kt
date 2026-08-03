@@ -233,12 +233,12 @@ class MainActivity : AppCompatActivity() {
         HeadUpRepository.getAllRecordsAsCsv(this) { csvString ->
             runOnUiThread {
                 try {
-                    val file = File(cacheDir, "HeadUp_Data_${System.currentTimeMillis()}.csv")
+                    val file = File(cacheDir, "Head Up_Data_${System.currentTimeMillis()}.csv")
                     file.writeText(csvString)
                     val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/csv"
-                        putExtra(Intent.EXTRA_SUBJECT, "HeadUp Posture Data Export")
+                        putExtra(Intent.EXTRA_SUBJECT, "Head Up Posture Data Export")
                         putExtra(Intent.EXTRA_STREAM, uri)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }

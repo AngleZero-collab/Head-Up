@@ -33,7 +33,7 @@ ALLOWED_ORIGINS=https://YOUR_PUBLIC_DOMAIN
 ADMIN_EMAIL=admin@headup.local
 ADMIN_PASSWORD=replace-with-a-strong-admin-password
 ADMIN_SUBSCRIPTION_TIER=admin
-APK_DOWNLOAD_URL=https://github.com/YOUR_ACCOUNT/YOUR_REPO/releases/download/v1.0/HeadUp.apk
+APK_DOWNLOAD_URL=https://github.com/YOUR_ACCOUNT/YOUR_REPO/releases/download/v1.0/Head Up.apk
 ```
 
 `APK_DOWNLOAD_URL` is optional. When it is set, the backend download route redirects users to that hosted APK file. This is better than committing APK files into Git.
