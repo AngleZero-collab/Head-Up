@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    name="description"
+    content="HeadUp 是為 K-12 學生設計的 AI 姿勢與護眼防護 App，提供姿勢偵測、AI 預警、家長資料圖表與 Demo APK 下載。"
+  />
+  <title>HeadUp | AI Posture Protection Demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071426;
+      --bg2: #0b1024;
+      --panel: rgba(20, 35, 66, 0.78);
+      --panel-strong: rgba(28, 45, 84, 0.94);
+      --line: rgba(94, 214, 255, 0.22);
+      --text: #f4f8ff;
+      --muted: #a8b8d4;
+      --cyan: #38cfff;
+      --green: #7fe39a;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% 8%, rgba(56, 207, 255, 0.18), transparent 26rem),
+        radial-gradient(circle at 82% 16%, rgba(169, 137, 255, 0.15), transparent 24rem),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .shell {
+      width: min(1160px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      backdrop-filter: blur(18px);
+      background: rgba(7, 20, 38, 0.78);
+      border-bottom: 1px solid rgba(94, 214, 255, 0.12);
+    }
+
+    .nav-inner {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      color: var(--cyan);
+      letter-spacing: 0;
+    }
+
+    .logo {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      color: #fff;
+      background: linear-gradient(180deg, #5de1ff, #1399d8);
+      box-shadow: 0 0 28px rgba(56, 207, 255, 0.32);
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 18px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--text);
+      background: rgba(23, 39, 74, 0.76);
+      font-weight: 800;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(56, 207, 255, 0.58);
+      background: rgba(34, 54, 98, 0.9);
+    }
+
+    .button.primary {
+      border: 0;
+      color: #06101f;
+      background: linear-gradient(180deg, #62dfff, #23bde9);
+      box-shadow: 0 0 28px rgba(56, 207, 255, 0.24);
+    }
+
+    .hero {
+      min-height: calc(100vh - 72px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.02fr) minmax(310px, 0.8fr);
+      align-items: center;
+      gap: clamp(32px, 7vw, 80px);
+      padding: 58px 0 70px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 18px;
+      padding: 8px 12px;
+      border: 1px solid rgba(127, 227, 154, 0.28);
+      border-radius: 999px;
+      color: var(--green);
+      background: rgba(127, 227, 154, 0.08);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(46px, 8vw, 88px);
+      line-height: 0.96;
+      letter-spacing: 0;
+      color: var(--text);
+    }
+
+    .hero-title strong {
+      color: var(--cyan);
+    }
+
+    .hero-copy {
+      max-width: 640px;
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: clamp(17px, 2.4vw, 21px);
+      line-height: 1.75;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .trust-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 34px;
+      max-width: 680px;
+    }
+
+    .trust-item {
+      padding: 16px;
+      border: 1px solid rgba(94, 214, 255, 0.14);
+      border-radius: 16px;
+      background: rgba(20, 35, 66, 0.52);
+    }
+
+    .trust-item b {
+      display: block;
+      color: var(--text);
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
+    .trust-item span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .phone-wrap {
+      position: relative;
+      min-height: 620px;
+      display: grid;
+      place-items: center;
+    }
+
+    .phone {
+      position: relative;
+      width: min(340px, 88vw);
+      aspect-ratio: 9 / 18.9;
+      border: 10px solid rgba(255, 255, 255, 0.11);
+      border-radius: 44px;
+      background: linear-gradient(180deg, #09172d, #101b3d);
+      box-shadow: 0 34px 90px var(--shadow), 0 0 70px rgba(56, 207, 255, 0.16);
+      padding: 28px 18px 18px;
+      overflow: hidden;
+    }
+
+    .phone::before {
+      content: "";
+      position: absolute;
+      width: 120px;
+      height: 22px;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      border-radius: 0 0 18px 18px;
+      background: #020712;
+    }
+
+    .app-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .app-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--cyan);
+      font-size: 26px;
+      font-weight: 900;
+    }
+
+    .mini-logo {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #5de1ff, #1399d8);
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .icon-dot {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .scan-card,
+    .metric-card,
+    .dragon-card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(30, 46, 86, 0.72);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .scan-card {
+      position: relative;
+      height: 240px;
+      margin-top: 24px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(226, 236, 226, 0.95), rgba(220, 226, 216, 0.92)),
+        rgba(255, 255, 255, 0.9);
+    }
+
+    .person {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      width: 164px;
+      height: 190px;
+      transform: translateX(-50%);
+    }
+
+    .head {
+      position: absolute;
+      left: 48px;
+      top: 12px;
+      width: 70px;
+      height: 82px;
+      border-radius: 32px 32px 36px 36px;
+      background: #d1a27f;
+    }
+
+    .hair {
+      position: absolute;
+      left: 42px;
+      top: 0;
+      width: 82px;
+      height: 42px;
+      border-radius: 40px 40px 10px 10px;
+      background: #182033;
+    }
+
+    .body {
+      position: absolute;
+      left: 22px;
+      bottom: 0;
+      width: 124px;
+      height: 102px;
+      border-radius: 34px 34px 0 0;
+      background: #162238;
+    }
+
+    .phone-in-hand {
+      position: absolute;
+      left: 54px;
+      bottom: 24px;
+      width: 58px;
+      height: 72px;
+      border-radius: 10px;
+      background: #27364d;
+      border: 3px solid #b9c6d8;
+    }
+
+    .pose-ring {
+      position: absolute;
+      left: 50%;
+      top: 42px;
+      width: 168px;
+      height: 168px;
+      transform: translateX(-50%);
+      border: 6px solid rgba(127, 227, 154, 0.72);
+      border-radius: 50%;
+      box-shadow: 0 0 28px rgba(127, 227, 154, 0.32);
+    }
+
+    .pose-line {
+      position: absolute;
+      left: 62px;
+      right: 62px;
+      top: 170px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(127, 227, 154, 0.78);
+      transform: rotate(4deg);
+    }
+
+    .metric-card {
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .metric-title {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .angle {
+      margin-top: 6px;
+      color: var(--cyan);
+      font-size: 56px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .progress {
+      height: 12px;
+      margin-top: 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+
+    .progress span {
+      display: block;
+      width: 72%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--green));
+    }
+
+    .dragon-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      margin-top: 14px;
+    }
+
+    .dragon {
+      width: 70px;
+      height: 70px;
+      border-radius: 22px;
+      display: grid;
+      place-items: center;
+      color: #062137;
+      background: radial-gradient(circle at 35% 30%, #9bf0ff, #4fc7f7 62%, #2a9dcc);
+      font-size: 38px;
+      font-weight: 900;
+    }
+
+    .dragon-info b {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .dragon-info span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    section {
+      padding: 80px 0;
+    }
+
+    .section-head {
+      max-width: 720px;
+      margin-bottom: 26px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 52px);
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin: 14px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 17px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .feature-card,
+    .download-panel,
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--panel);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    }
+
+    .feature-card {
+      min-height: 212px;
+      padding: 20px;
+    }
+
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      color: #06101f;
+      background: var(--cyan);
+      font-weight: 900;
+      margin-bottom: 18px;
+    }
+
+    .feature-card h3,
+    .step h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .feature-card p,
+    .step p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .download-panel {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 28px;
+      padding: clamp(24px, 5vw, 42px);
+      background:
+        linear-gradient(135deg, rgba(56, 207, 255, 0.16), rgba(169, 137, 255, 0.12)),
+        var(--panel-strong);
+    }
+
+    .download-panel h2 {
+      margin: 0;
+      font-size: clamp(30px, 5vw, 48px);
+    }
+
+    .download-panel p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .step {
+      padding: 20px;
+    }
+
+    .step-number {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+      border-radius: 12px;
+      color: #06101f;
+      background: var(--green);
+      font-weight: 900;
+    }
+
+    .footer {
+      border-top: 1px solid rgba(94, 214, 255, 0.12);
+      padding: 28px 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 940px) {
+      .hero {
+        grid-template-columns: 1fr;
+        padding-top: 46px;
+      }
+
+      .phone-wrap {
+        min-height: auto;
+      }
+
+      .feature-grid,
+      .steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .download-panel {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        width: min(100% - 22px, 1160px);
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .trust-row,
+      .feature-grid,
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      section {
+        padding: 56px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="shell nav-inner">
+      <a class="brand" href="#top" aria-label="HeadUp home">
+        <span class="logo">↑</span>
+        <span>HeadUp</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">功能</a>
+        <a href="#download">下載 Demo</a>
+        <a href="#install">安裝說明</a>
+        <a class="button primary" href="https://github.com/t110590455-creator/Head-Up/releases/latest/download/HeadUp-demo-debug.apk">下載 APK</a>
+      </div>
+    </div>
+  </nav>
+
+  <main id="top">
+    <div class="shell hero">
+      <div>
+        <div class="eyebrow">AI posture guard for study time</div>
+        <h1 class="hero-title">HeadUp<br /><strong>守護讀書姿勢</strong></h1>
+        <p class="hero-copy">
+          透過 MediaPipe Edge AI、姿勢角度分析與即時提醒，HeadUp 協助學生在閱讀、寫作與使用平板時維持更安全的頭頸姿勢。
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="https://github.com/t110590455-creator/Head-Up/releases/latest/download/HeadUp-demo-debug.apk">下載 Android Demo</a>
+          <a class="button" href="https://github.com/t110590455-creator/Head-Up">查看 GitHub 專案</a>
+        </div>
+        <div class="trust-row">
+          <div class="trust-item">
+            <b>25°</b>
+            <span>姿勢不良警戒角度</span>
+          </div>
+          <div class="trust-item">
+            <b>3s</b>
+            <span>連續危險姿勢防抖提醒</span>
+          </div>
+          <div class="trust-item">
+            <b>AI</b>
+            <span>角速度預測式提前提醒</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-wrap" aria-label="HeadUp app preview">
+        <div class="phone">
+          <div class="app-head">
+            <div class="app-brand">
+              <span class="mini-logo">↑</span>
+              <span>HeadUp</span>
+            </div>
+            <span class="icon-dot"></span>
+          </div>
+          <div class="scan-card">
+            <div class="person">
+              <div class="body"></div>
+              <div class="head"></div>
+              <div class="hair"></div>
+              <div class="phone-in-hand"></div>
+            </div>
+            <div class="pose-ring"></div>
+            <div class="pose-line"></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">Current Neck Angle</div>
+            <div class="angle">12°</div>
+            <div class="progress"><span></span></div>
+          </div>
+          <div class="dragon-card">
+            <div class="dragon">龍</div>
+            <div class="dragon-info">
+              <b>Vision Dragon</b>
+              <span>能量 75%，今天表現很好。</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section id="features">
+      <div class="shell">
+        <div class="section-head">
+          <h2>Demo 功能</h2>
+          <p>HeadUp demo 聚焦在前鏡頭姿勢偵測、背景守護、資料統計與遊戲化任務，適合展示產品原型與評審體驗。</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-icon">01</div>
+            <h3>即時姿勢偵測</h3>
+            <p>前鏡頭辨識眼睛、鼻子、肩膀等點位，推估頭前傾與頸部姿勢狀態。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">02</div>
+            <h3>AI 預警</h3>
+            <p>加入 EMA 降噪、3 秒防抖與角速度追蹤，降低誤觸提醒並提前攔截姿勢崩塌。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">03</div>
+            <h3>家長資料圖表</h3>
+            <p>將真實紀錄同步到後端，透過 dashboard 查看用戶、訪客與每日姿勢統計。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">04</div>
+            <h3>Vision Dragon</h3>
+            <p>以 Q 版 Vision Dragon、任務和獎勵提升學生持續使用動機。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="download">
+      <div class="shell">
+        <div class="download-panel">
+          <div>
+            <h2>下載 HeadUp Demo APK</h2>
+            <p>這個按鈕會連到 GitHub Releases 最新版本。請先建立 release，並上傳檔名為 <strong>HeadUp-demo-debug.apk</strong> 的 APK。</p>
+          </div>
+          <a class="button primary" href="https://github.com/t110590455-creator/Head-Up/releases/latest/download/HeadUp-demo-debug.apk">下載 Demo</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="install">
+      <div class="shell">
+        <div class="section-head">
+          <h2>Android 安裝方式</h2>
+          <p>Demo APK 不走 Play Store 時，手機會要求允許瀏覽器安裝未知來源應用程式。</p>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <div class="step-number">1</div>
+            <h3>開啟網站</h3>
+            <p>用 Android 手機開啟 GitHub Pages 介紹頁，點擊下載 Demo。</p>
+          </article>
+          <article class="step">
+            <div class="step-number">2</div>
+            <h3>允許安裝</h3>
+            <p>依照系統提示允許瀏覽器安裝未知來源 APK。</p>
+          </article>
+          <article class="step">
+            <div class="step-number">3</div>
+            <h3>開始體驗</h3>
+            <p>開啟 HeadUp，使用訪客模式或註冊帳號體驗姿勢防護流程。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="shell footer-inner">
+      <span>HeadUp Demo MVP</span>
+      <span>Built with Kotlin, CameraX, MediaPipe and FastAPI</span>
+    </div>
+  </footer>
+</body>
+</html>
