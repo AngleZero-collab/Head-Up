@@ -42,16 +42,16 @@ jobs:
       - name: Rename APK
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/HeadUp-demo-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk release/Head.Up-demo-debug.apk
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}
-          name: HeadUp Demo APK
+          name: Head Up Demo APK
           body: |
-            HeadUp Android demo APK.
+            Head Up Android demo APK.
 
             API base URL: `${{ inputs.api_base_url }}`
-          files: examples/pose_landmarker/android/release/HeadUp-demo-debug.apk
+          files: examples/pose_landmarker/android/release/Head.Up-demo-debug.apk
           make_latest: true
