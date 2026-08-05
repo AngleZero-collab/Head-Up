@@ -30,8 +30,8 @@ object PostureAnalyzer {
     private const val RAPID_FALL_VELOCITY = 0.5f
     private const val MIN_TRACKING_CONFIDENCE = 0.20f
     private const val DEFAULT_UPRIGHT_RATIO = 0.82f
-    private const val TOO_CLOSE_WARNING_CM = 35
-    private const val TOO_CLOSE_DANGER_CM = 25
+    private const val TOO_CLOSE_WARNING_CM = 30
+    private const val TOO_CLOSE_DANGER_CM = 20
     private const val SHOULDER_WARNING_DEGREES = 8
     private const val SHOULDER_DANGER_DEGREES = 14
     private const val NECK_RATIO_TO_DEGREES = 110f

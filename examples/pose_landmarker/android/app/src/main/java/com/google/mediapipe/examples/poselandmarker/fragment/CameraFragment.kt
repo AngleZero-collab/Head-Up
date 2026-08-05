@@ -434,11 +434,18 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
             getString(R.string.screen_distance),
             when {
                 metrics.screenDistanceCm == null -> getString(R.string.distance_requires_calibration)
-                metrics.isTooClose -> getString(R.string.distance_too_close)
+                metrics.screenDistanceCm < 20 -> getString(R.string.distance_too_close)
+                metrics.screenDistanceCm < 30 -> getString(R.string.distance_attention)
+                metrics.screenDistanceCm <= 40 -> getString(R.string.distance_normal)
                 else -> getString(R.string.distance_normal)
             },
             metrics.screenDistanceCm?.let { getString(R.string.centimeters_format, it) } ?: "--",
-            if (metrics.isTooClose) R.color.headup_warning else R.color.headup_safe,
+            when {
+                metrics.screenDistanceCm == null -> R.color.headup_text_secondary
+                metrics.screenDistanceCm < 20 -> R.color.headup_danger
+                metrics.screenDistanceCm < 30 -> R.color.headup_warning
+                else -> R.color.headup_safe
+            },
         )
     }
 

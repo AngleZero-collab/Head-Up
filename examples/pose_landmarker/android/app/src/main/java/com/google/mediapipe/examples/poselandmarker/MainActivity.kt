@@ -53,9 +53,11 @@ class MainActivity : AppCompatActivity() {
         configureNavigationChrome()
 
         binding.notificationButton.setOnClickListener { openNotificationControls() }
+        binding.petOverlayButton.setOnClickListener { togglePetOverlay() }
         binding.stopGuardButton.setOnClickListener { toggleBackgroundGuard() }
         binding.settingsButton.setOnClickListener { showSettingsDialog() }
         updateGuardButton()
+        updatePetOverlayButton()
         PostureSyncScheduler.schedulePeriodic(this)
         initPermissionFlow()
     }
@@ -181,6 +183,7 @@ class MainActivity : AppCompatActivity() {
             binding.headupTopBar.visibility = if (showAppChrome) View.VISIBLE else View.GONE
             binding.navigationShell.visibility = if (showAppChrome) View.VISIBLE else View.GONE
             updateGuardButton()
+            updatePetOverlayButton()
         }
     }
 
@@ -205,6 +208,30 @@ class MainActivity : AppCompatActivity() {
         updateGuardButton()
     }
 
+    private fun togglePetOverlay() {
+        val enabled = HeadUpRepository.isPetOverlayEnabled(this)
+        HeadUpRepository.setPetOverlayEnabled(this, !enabled)
+        if (enabled) {
+            Toast.makeText(this, R.string.pet_overlay_disabled, Toast.LENGTH_SHORT).show()
+        } else {
+            if (!Settings.canDrawOverlays(this)) {
+                openOverlaySettingsIfNeeded()
+            } else {
+                val action = if (HeadUpRepository.isForegroundScanActive(this)) {
+                    HeadUpService.ACTION_PAUSE_CAMERA
+                } else {
+                    HeadUpService.ACTION_RESUME_CAMERA
+                }
+                ContextCompat.startForegroundService(
+                    this,
+                    Intent(this, HeadUpService::class.java).setAction(action),
+                )
+            }
+            Toast.makeText(this, R.string.pet_overlay_enabled, Toast.LENGTH_SHORT).show()
+        }
+        updatePetOverlayButton()
+    }
+
     private fun updateGuardButton() {
         if (!::binding.isInitialized) return
         val enabled = HeadUpRepository.isBackgroundGuardEnabled(this)
@@ -213,6 +240,15 @@ class MainActivity : AppCompatActivity() {
         )
         binding.stopGuardButton.contentDescription = getString(
             if (enabled) R.string.guard_stop else R.string.guard_start,
+        )
+    }
+
+    private fun updatePetOverlayButton() {
+        if (!::binding.isInitialized) return
+        val enabled = HeadUpRepository.isPetOverlayEnabled(this)
+        binding.petOverlayButton.alpha = if (enabled) 1f else 0.42f
+        binding.petOverlayButton.contentDescription = getString(
+            if (enabled) R.string.pet_overlay_disable else R.string.pet_overlay_enable,
         )
     }
 

@@ -21,7 +21,12 @@ class DistanceCalculator(
         if (rawPixelDistance < MIN_VALID_PIXEL_DISTANCE) return null
 
         val smoothed = smoothedPixelDistance?.let { previous ->
-            alpha * rawPixelDistance + (1f - alpha) * previous
+            val effectiveAlpha = if (rawPixelDistance > previous * FAST_APPROACH_RATIO) {
+                FAST_APPROACH_ALPHA
+            } else {
+                alpha
+            }
+            effectiveAlpha * rawPixelDistance + (1f - effectiveAlpha) * previous
         } ?: rawPixelDistance
         smoothedPixelDistance = smoothed
 
@@ -39,9 +44,11 @@ class DistanceCalculator(
     companion object {
         const val DEFAULT_EMA_ALPHA = 0.15f
         const val DEFAULT_CALIBRATION_DISTANCE_CM = 45f
-        const val DEFAULT_CALIBRATION_CONSTANT = 3_200f
+        const val DEFAULT_CALIBRATION_CONSTANT = 4_000f
+        private const val FAST_APPROACH_ALPHA = 0.45f
+        private const val FAST_APPROACH_RATIO = 1.18f
         private const val MIN_VALID_PIXEL_DISTANCE = 8f
-        private const val MIN_DISTANCE_CM = 15
+        private const val MIN_DISTANCE_CM = 10
         private const val MAX_DISTANCE_CM = 120
 
         fun pixelDistance(leftEye: PixelCoordinate, rightEye: PixelCoordinate): Float =

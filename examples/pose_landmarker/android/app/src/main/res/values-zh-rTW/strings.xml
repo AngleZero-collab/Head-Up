@@ -2,6 +2,10 @@
 <resources>
     <string name="app_name">Head Up</string>
     <string name="media_pipe">MediaPipe</string>
+    <string name="pet_overlay_enable">開啟視力龍彈窗</string>
+    <string name="pet_overlay_disable">關閉視力龍彈窗</string>
+    <string name="pet_overlay_enabled">視力龍彈窗已開啟。</string>
+    <string name="pet_overlay_disabled">視力龍彈窗已關閉。</string>
 
     <string name="menu_camera">掃描</string>
     <string name="menu_gallery">相簿</string>
@@ -94,6 +98,7 @@
     <string name="screen_distance">螢幕距離</string>
     <string name="distance_requires_calibration">校準後可估算</string>
     <string name="distance_too_close">距離過近</string>
+    <string name="distance_attention">請稍微遠離螢幕</string>
     <string name="distance_normal">距離舒適</string>
     <string name="centimeters_format">%1$d 公分</string>
     <string name="reading">讀取中</string>

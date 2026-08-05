@@ -37,6 +37,7 @@ object HeadUpRepository {
     private const val KEY_CLAIMED_TASKS = "claimed_tasks"
     private const val KEY_ALARM_ENABLED = "alarm_enabled"
     private const val KEY_BACKGROUND_GUARD_ENABLED = "background_guard_enabled"
+    private const val KEY_PET_OVERLAY_ENABLED = "pet_overlay_enabled"
     private const val KEY_CALIBRATION_REQUESTED = "calibration_requested"
     private const val KEY_SELECTED_MODEL = "selected_model"
     private const val KEY_SELECTED_DELEGATE = "selected_delegate"
@@ -242,6 +243,14 @@ object HeadUpRepository {
 
     fun setBackgroundGuardEnabled(context: Context, enabled: Boolean) {
         getPrefs(context).edit { putBoolean(KEY_BACKGROUND_GUARD_ENABLED, enabled) }
+        currentState(context)
+    }
+
+    fun isPetOverlayEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean(KEY_PET_OVERLAY_ENABLED, true)
+
+    fun setPetOverlayEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_PET_OVERLAY_ENABLED, enabled) }
         currentState(context)
     }
 

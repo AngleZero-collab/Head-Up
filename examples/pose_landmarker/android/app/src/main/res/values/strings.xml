@@ -14,6 +14,10 @@
     <string name="guard_start">Resume protection</string>
     <string name="guard_stopped">Head Up background protection stopped.</string>
     <string name="guard_started">Head Up background protection resumed.</string>
+    <string name="pet_overlay_enable">Turn on Vision Dragon popup</string>
+    <string name="pet_overlay_disable">Turn off Vision Dragon popup</string>
+    <string name="pet_overlay_enabled">Vision Dragon popup is on.</string>
+    <string name="pet_overlay_disabled">Vision Dragon popup is off.</string>
 
     <string name="login_subtitle">Secure posture protection for study time</string>
     <string name="login_email">Email</string>
@@ -94,6 +98,7 @@
     <string name="screen_distance">Screen distance</string>
     <string name="distance_requires_calibration">Calibrate to estimate</string>
     <string name="distance_too_close">Too close</string>
+    <string name="distance_attention">Move back a little</string>
     <string name="distance_normal">Comfortable distance</string>
     <string name="centimeters_format">%1$d cm</string>
     <string name="reading">Reading</string>

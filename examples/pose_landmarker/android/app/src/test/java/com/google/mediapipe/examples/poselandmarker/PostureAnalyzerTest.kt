@@ -103,7 +103,7 @@ class PostureAnalyzerTest {
             angleDegrees = 0f,
             postureRatio = 0.8f,
             shoulderWidth = 0.3f,
-            distanceConstantK = 2_800f,
+            distanceConstantK = 2_400f,
         )
 
         val metrics = PostureAnalyzer.analyze(
@@ -115,7 +115,7 @@ class PostureAnalyzerTest {
 
         assertTrue(metrics?.isTooClose == true)
         assertEquals(PostureZone.DANGER, metrics?.zone)
-        assertEquals(22, metrics?.screenDistanceCm)
+        assertEquals(19, metrics?.screenDistanceCm)
     }
 
     @Test
@@ -127,7 +127,8 @@ class PostureAnalyzerTest {
         )
 
         assertNotNull(metrics?.eyeDistancePixels)
-        assertEquals(25, metrics?.screenDistanceCm)
+        assertEquals(31, metrics?.screenDistanceCm)
+        assertFalse(metrics?.isTooClose == true)
     }
 
     @Test
