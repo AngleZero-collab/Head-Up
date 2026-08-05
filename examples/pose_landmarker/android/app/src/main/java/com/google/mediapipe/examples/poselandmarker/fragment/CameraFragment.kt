@@ -439,7 +439,11 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
                 metrics.screenDistanceCm <= 40 -> getString(R.string.distance_normal)
                 else -> getString(R.string.distance_normal)
             },
-            metrics.screenDistanceCm?.let { getString(R.string.centimeters_format, it) } ?: "--",
+            when {
+                metrics.screenDistanceCm == null -> "--"
+                metrics.screenDistanceCm < 20 -> getString(R.string.distance_less_than_20_cm)
+                else -> getString(R.string.centimeters_format, metrics.screenDistanceCm)
+            },
             when {
                 metrics.screenDistanceCm == null -> R.color.headup_text_secondary
                 metrics.screenDistanceCm < 20 -> R.color.headup_danger

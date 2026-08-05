@@ -53,11 +53,9 @@ class MainActivity : AppCompatActivity() {
         configureNavigationChrome()
 
         binding.notificationButton.setOnClickListener { openNotificationControls() }
-        binding.petOverlayButton.setOnClickListener { togglePetOverlay() }
         binding.stopGuardButton.setOnClickListener { toggleBackgroundGuard() }
         binding.settingsButton.setOnClickListener { showSettingsDialog() }
         updateGuardButton()
-        updatePetOverlayButton()
         PostureSyncScheduler.schedulePeriodic(this)
         initPermissionFlow()
     }
@@ -107,6 +105,13 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.settings_sync_now),
             getString(R.string.settings_language),
             getString(R.string.settings_overlay),
+            getString(
+                if (HeadUpRepository.isPetOverlayEnabled(this)) {
+                    R.string.settings_pet_overlay_on
+                } else {
+                    R.string.settings_pet_overlay_off
+                },
+            ),
             getString(R.string.settings_calibration),
             getString(R.string.settings_data_management),
             getString(R.string.settings_logout),
@@ -120,10 +125,11 @@ class MainActivity : AppCompatActivity() {
                     1 -> enqueueManualSync()
                     2 -> showLanguagePicker()
                     3 -> openOverlaySettingsIfNeeded()
-                    4 -> navigateToCalibration()
-                    5 -> showDataManagementDialog()
-                    6 -> confirmLogout()
-                    7 -> confirmResetData()
+                    4 -> togglePetOverlay()
+                    5 -> navigateToCalibration()
+                    6 -> showDataManagementDialog()
+                    7 -> confirmLogout()
+                    8 -> confirmResetData()
                 }
             }
             .show()
@@ -183,7 +189,6 @@ class MainActivity : AppCompatActivity() {
             binding.headupTopBar.visibility = if (showAppChrome) View.VISIBLE else View.GONE
             binding.navigationShell.visibility = if (showAppChrome) View.VISIBLE else View.GONE
             updateGuardButton()
-            updatePetOverlayButton()
         }
     }
 
@@ -229,7 +234,6 @@ class MainActivity : AppCompatActivity() {
             }
             Toast.makeText(this, R.string.pet_overlay_enabled, Toast.LENGTH_SHORT).show()
         }
-        updatePetOverlayButton()
     }
 
     private fun updateGuardButton() {
@@ -240,15 +244,6 @@ class MainActivity : AppCompatActivity() {
         )
         binding.stopGuardButton.contentDescription = getString(
             if (enabled) R.string.guard_stop else R.string.guard_start,
-        )
-    }
-
-    private fun updatePetOverlayButton() {
-        if (!::binding.isInitialized) return
-        val enabled = HeadUpRepository.isPetOverlayEnabled(this)
-        binding.petOverlayButton.alpha = if (enabled) 1f else 0.42f
-        binding.petOverlayButton.contentDescription = getString(
-            if (enabled) R.string.pet_overlay_disable else R.string.pet_overlay_enable,
         )
     }
 

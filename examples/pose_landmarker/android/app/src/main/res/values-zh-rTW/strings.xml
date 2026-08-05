@@ -6,6 +6,8 @@
     <string name="pet_overlay_disable">關閉視力龍彈窗</string>
     <string name="pet_overlay_enabled">視力龍彈窗已開啟。</string>
     <string name="pet_overlay_disabled">視力龍彈窗已關閉。</string>
+    <string name="settings_pet_overlay_on">視力龍彈窗：開啟</string>
+    <string name="settings_pet_overlay_off">視力龍彈窗：關閉</string>
 
     <string name="menu_camera">掃描</string>
     <string name="menu_gallery">相簿</string>
@@ -100,6 +102,7 @@
     <string name="distance_too_close">距離過近</string>
     <string name="distance_attention">請稍微遠離螢幕</string>
     <string name="distance_normal">距離舒適</string>
+    <string name="distance_less_than_20_cm">小於20公分</string>
     <string name="centimeters_format">%1$d 公分</string>
     <string name="reading">讀取中</string>
     <string name="posture_safe_format">目前 %1$d 度，姿勢安全。</string>

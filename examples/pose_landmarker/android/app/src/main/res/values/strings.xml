@@ -50,6 +50,8 @@
     <string name="settings_sync_now">Sync records now</string>
     <string name="settings_language">App language</string>
     <string name="settings_overlay">Red border permission</string>
+    <string name="settings_pet_overlay_on">Vision Dragon popup: On</string>
+    <string name="settings_pet_overlay_off">Vision Dragon popup: Off</string>
     <string name="settings_calibration">3-second posture calibration</string>
     <string name="settings_data_management">Data management</string>
     <string name="settings_logout">Log out</string>
@@ -100,6 +102,7 @@
     <string name="distance_too_close">Too close</string>
     <string name="distance_attention">Move back a little</string>
     <string name="distance_normal">Comfortable distance</string>
+    <string name="distance_less_than_20_cm">&lt;20 cm</string>
     <string name="centimeters_format">%1$d cm</string>
     <string name="reading">Reading</string>
     <string name="posture_safe_format">Current %1$d degrees, posture is safe.</string>

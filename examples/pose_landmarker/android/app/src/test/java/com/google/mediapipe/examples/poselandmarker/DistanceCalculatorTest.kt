@@ -56,4 +56,20 @@ class DistanceCalculatorTest {
 
         assertTrue((estimate?.smoothedPixelDistance ?: 0f) in 144.9f..145.1f)
     }
+
+    @Test
+    fun rawTooCloseDistanceBypassesSmoothingForImmediateWarning() {
+        val calculator = DistanceCalculator()
+        calculator.estimateDistanceCm(
+            PixelCoordinate(0f, 0f),
+            PixelCoordinate(100f, 0f),
+        )
+        val estimate = calculator.estimateDistanceCm(
+            PixelCoordinate(0f, 0f),
+            PixelCoordinate(260f, 0f),
+        )
+
+        assertTrue((estimate?.distanceCm ?: 100) < 20)
+        assertTrue((estimate?.rawDistanceCm ?: 100) < 20)
+    }
 }

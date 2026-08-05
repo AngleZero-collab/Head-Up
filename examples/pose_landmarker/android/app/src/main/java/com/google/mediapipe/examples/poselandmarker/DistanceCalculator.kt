@@ -33,11 +33,15 @@ class DistanceCalculator(
         val distanceCm = (calibrationConstantK / smoothed)
             .roundToInt()
             .coerceIn(MIN_DISTANCE_CM, MAX_DISTANCE_CM)
+        val rawDistanceCm = (calibrationConstantK / rawPixelDistance)
+            .roundToInt()
+            .coerceIn(MIN_DISTANCE_CM, MAX_DISTANCE_CM)
 
         return DistanceEstimate(
             rawPixelDistance = rawPixelDistance,
             smoothedPixelDistance = smoothed,
-            distanceCm = distanceCm,
+            distanceCm = if (rawDistanceCm < IMMEDIATE_DANGER_DISTANCE_CM) rawDistanceCm else distanceCm,
+            rawDistanceCm = rawDistanceCm,
         )
     }
 
@@ -47,6 +51,7 @@ class DistanceCalculator(
         const val DEFAULT_CALIBRATION_CONSTANT = 4_000f
         private const val FAST_APPROACH_ALPHA = 0.45f
         private const val FAST_APPROACH_RATIO = 1.18f
+        private const val IMMEDIATE_DANGER_DISTANCE_CM = 20
         private const val MIN_VALID_PIXEL_DISTANCE = 8f
         private const val MIN_DISTANCE_CM = 10
         private const val MAX_DISTANCE_CM = 120
@@ -68,6 +73,7 @@ data class DistanceEstimate(
     val rawPixelDistance: Float,
     val smoothedPixelDistance: Float,
     val distanceCm: Int,
+    val rawDistanceCm: Int,
 )
 
 data class PixelCoordinate(
