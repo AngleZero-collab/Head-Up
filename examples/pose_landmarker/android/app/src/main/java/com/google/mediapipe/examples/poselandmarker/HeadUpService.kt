@@ -10,9 +10,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -31,9 +28,13 @@ import android.os.VibratorManager
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.widget.ImageView
+import android.widget.Toast
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -47,6 +48,8 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.LandmarkerListener, SensorEventListener {
     companion object {
@@ -55,11 +58,12 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         private const val CHANNEL_ID = "HeadUpServiceChannel"
         private const val NOTIFICATION_ID = 1
         private const val TAG = "HeadUpService"
-        private const val WARNING_DELAY_MS = 2_000L
+        private const val WARNING_DELAY_MS = 3_000L
         private const val RAPID_FALL_VIBRATION_MS = 100L
         private const val WARNING_VIBRATION_MS = 260L
         private const val VIBRATION_COOLDOWN_MS = 1_500L
         private const val ALARM_COOLDOWN_MS = 3_000L
+        private const val PET_SIZE_DP = 84
     }
 
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -76,8 +80,10 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var isCameraPaused = true
 
     private var windowManager: WindowManager? = null
-    private var warningOverlayView: WarningBorderView? = null
+    private var warningOverlayView: View? = null
     private var warningAnimator: ValueAnimator? = null
+    private var petOverlayView: ImageView? = null
+    private var petLayoutParams: WindowManager.LayoutParams? = null
     private var sensorManager: SensorManager? = null
     private var gravitySensor: Sensor? = null
     private var lastDeviceTilt = 0
@@ -85,6 +91,8 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
 
     private var badPostureStartTime = 0L
     private var warningActive = false
+    private var badPostureFlag = false
+    private var warningDelayRunnable: Runnable? = null
     private var wasRapidFall = false
     private var lastVibrationTime = 0L
     private var lastProcessedTimestamp = Long.MIN_VALUE
@@ -103,7 +111,6 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         createNotificationChannel()
         val state = HeadUpRepository.currentState(this)
         startForegroundCompat(buildNotification(state))
-        setupWarningOverlay()
         setupSensors()
 
         HeadUpRepository.observeState().observe(this) { updatedState ->
@@ -226,6 +233,8 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             deviceTilt = lastDeviceTilt,
             isFlat = isDeviceFlat,
             calibration = HeadUpRepository.getCalibration(this),
+            inputImageWidth = resultBundle.inputImageWidth,
+            inputImageHeight = resultBundle.inputImageHeight,
         ) ?: return
         processPostureMetrics(metrics)
         HeadUpRepository.recordMetrics(this, metrics, source = "background")
@@ -235,17 +244,16 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         if (metrics.timestampMs == lastProcessedTimestamp) return
         lastProcessedTimestamp = metrics.timestampMs
         mainHandler.post {
-            val now = SystemClock.elapsedRealtime()
             if (metrics.zone == PostureZone.DANGER) {
-                if (badPostureStartTime == 0L) badPostureStartTime = now
-                if (now - badPostureStartTime >= WARNING_DELAY_MS && !warningActive) {
-                    warningActive = true
-                    showWarningOverlay()
-                    vibrate(WARNING_VIBRATION_MS)
-                    playAlarmIfNeeded()
-                }
+                armWarningOverlayDebounce()
             } else {
                 resetDangerTimer()
+            }
+
+            if (metrics.zone != PostureZone.SAFE || metrics.isTooClose || metrics.isRapidFall) {
+                showPetOverlay()
+            } else {
+                hidePetOverlay()
             }
 
             if (metrics.isRapidFall && !wasRapidFall) {
@@ -255,7 +263,29 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         }
     }
 
+    private fun armWarningOverlayDebounce() {
+        badPostureFlag = true
+        if (badPostureStartTime == 0L) badPostureStartTime = SystemClock.elapsedRealtime()
+        if (warningActive || warningDelayRunnable != null) return
+
+        warningDelayRunnable = Runnable {
+            warningDelayRunnable = null
+            val elapsed = SystemClock.elapsedRealtime() - badPostureStartTime
+            if (badPostureFlag && elapsed >= WARNING_DELAY_MS && !warningActive) {
+                if (showWarningOverlay()) {
+                    warningActive = true
+                    vibrate(WARNING_VIBRATION_MS)
+                    playAlarmIfNeeded()
+                }
+            }
+        }
+        mainHandler.postDelayed(warningDelayRunnable!!, WARNING_DELAY_MS)
+    }
+
     private fun resetDangerTimer() {
+        badPostureFlag = false
+        warningDelayRunnable?.let { mainHandler.removeCallbacks(it) }
+        warningDelayRunnable = null
         badPostureStartTime = 0L
         warningActive = false
         wasRapidFall = false
@@ -263,19 +293,13 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     }
 
     private fun setupWarningOverlay() {
-        if (warningOverlayView != null || !Settings.canDrawOverlays(this)) return
+        if (warningOverlayView != null || !canUseApplicationOverlay()) return
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val overlay = WarningBorderView(this).apply { visibility = View.GONE }
-        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
+        val overlay = LayoutInflater.from(this).inflate(R.layout.view_warning_frame, null, false)
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
-            layoutType,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
@@ -295,11 +319,10 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         }
     }
 
-    private fun showWarningOverlay() {
+    private fun showWarningOverlay(): Boolean {
         if (warningOverlayView == null) setupWarningOverlay()
-        val overlay = warningOverlayView ?: return
-        overlay.visibility = View.VISIBLE
-        if (warningAnimator?.isRunning == true) return
+        val overlay = warningOverlayView ?: return false
+        if (warningAnimator?.isRunning == true) return true
         warningAnimator = ValueAnimator.ofFloat(0.5f, 1f).apply {
             duration = 700L
             repeatCount = ValueAnimator.INFINITE
@@ -308,16 +331,115 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             addUpdateListener { overlay.alpha = it.animatedValue as Float }
             start()
         }
+        return true
     }
 
     private fun hideWarningOverlay() {
         warningAnimator?.cancel()
         warningAnimator = null
-        warningOverlayView?.apply {
-            alpha = 1f
-            visibility = View.GONE
+        warningOverlayView?.let { overlay ->
+            try {
+                windowManager?.removeView(overlay)
+            } catch (error: Exception) {
+                Log.w(TAG, "Unable to remove warning overlay", error)
+            }
+        }
+        warningOverlayView = null
+    }
+
+    private fun showPetOverlay() {
+        if (petOverlayView != null || !canUseApplicationOverlay()) return
+        windowManager = windowManager ?: getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        val sizePx = dpToPx(PET_SIZE_DP)
+        val imageView = ImageView(this).apply {
+            setImageResource(R.drawable.ic_vision_dragon_chibi)
+            contentDescription = getString(R.string.vision_dragon_animation)
+            setPadding(dpToPx(6), dpToPx(6), dpToPx(6), dpToPx(6))
+            alpha = 0.96f
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            elevation = dpToPx(10).toFloat()
+        }
+
+        val params = WindowManager.LayoutParams(
+            sizePx,
+            sizePx,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = resources.displayMetrics.widthPixels - sizePx - dpToPx(18)
+            y = dpToPx(140)
+        }
+        imageView.setOnTouchListener(createPetDragListener(params))
+
+        try {
+            windowManager?.addView(imageView, params)
+            petOverlayView = imageView
+            petLayoutParams = params
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to attach Vision Dragon overlay", error)
         }
     }
+
+    private fun hidePetOverlay() {
+        petOverlayView?.let { pet ->
+            try {
+                windowManager?.removeView(pet)
+            } catch (error: Exception) {
+                Log.w(TAG, "Unable to remove Vision Dragon overlay", error)
+            }
+        }
+        petOverlayView = null
+        petLayoutParams = null
+    }
+
+    private fun createPetDragListener(params: WindowManager.LayoutParams): View.OnTouchListener {
+        var initialX = 0
+        var initialY = 0
+        var initialTouchX = 0f
+        var initialTouchY = 0f
+
+        return View.OnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    initialX = params.x
+                    initialY = params.y
+                    initialTouchX = event.rawX
+                    initialTouchY = event.rawY
+                    true
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    params.x = initialX + (event.rawX - initialTouchX).roundToInt()
+                    params.y = initialY + (event.rawY - initialTouchY).roundToInt()
+                    windowManager?.updateViewLayout(view, params)
+                    true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    if (abs(event.rawX - initialTouchX) < dpToPx(8) &&
+                        abs(event.rawY - initialTouchY) < dpToPx(8)
+                    ) {
+                        HeadUpRepository.recordEyeRest(this)
+                        Toast.makeText(this, R.string.eye_rest_recorded, Toast.LENGTH_SHORT).show()
+                    }
+                    view.performClick()
+                    true
+                }
+
+                else -> false
+            }
+        }
+    }
+
+    private fun canUseApplicationOverlay(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && Settings.canDrawOverlays(this)
+
+    private fun dpToPx(dp: Int): Int =
+        (dp * resources.displayMetrics.density).roundToInt()
 
     private fun playAlarmIfNeeded() {
         if (!HeadUpRepository.isAlarmEnabled(this)) return
@@ -440,23 +562,18 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             }
         }
         warningOverlayView = null
+        petOverlayView?.let { pet ->
+            try {
+                windowManager?.removeView(pet)
+            } catch (_: Exception) {
+                Unit
+            }
+        }
+        petOverlayView = null
+        petLayoutParams = null
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         super.onDestroy()
-    }
-
-    private class WarningBorderView(context: Context) : View(context) {
-        private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#E85B5B")
-            style = Paint.Style.STROKE
-            strokeWidth = 26f
-        }
-
-        override fun onDraw(canvas: Canvas) {
-            super.onDraw(canvas)
-            val inset = borderPaint.strokeWidth / 2f + 3f
-            canvas.drawRoundRect(inset, inset, width - inset, height - inset, 28f, 28f, borderPaint)
-        }
     }
 }

@@ -29,6 +29,8 @@ object HeadUpRepository {
     private const val KEY_CALIBRATION_ANGLE = "calibration_angle"
     private const val KEY_CALIBRATION_RATIO = "calibration_ratio"
     private const val KEY_CALIBRATION_SHOULDER = "calibration_shoulder"
+    private const val KEY_CALIBRATION_EYE_DISTANCE = "calibration_eye_distance"
+    private const val KEY_CALIBRATION_DISTANCE_K = "calibration_distance_k"
     private const val KEY_CALIBRATION_TIME = "calibration_time"
     private const val KEY_FOREGROUND_SCAN_ACTIVE = "foreground_scan_active"
     private const val KEY_OWNED_ITEMS = "owned_items"
@@ -61,6 +63,10 @@ object HeadUpRepository {
             putFloat(KEY_CALIBRATION_ANGLE, profile.angleDegrees)
             putFloat(KEY_CALIBRATION_RATIO, profile.postureRatio)
             putFloat(KEY_CALIBRATION_SHOULDER, profile.shoulderWidth)
+            profile.eyeDistancePixels?.let { putFloat(KEY_CALIBRATION_EYE_DISTANCE, it) }
+                ?: remove(KEY_CALIBRATION_EYE_DISTANCE)
+            profile.distanceConstantK?.let { putFloat(KEY_CALIBRATION_DISTANCE_K, it) }
+                ?: remove(KEY_CALIBRATION_DISTANCE_K)
             putLong(KEY_CALIBRATION_TIME, profile.calibratedAtMs)
         }
         PostureAnalyzer.resetSmoothing()
@@ -74,6 +80,10 @@ object HeadUpRepository {
             angleDegrees = prefs.getFloat(KEY_CALIBRATION_ANGLE, 0f),
             postureRatio = prefs.getFloat(KEY_CALIBRATION_RATIO, 0f),
             shoulderWidth = prefs.getFloat(KEY_CALIBRATION_SHOULDER, 0f),
+            eyeDistancePixels = prefs.getFloat(KEY_CALIBRATION_EYE_DISTANCE, 0f)
+                .takeIf { it > 0f },
+            distanceConstantK = prefs.getFloat(KEY_CALIBRATION_DISTANCE_K, 0f)
+                .takeIf { it > 0f },
             calibratedAtMs = prefs.getLong(KEY_CALIBRATION_TIME, 0L),
         )
     }
@@ -83,6 +93,8 @@ object HeadUpRepository {
             remove(KEY_CALIBRATION_ANGLE)
             remove(KEY_CALIBRATION_RATIO)
             remove(KEY_CALIBRATION_SHOULDER)
+            remove(KEY_CALIBRATION_EYE_DISTANCE)
+            remove(KEY_CALIBRATION_DISTANCE_K)
             remove(KEY_CALIBRATION_TIME)
         }
         PostureAnalyzer.resetSmoothing()

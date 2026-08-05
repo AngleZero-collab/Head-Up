@@ -18,6 +18,8 @@ data class CalibrationProfile(
     val angleDegrees: Float,
     val postureRatio: Float,
     val shoulderWidth: Float,
+    val eyeDistancePixels: Float? = null,
+    val distanceConstantK: Float? = null,
     val calibratedAtMs: Long = System.currentTimeMillis(),
 )
 
@@ -34,6 +36,8 @@ data class PostureMetrics(
     val neckFlexionDegrees: Int = 0,
     val screenDistanceCm: Int? = null,
     val isTooClose: Boolean = false,
+    val eyeDistancePixels: Float? = null,
+    val smoothedEyeDistancePixels: Float? = null,
     val landmarkConfidence: Float = 0f,
     val shoulderWidth: Float = 0f,
     val deviceTiltDegrees: Int = 0,

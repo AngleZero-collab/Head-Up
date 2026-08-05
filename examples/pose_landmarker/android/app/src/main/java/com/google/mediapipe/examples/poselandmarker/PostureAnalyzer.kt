@@ -30,7 +30,6 @@ object PostureAnalyzer {
     private const val RAPID_FALL_VELOCITY = 0.5f
     private const val MIN_TRACKING_CONFIDENCE = 0.20f
     private const val DEFAULT_UPRIGHT_RATIO = 0.82f
-    private const val CALIBRATED_DISTANCE_CM = 45f
     private const val TOO_CLOSE_WARNING_CM = 35
     private const val TOO_CLOSE_DANGER_CM = 25
     private const val SHOULDER_WARNING_DEGREES = 8
@@ -40,11 +39,13 @@ object PostureAnalyzer {
 
     private var smoothedAngle: Float? = null
     private var previousSmoothedAngle: Float? = null
+    private val distanceCalculator = DistanceCalculator()
 
     @Synchronized
     fun resetSmoothing() {
         smoothedAngle = null
         previousSmoothedAngle = null
+        distanceCalculator.reset()
     }
 
     fun defaultMetrics(): PostureMetrics = PostureMetrics(
@@ -62,6 +63,8 @@ object PostureAnalyzer {
         deviceTilt: Int = 0,
         isFlat: Boolean = false,
         calibration: CalibrationProfile? = null,
+        inputImageWidth: Int? = null,
+        inputImageHeight: Int? = null,
     ): PostureMetrics? = analyze(
         points = landmarks.map { landmark ->
             LandmarkPoint(
@@ -75,6 +78,8 @@ object PostureAnalyzer {
         deviceTilt = deviceTilt,
         isFlat = isFlat,
         calibration = calibration,
+        inputImageWidth = inputImageWidth,
+        inputImageHeight = inputImageHeight,
     )
 
     @Synchronized
@@ -83,6 +88,8 @@ object PostureAnalyzer {
         deviceTilt: Int = 0,
         isFlat: Boolean = false,
         calibration: CalibrationProfile? = null,
+        inputImageWidth: Int? = null,
+        inputImageHeight: Int? = null,
     ): PostureMetrics? {
         val body = BodyLandmarks.from(points) ?: return null
         val shoulderWidth = distance2d(body.leftShoulder, body.rightShoulder)
@@ -118,13 +125,8 @@ object PostureAnalyzer {
         val compositeAngle = max(relativeHeadAngle, neckFlexion)
 
         val shoulderBalanceAngle = pairAngleDegrees(body.leftShoulder, body.rightShoulder)
-        val screenDistanceCm = calibration?.shoulderWidth
-            ?.takeIf { it > 0.001f }
-            ?.let { calibratedWidth ->
-                (CALIBRATED_DISTANCE_CM * calibratedWidth / shoulderWidth)
-                    .roundToInt()
-                    .coerceIn(15, 120)
-            }
+        val distanceEstimate = estimateScreenDistance(body, calibration, inputImageWidth, inputImageHeight)
+        val screenDistanceCm = distanceEstimate?.distanceCm
         val isTooClose = screenDistanceCm?.let { it < TOO_CLOSE_WARNING_CM } ?: false
         val angle = compositeAngle.roundToInt()
         val isRapidFall = angle >= RAPID_FALL_ARM_DEGREES && angleVelocity > RAPID_FALL_VELOCITY
@@ -160,6 +162,8 @@ object PostureAnalyzer {
             shoulderBalanceLabel = if (shoulderBalanceAngle < SHOULDER_WARNING_DEGREES) "平衡" else "左右不平衡",
             screenDistanceCm = screenDistanceCm,
             isTooClose = isTooClose,
+            eyeDistancePixels = distanceEstimate?.rawPixelDistance,
+            smoothedEyeDistancePixels = distanceEstimate?.smoothedPixelDistance,
             landmarkConfidence = body.confidence,
             shoulderWidth = shoulderWidth,
             deviceTiltDegrees = deviceTilt,
@@ -180,20 +184,32 @@ object PostureAnalyzer {
         val rightShoulder: LandmarkPoint,
         val hipCenter: LandmarkPoint?,
         val confidence: Float,
+        val leftEyeCenter: LandmarkPoint?,
+        val rightEyeCenter: LandmarkPoint?,
     ) {
         companion object {
             fun from(points: List<LandmarkPoint>): BodyLandmarks? {
                 val leftShoulder = points.tracked(LEFT_SHOULDER) ?: return null
                 val rightShoulder = points.tracked(RIGHT_SHOULDER) ?: return null
                 val nose = points.tracked(NOSE)
-                val eyes = weightedCenter(
+                val leftEye = weightedCenter(
                     listOfNotNull(
                         points.tracked(LEFT_EYE_INNER)?.let { it to 1f },
                         points.tracked(LEFT_EYE)?.let { it to 1.25f },
                         points.tracked(LEFT_EYE_OUTER)?.let { it to 1f },
+                    ),
+                )
+                val rightEye = weightedCenter(
+                    listOfNotNull(
                         points.tracked(RIGHT_EYE_INNER)?.let { it to 1f },
                         points.tracked(RIGHT_EYE)?.let { it to 1.25f },
                         points.tracked(RIGHT_EYE_OUTER)?.let { it to 1f },
+                    ),
+                )
+                val eyes = weightedCenter(
+                    listOfNotNull(
+                        leftEye?.let { it to 1f },
+                        rightEye?.let { it to 1f },
                     ),
                 )
                 val ears = weightedCenter(
@@ -227,9 +243,38 @@ object PostureAnalyzer {
                     .average()
                     .toFloat()
 
-                return BodyLandmarks(faceCenter, leftShoulder, rightShoulder, hips, confidence)
+                return BodyLandmarks(
+                    faceCenter = faceCenter,
+                    leftShoulder = leftShoulder,
+                    rightShoulder = rightShoulder,
+                    hipCenter = hips,
+                    confidence = confidence,
+                    leftEyeCenter = leftEye,
+                    rightEyeCenter = rightEye,
+                )
             }
         }
+    }
+
+    private fun estimateScreenDistance(
+        body: BodyLandmarks,
+        calibration: CalibrationProfile?,
+        inputImageWidth: Int?,
+        inputImageHeight: Int?,
+    ): DistanceEstimate? {
+        val width = inputImageWidth?.takeIf { it > 0 } ?: return null
+        val height = inputImageHeight?.takeIf { it > 0 } ?: return null
+        val leftEye = body.leftEyeCenter ?: return null
+        val rightEye = body.rightEyeCenter ?: return null
+        val calibrationConstant = calibration?.distanceConstantK
+            ?.takeIf { it > 0f }
+            ?: DistanceCalculator.DEFAULT_CALIBRATION_CONSTANT
+
+        return distanceCalculator.estimateDistanceCm(
+            leftEye = leftEye.toPixelPoint(width, height),
+            rightEye = rightEye.toPixelPoint(width, height),
+            calibrationConstantK = calibrationConstant,
+        )
     }
 
     private fun List<LandmarkPoint>.tracked(index: Int): LandmarkPoint? {
@@ -256,6 +301,9 @@ object PostureAnalyzer {
 
     private fun distance2d(a: LandmarkPoint, b: LandmarkPoint): Float =
         hypot((a.x - b.x).toDouble(), (a.y - b.y).toDouble()).toFloat()
+
+    private fun LandmarkPoint.toPixelPoint(width: Int, height: Int): PixelCoordinate =
+        PixelCoordinate(x * width, y * height)
 
     private fun pairAngleDegrees(a: LandmarkPoint, b: LandmarkPoint): Float =
         Math.toDegrees(

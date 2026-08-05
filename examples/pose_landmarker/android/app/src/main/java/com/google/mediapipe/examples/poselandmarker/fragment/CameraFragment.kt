@@ -30,6 +30,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.navigation.Navigation
 import com.google.mediapipe.examples.poselandmarker.CalibrationProfile
 import com.google.mediapipe.examples.poselandmarker.CameraOwnership
+import com.google.mediapipe.examples.poselandmarker.DistanceCalculator
 import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
 import com.google.mediapipe.examples.poselandmarker.HeadUpService
 import com.google.mediapipe.examples.poselandmarker.MainActivity
@@ -335,10 +336,23 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
         if (validSamples.isEmpty()) {
             Toast.makeText(requireContext(), R.string.calibration_failed, Toast.LENGTH_SHORT).show()
         } else {
+            val calibratedEyeDistance = validSamples
+                .mapNotNull { it.smoothedEyeDistancePixels ?: it.eyeDistancePixels }
+                .average()
+                .takeIf { !it.isNaN() }
+                ?.toFloat()
+            val distanceConstantK = calibratedEyeDistance?.let {
+                DistanceCalculator.calibrationConstantFor(
+                    DistanceCalculator.DEFAULT_CALIBRATION_DISTANCE_CM,
+                    it,
+                )
+            }
             val profile = CalibrationProfile(
                 angleDegrees = validSamples.map { it.rawAngleDegrees }.average().toFloat(),
                 postureRatio = validSamples.map { it.postureRatio }.average().toFloat(),
                 shoulderWidth = validSamples.map { it.shoulderWidth }.average().toFloat(),
+                eyeDistancePixels = calibratedEyeDistance,
+                distanceConstantK = distanceConstantK,
             )
             HeadUpRepository.setCalibration(requireContext(), profile)
             Toast.makeText(requireContext(), R.string.calibration_complete, Toast.LENGTH_SHORT).show()
@@ -358,6 +372,8 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
                 deviceTilt = lastDeviceTilt,
                 isFlat = isDeviceFlat,
                 calibration = HeadUpRepository.getCalibration(requireContext()),
+                inputImageWidth = resultBundle.inputImageWidth,
+                inputImageHeight = resultBundle.inputImageHeight,
             )
         }
 
