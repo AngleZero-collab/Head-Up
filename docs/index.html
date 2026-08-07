@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    name="description"
+    content="Head Up is an AI posture and eye-care demo app for students, built with MediaPipe, CameraX, Kotlin and FastAPI."
+  />
+  <title>Head Up | AI Posture Protection Demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071426;
+      --bg2: #0b1024;
+      --panel: rgba(20, 35, 66, 0.78);
+      --panel-strong: rgba(28, 45, 84, 0.95);
+      --line: rgba(94, 214, 255, 0.22);
+      --text: #f4f8ff;
+      --muted: #a8b8d4;
+      --cyan: #38cfff;
+      --green: #7fe39a;
+      --yellow: #ffd166;
+      --coral: #ff6b6b;
+      --shadow: rgba(0, 0, 0, 0.34);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% 8%, rgba(56, 207, 255, 0.18), transparent 26rem),
+        radial-gradient(circle at 84% 12%, rgba(169, 137, 255, 0.14), transparent 24rem),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(18px);
+      background: rgba(7, 20, 38, 0.78);
+      border-bottom: 1px solid rgba(94, 214, 255, 0.12);
+    }
+
+    .nav-inner {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--cyan);
+      font-weight: 900;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .logo {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      color: #fff;
+      background: linear-gradient(180deg, #5de1ff, #1399d8);
+      box-shadow: 0 0 28px rgba(56, 207, 255, 0.32);
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    .language-select {
+      min-height: 42px;
+      padding: 0 38px 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--text);
+      background:
+        linear-gradient(45deg, transparent 50%, var(--cyan) 50%) right 15px center / 7px 7px no-repeat,
+        linear-gradient(135deg, var(--cyan) 50%, transparent 50%) right 10px center / 7px 7px no-repeat,
+        rgba(23, 39, 74, 0.92);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      appearance: none;
+    }
+
+    .language-select:focus {
+      outline: 2px solid rgba(56, 207, 255, 0.38);
+      outline-offset: 2px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 18px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--text);
+      background: rgba(23, 39, 74, 0.76);
+      font-weight: 850;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(56, 207, 255, 0.58);
+      background: rgba(34, 54, 98, 0.9);
+    }
+
+    .button.primary {
+      border: 0;
+      color: #06101f;
+      background: linear-gradient(180deg, #62dfff, #23bde9);
+      box-shadow: 0 0 28px rgba(56, 207, 255, 0.24);
+    }
+
+    .hero {
+      min-height: calc(100vh - 72px);
+      display: grid;
+      grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
+      align-items: center;
+      gap: clamp(30px, 6vw, 72px);
+      padding: 56px 0 70px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      margin-bottom: 18px;
+      padding: 8px 12px;
+      border: 1px solid rgba(127, 227, 154, 0.28);
+      border-radius: 999px;
+      color: var(--green);
+      background: rgba(127, 227, 154, 0.08);
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(46px, 8vw, 86px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    .hero-title strong {
+      color: var(--cyan);
+    }
+
+    .hero-copy {
+      max-width: 650px;
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: clamp(17px, 2.4vw, 21px);
+      line-height: 1.75;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .trust-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 34px;
+      max-width: 680px;
+    }
+
+    .trust-item {
+      padding: 16px;
+      border: 1px solid rgba(94, 214, 255, 0.14);
+      border-radius: 16px;
+      background: rgba(20, 35, 66, 0.52);
+    }
+
+    .trust-item b {
+      display: block;
+      color: var(--text);
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
+    .trust-item span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .hero-gallery {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .shot,
+    .demo-card,
+    .pain-card {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+      overflow: hidden;
+    }
+
+    .shot {
+      position: relative;
+      border-radius: 28px;
+      background: rgba(20, 35, 66, 0.58);
+      box-shadow: 0 28px 80px var(--shadow);
+    }
+
+    .shot img,
+    .demo-card img,
+    .pain-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+      background: rgba(7, 20, 38, 0.72);
+    }
+
+    .shot.primary-shot {
+      aspect-ratio: 628 / 1460;
+      max-height: 720px;
+    }
+
+    .shot-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .shot.small-shot {
+      aspect-ratio: 622 / 1024;
+      max-height: 350px;
+    }
+
+    section {
+      padding: 80px 0;
+    }
+
+    .section-head {
+      max-width: 780px;
+      margin-bottom: 26px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 52px);
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin: 14px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 17px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .feature-card,
+    .download-panel,
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--panel);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    }
+
+    .feature-card {
+      min-height: 220px;
+      padding: 20px;
+    }
+
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      color: #06101f;
+      background: var(--cyan);
+      font-weight: 900;
+      margin-bottom: 18px;
+    }
+
+    .feature-card h3,
+    .step h3,
+    .pain-copy h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .feature-card p,
+    .step p,
+    .pain-copy p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .demo-card {
+      border-radius: 24px;
+      background: rgba(20, 35, 66, 0.62);
+    }
+
+    .demo-card img {
+      aspect-ratio: 9 / 16;
+    }
+
+    .demo-card figcaption {
+      padding: 14px 16px 16px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .demo-card b {
+      display: block;
+      color: var(--text);
+      margin-bottom: 4px;
+      font-size: 16px;
+    }
+
+    .pain-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .pain-card {
+      border-radius: 20px;
+      background: var(--panel-strong);
+    }
+
+    .pain-card img {
+      aspect-ratio: 16 / 9;
+      border-bottom: 1px solid rgba(94, 214, 255, 0.16);
+    }
+
+    .pain-copy {
+      padding: 22px;
+    }
+
+    .pain-tag {
+      display: inline-flex;
+      margin-bottom: 14px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: #071426;
+      background: var(--yellow);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .pain-card:nth-child(2) .pain-tag {
+      background: var(--coral);
+      color: #fff;
+    }
+
+    .notice {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .download-panel {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 28px;
+      padding: clamp(24px, 5vw, 42px);
+      background:
+        linear-gradient(135deg, rgba(56, 207, 255, 0.16), rgba(169, 137, 255, 0.12)),
+        var(--panel-strong);
+    }
+
+    .download-panel h2 {
+      margin: 0;
+      font-size: clamp(30px, 5vw, 48px);
+    }
+
+    .download-panel p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .step {
+      padding: 20px;
+    }
+
+    .step-number {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+      border-radius: 12px;
+      color: #06101f;
+      background: var(--green);
+      font-weight: 900;
+    }
+
+    .footer {
+      border-top: 1px solid rgba(94, 214, 255, 0.12);
+      padding: 28px 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .download-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-gallery {
+        grid-template-columns: 0.95fr 1.05fr;
+      }
+
+      .feature-grid,
+      .demo-grid,
+      .steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pain-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        width: min(100% - 22px, 1180px);
+      }
+
+      .nav-inner {
+        min-height: 84px;
+        align-items: flex-start;
+        padding: 14px 0;
+      }
+
+      .nav-actions {
+        align-items: flex-end;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .language-select {
+        min-height: 38px;
+        font-size: 13px;
+      }
+
+      .hero-gallery,
+      .trust-row,
+      .feature-grid,
+      .demo-grid,
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      .shot.primary-shot,
+      .shot.small-shot {
+        max-height: none;
+      }
+
+      section {
+        padding: 56px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="shell nav-inner">
+      <a class="brand" href="#top" aria-label="Head Up home">
+        <span class="logo">↑</span>
+        <span>Head Up</span>
+      </a>
+      <div class="nav-actions">
+        <div class="nav-links">
+          <a href="#features" data-i18n="navFeatures">功能</a>
+          <a href="#pain" data-i18n="navPain">痛點</a>
+          <a href="#download" data-i18n="navDownloadDemo">下載 Demo</a>
+          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk" data-i18n="downloadApk">下載 APK</a>
+        </div>
+        <label>
+          <span class="sr-only" data-i18n="languageLabel">語言</span>
+          <select id="languageSelect" class="language-select" aria-label="Language">
+            <option value="zh-Hant">繁體中文</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </nav>
+
+  <main id="top">
+    <div class="shell hero">
+      <div>
+        <div class="eyebrow" data-i18n="eyebrow">AI 姿勢與護眼守護 Demo</div>
+        <h1 class="hero-title">Head Up<br /><strong data-i18n="heroTitle">讓孩子讀書時抬頭一點</strong></h1>
+        <p class="hero-copy" data-i18n="heroCopy">
+          Head Up 使用 MediaPipe Edge AI 與 CameraX，即時偵測頭部前傾、肩膀平衡與螢幕距離。當姿勢不良持續發生時，App 會以紅框、震動與 Vision Dragon 提醒，並把資料記錄成可理解的守護報表。
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk" data-i18n="downloadAndroidDemo">下載 Android Demo</a>
+          <a class="button" href="https://github.com/AngleZero-collab/Head-Up" data-i18n="viewGithub">查看 GitHub 專案</a>
+        </div>
+        <div class="trust-row">
+          <div class="trust-item">
+            <b>25°</b>
+            <span data-i18n="trustAngle">姿勢不良角度判斷門檻</span>
+          </div>
+          <div class="trust-item">
+            <b>3s</b>
+            <span data-i18n="trustDebounce">連續不良姿勢才觸發紅框警戒</span>
+          </div>
+          <div class="trust-item">
+            <b>AI</b>
+            <span data-i18n="trustAi">角速度追蹤，提前提醒低頭趨勢</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-gallery" aria-label="Head Up demo screenshots">
+        <figure class="shot primary-shot">
+          <img src="assets/demo-scan.png" alt="Head Up scan demo screen" />
+        </figure>
+        <div class="shot-stack">
+          <figure class="shot small-shot">
+            <img src="assets/demo-stats.png" alt="Head Up stats dashboard screen" />
+          </figure>
+          <figure class="shot small-shot">
+            <img src="assets/demo-challenge-blue.png" alt="Head Up Vision Dragon challenge screen" />
+          </figure>
+        </div>
+      </div>
+    </div>
+
+    <section id="features">
+      <div class="shell">
+        <div class="section-head">
+          <h2 data-i18n="featuresTitle">Demo 功能</h2>
+          <p data-i18n="featuresCopy">從即時姿勢掃描、背景守護、資料統計到 Vision Dragon 挑戰，Demo 已把核心產品體驗串成完整流程。</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-icon">01</div>
+            <h3 data-i18n="feature1Title">即時姿勢掃描</h3>
+            <p data-i18n="feature1Copy">前鏡頭偵測眼睛、鼻子、嘴巴、肩膀等關鍵點，顯示頭部前傾、頸椎曲線、肩膀平衡與螢幕距離。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">02</div>
+            <h3 data-i18n="feature2Title">穩定警戒機制</h3>
+            <p data-i18n="feature2Copy">EMA 降噪與 3 秒防抖降低誤報；當快速低頭時，角速度追蹤會先以短震動提醒。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">03</div>
+            <h3 data-i18n="feature3Title">家長守護報表</h3>
+            <p data-i18n="feature3Copy">本機記錄真實姿勢資料，呈現今日好姿勢比例、近七日不良次數與每日任務進度。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">04</div>
+            <h3>Vision Dragon</h3>
+            <p data-i18n="feature4Copy">用可愛角色把護眼與坐姿養成變成任務，讓提醒更像陪伴，而不是單純警告。</p>
+          </article>
+        </div>
+
+        <div class="demo-grid">
+          <figure class="demo-card">
+            <img src="assets/demo-scan-results.png" alt="Posture scan results" />
+            <figcaption><b data-i18n="demo1Title">姿勢掃描結果</b><span data-i18n="demo1Copy">清楚顯示頭部、頸椎、肩膀與螢幕距離狀態。</span></figcaption>
+          </figure>
+          <figure class="demo-card">
+            <img src="assets/demo-stats-alert.png" alt="Stats alert screen" />
+            <figcaption><b data-i18n="demo2Title">數據與警戒</b><span data-i18n="demo2Copy">以圖表呈現守護紀錄，紅框提醒姿勢風險。</span></figcaption>
+          </figure>
+          <figure class="demo-card">
+            <img src="assets/demo-challenge-rest.png" alt="Vision Dragon rest screen" />
+            <figcaption><b data-i18n="demo3Title">挑戰與休息</b><span data-i18n="demo3Copy">Vision Dragon 會依今日表現切換狀態。</span></figcaption>
+          </figure>
+          <figure class="demo-card">
+            <img src="assets/demo-shop.png" alt="Head Up shop screen" />
+            <figcaption><b data-i18n="demo4Title">健康積分商店</b><span data-i18n="demo4Copy">把正確坐姿與護眼休息轉換成可累積的獎勵。</span></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="pain">
+      <div class="shell">
+        <div class="section-head">
+          <h2 data-i18n="painTitle">為什麼需要 Head Up</h2>
+          <p data-i18n="painCopy">長時間低頭、近距離看螢幕與缺乏休息，容易讓孩子把錯誤姿勢變成習慣。Head Up 的目標是把風險提醒變得即時、溫和、可追蹤。</p>
+        </div>
+        <div class="pain-grid">
+          <article class="pain-card">
+            <img src="assets/pain-neck-load.png" alt="Neck load education graphic" />
+            <div class="pain-copy">
+              <span class="pain-tag" data-i18n="painTag1">痛點 1</span>
+              <h3 data-i18n="pain1Title">低頭角度越大，頸椎負擔越高</h3>
+              <p data-i18n="pain1Copy">孩子常在不知不覺中低頭讀書或滑平板。Head Up 透過角度與肩膀關鍵點追蹤，協助在姿勢惡化前提醒抬頭。</p>
+            </div>
+          </article>
+          <article class="pain-card">
+            <img src="assets/pain-myopia-risk.png" alt="Myopia risk education graphic" />
+            <div class="pain-copy">
+              <span class="pain-tag" data-i18n="painTag2">痛點 2</span>
+              <h3 data-i18n="pain2Title">近距離用眼與過長螢幕時間需要被管理</h3>
+              <p data-i18n="pain2Copy">螢幕距離過近時，App 會以顏色狀態提示；每日護眼休息也會被記錄，讓家長看見孩子實際使用狀況。</p>
+            </div>
+          </article>
+        </div>
+        <p class="notice" data-i18n="notice">本 Demo 以教育宣導與姿勢輔助提醒為目的，不取代專業醫療診斷；若有眼睛或頸椎不適，請諮詢專業醫師。</p>
+      </div>
+    </section>
+
+    <section id="download">
+      <div class="shell">
+        <div class="download-panel">
+          <div>
+            <h2 data-i18n="downloadTitle">下載 Head Up Demo APK</h2>
+            <p data-i18n="downloadCopy">下載連結會取得 GitHub Releases 中最新的 Android Demo APK，可用於實機體驗 Scan、Stats、Challenge 與 Shop 頁面。</p>
+          </div>
+          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk" data-i18n="downloadDemo">下載 Demo</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="install">
+      <div class="shell">
+        <div class="section-head">
+          <h2 data-i18n="installTitle">Android 安裝步驟</h2>
+          <p data-i18n="installCopy">Demo APK 尚未上架 Play Store，首次安裝時 Android 可能會要求允許從瀏覽器或檔案管理器安裝。</p>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <div class="step-number">1</div>
+            <h3 data-i18n="step1Title">下載 APK</h3>
+            <p data-i18n="step1Copy">在 Android 手機上開啟此網站，點擊下載 Demo。</p>
+          </article>
+          <article class="step">
+            <div class="step-number">2</div>
+            <h3 data-i18n="step2Title">允許安裝</h3>
+            <p data-i18n="step2Copy">依照系統提示允許瀏覽器安裝此 APK。</p>
+          </article>
+          <article class="step">
+            <div class="step-number">3</div>
+            <h3 data-i18n="step3Title">開始體驗</h3>
+            <p data-i18n="step3Copy">開啟 Head Up，使用訪客、快速使用或帳號登入開始姿勢守護。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="shell footer-inner">
+      <span>Head Up Demo MVP</span>
+      <span data-i18n="footerTech">使用 Kotlin、CameraX、MediaPipe 與 FastAPI 打造</span>
+    </div>
+  </footer>
+
+  <script>
+    const copy = {
+      "zh-Hant": {
+        title: "Head Up | AI 姿勢防護 Demo",
+        description: "Head Up 是為學生打造的 AI 姿勢與護眼 Demo App，使用 MediaPipe、CameraX、Kotlin 與 FastAPI。",
+        navFeatures: "功能",
+        navPain: "痛點",
+        navDownloadDemo: "下載 Demo",
+        downloadApk: "下載 APK",
+        languageLabel: "語言",
+        eyebrow: "AI 姿勢與護眼守護 Demo",
+        heroTitle: "讓孩子讀書時抬頭一點",
+        heroCopy: "Head Up 使用 MediaPipe Edge AI 與 CameraX，即時偵測頭部前傾、肩膀平衡與螢幕距離。當姿勢不良持續發生時，App 會以紅框、震動與 Vision Dragon 提醒，並把資料記錄成可理解的守護報表。",
+        downloadAndroidDemo: "下載 Android Demo",
+        viewGithub: "查看 GitHub 專案",
+        trustAngle: "姿勢不良角度判斷門檻",
+        trustDebounce: "連續不良姿勢才觸發紅框警戒",
+        trustAi: "角速度追蹤，提前提醒低頭趨勢",
+        featuresTitle: "Demo 功能",
+        featuresCopy: "從即時姿勢掃描、背景守護、資料統計到 Vision Dragon 挑戰，Demo 已把核心產品體驗串成完整流程。",
+        feature1Title: "即時姿勢掃描",
+        feature1Copy: "前鏡頭偵測眼睛、鼻子、嘴巴、肩膀等關鍵點，顯示頭部前傾、頸椎曲線、肩膀平衡與螢幕距離。",
+        feature2Title: "穩定警戒機制",
+        feature2Copy: "EMA 降噪與 3 秒防抖降低誤報；當快速低頭時，角速度追蹤會先以短震動提醒。",
+        feature3Title: "家長守護報表",
+        feature3Copy: "本機記錄真實姿勢資料，呈現今日好姿勢比例、近七日不良次數與每日任務進度。",
+        feature4Copy: "用可愛角色把護眼與坐姿養成變成任務，讓提醒更像陪伴，而不是單純警告。",
+        demo1Title: "姿勢掃描結果",
+        demo1Copy: "清楚顯示頭部、頸椎、肩膀與螢幕距離狀態。",
+        demo2Title: "數據與警戒",
+        demo2Copy: "以圖表呈現守護紀錄，紅框提醒姿勢風險。",
+        demo3Title: "挑戰與休息",
+        demo3Copy: "Vision Dragon 會依今日表現切換狀態。",
+        demo4Title: "健康積分商店",
+        demo4Copy: "把正確坐姿與護眼休息轉換成可累積的獎勵。",
+        painTitle: "為什麼需要 Head Up",
+        painCopy: "長時間低頭、近距離看螢幕與缺乏休息，容易讓孩子把錯誤姿勢變成習慣。Head Up 的目標是把風險提醒變得即時、溫和、可追蹤。",
+        painTag1: "痛點 1",
+        pain1Title: "低頭角度越大，頸椎負擔越高",
+        pain1Copy: "孩子常在不知不覺中低頭讀書或滑平板。Head Up 透過角度與肩膀關鍵點追蹤，協助在姿勢惡化前提醒抬頭。",
+        painTag2: "痛點 2",
+        pain2Title: "近距離用眼與過長螢幕時間需要被管理",
+        pain2Copy: "螢幕距離過近時，App 會以顏色狀態提示；每日護眼休息也會被記錄，讓家長看見孩子實際使用狀況。",
+        notice: "本 Demo 以教育宣導與姿勢輔助提醒為目的，不取代專業醫療診斷；若有眼睛或頸椎不適，請諮詢專業醫師。",
+        downloadTitle: "下載 Head Up Demo APK",
+        downloadCopy: "下載連結會取得 GitHub Releases 中最新的 Android Demo APK，可用於實機體驗 Scan、Stats、Challenge 與 Shop 頁面。",
+        downloadDemo: "下載 Demo",
+        installTitle: "Android 安裝步驟",
+        installCopy: "Demo APK 尚未上架 Play Store，首次安裝時 Android 可能會要求允許從瀏覽器或檔案管理器安裝。",
+        step1Title: "下載 APK",
+        step1Copy: "在 Android 手機上開啟此網站，點擊下載 Demo。",
+        step2Title: "允許安裝",
+        step2Copy: "依照系統提示允許瀏覽器安裝此 APK。",
+        step3Title: "開始體驗",
+        step3Copy: "開啟 Head Up，使用訪客、快速使用或帳號登入開始姿勢守護。",
+        footerTech: "使用 Kotlin、CameraX、MediaPipe 與 FastAPI 打造"
+      },
+      en: {
+        title: "Head Up | AI Posture Protection Demo",
+        description: "Head Up is an AI posture and eye-care demo app for students, built with MediaPipe, CameraX, Kotlin and FastAPI.",
+        navFeatures: "Features",
+        navPain: "Why It Matters",
+        navDownloadDemo: "Download Demo",
+        downloadApk: "Download APK",
+        languageLabel: "Language",
+        eyebrow: "AI posture and eye-care demo",
+        heroTitle: "Safer study posture, in real time",
+        heroCopy: "Head Up uses MediaPipe Edge AI and CameraX to track forward head tilt, shoulder balance, and screen distance in real time. When risky posture continues, the app warns with a red frame, vibration, and Vision Dragon, then turns the data into a clear protection dashboard.",
+        downloadAndroidDemo: "Download Android Demo",
+        viewGithub: "View GitHub Project",
+        trustAngle: "Poor-posture angle threshold",
+        trustDebounce: "Red frame appears after continuous risky posture",
+        trustAi: "Angular velocity tracking predicts posture collapse",
+        featuresTitle: "Demo Features",
+        featuresCopy: "The demo connects real-time scanning, background protection, data dashboards, and Vision Dragon challenges into one complete product flow.",
+        feature1Title: "Real-Time Posture Scan",
+        feature1Copy: "The front camera tracks key points such as eyes, nose, mouth, and shoulders to show head tilt, neck curve, shoulder balance, and screen distance.",
+        feature2Title: "Stable Warning Logic",
+        feature2Copy: "EMA smoothing and a 3-second debounce reduce false alarms. When the head drops quickly, angular velocity tracking can vibrate early.",
+        feature3Title: "Parent Dashboard",
+        feature3Copy: "Local records show real posture data, including today’s good-posture ratio, 7-day poor-posture events, and daily task progress.",
+        feature4Copy: "A friendly Vision Dragon turns eye care and posture training into small missions, so reminders feel supportive instead of purely punitive.",
+        demo1Title: "Scan Results",
+        demo1Copy: "Head, neck, shoulder, and screen-distance states are shown clearly.",
+        demo2Title: "Stats and Alerts",
+        demo2Copy: "Charts summarize protection records while the red frame highlights posture risk.",
+        demo3Title: "Challenge and Rest",
+        demo3Copy: "Vision Dragon changes state based on the user’s daily performance.",
+        demo4Title: "Health Points Shop",
+        demo4Copy: "Good posture and eye breaks become rewards the user can accumulate.",
+        painTitle: "Why Head Up Matters",
+        painCopy: "Long periods of looking down, close screen distance, and missing breaks can turn poor posture into a habit. Head Up makes risk reminders immediate, gentle, and trackable.",
+        painTag1: "Pain Point 1",
+        pain1Title: "Greater forward tilt increases neck load",
+        pain1Copy: "Students often look down while reading or using tablets without noticing. Head Up uses angle and shoulder-keypoint tracking to remind users before posture worsens.",
+        painTag2: "Pain Point 2",
+        pain2Title: "Close screen distance and long screen time need guidance",
+        pain2Copy: "When screen distance is too close, the app uses color status cues. Daily eye breaks are recorded so parents can see real usage patterns.",
+        notice: "This demo is for education and posture-assist reminders only. It does not replace professional medical diagnosis. Please consult a clinician for eye or neck discomfort.",
+        downloadTitle: "Download the Head Up Demo APK",
+        downloadCopy: "The download button fetches the latest Android Demo APK from GitHub Releases for real-device testing of Scan, Stats, Challenge, and Shop.",
+        downloadDemo: "Download Demo",
+        installTitle: "Android Installation Steps",
+        installCopy: "The Demo APK is not on the Play Store yet, so Android may ask you to allow installation from your browser or file manager.",
+        step1Title: "Download APK",
+        step1Copy: "Open this website on an Android phone and tap Download Demo.",
+        step2Title: "Allow Install",
+        step2Copy: "Follow the Android prompt to allow the browser to install this APK.",
+        step3Title: "Start Testing",
+        step3Copy: "Open Head Up and use guest mode, quick use, or account login to begin posture protection.",
+        footerTech: "Built with Kotlin, CameraX, MediaPipe and FastAPI"
+      }
+    };
+
+    const languageSelect = document.getElementById("languageSelect");
+    const supportedLanguages = Object.keys(copy);
+
+    function pickInitialLanguage() {
+      const saved = localStorage.getItem("headup-site-language");
+      if (supportedLanguages.includes(saved)) return saved;
+      return navigator.language && navigator.language.toLowerCase().startsWith("zh") ? "zh-Hant" : "en";
+    }
+
+    function applyLanguage(language) {
+      const dictionary = copy[language] || copy["zh-Hant"];
+      document.documentElement.lang = language;
+      document.title = dictionary.title;
+      document.querySelector('meta[name="description"]').setAttribute("content", dictionary.description);
+      document.querySelectorAll("[data-i18n]").forEach((node) => {
+        const key = node.getAttribute("data-i18n");
+        if (dictionary[key]) node.textContent = dictionary[key];
+      });
+      languageSelect.value = language;
+      localStorage.setItem("headup-site-language", language);
+    }
+
+    languageSelect.addEventListener("change", (event) => {
+      applyLanguage(event.target.value);
+    });
+
+    applyLanguage(pickInitialLanguage());
+  </script>
+</body>
+</html>
