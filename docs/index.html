@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta
     name="description"
-    content="Head Up 是為 K-12 學生設計的 AI 姿勢與護眼防護 App，提供姿勢偵測、AI 預警、家長資料圖表與 Demo APK 下載。"
+    content="Head Up is an AI posture and eye-care demo app for students, built with MediaPipe, CameraX, Kotlin and FastAPI."
   />
   <title>Head Up | AI Posture Protection Demo</title>
   <style>
@@ -22,7 +22,6 @@
       --green: #7fe39a;
       --yellow: #ffd166;
       --coral: #ff6b6b;
-      --purple: #a989ff;
       --shadow: rgba(0, 0, 0, 0.34);
     }
 
@@ -51,8 +50,20 @@
     }
 
     img {
-      max-width: 100%;
       display: block;
+      max-width: 100%;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
 
     .shell {
@@ -84,6 +95,7 @@
       color: var(--cyan);
       font-weight: 900;
       letter-spacing: 0;
+      white-space: nowrap;
     }
 
     .logo {
@@ -95,9 +107,15 @@
       color: #fff;
       background: linear-gradient(180deg, #5de1ff, #1399d8);
       box-shadow: 0 0 28px rgba(56, 207, 255, 0.32);
-      font-size: 30px;
+      font-size: 28px;
       font-weight: 900;
       line-height: 1;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
     }
 
     .nav-links {
@@ -110,6 +128,27 @@
 
     .nav-links a:hover {
       color: var(--text);
+    }
+
+    .language-select {
+      min-height: 42px;
+      padding: 0 38px 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--text);
+      background:
+        linear-gradient(45deg, transparent 50%, var(--cyan) 50%) right 15px center / 7px 7px no-repeat,
+        linear-gradient(135deg, var(--cyan) 50%, transparent 50%) right 10px center / 7px 7px no-repeat,
+        rgba(23, 39, 74, 0.92);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      appearance: none;
+    }
+
+    .language-select:focus {
+      outline: 2px solid rgba(56, 207, 255, 0.38);
+      outline-offset: 2px;
     }
 
     .button {
@@ -221,16 +260,25 @@
       align-items: center;
     }
 
-    .shot {
-      position: relative;
+    .shot,
+    .demo-card,
+    .pain-card {
       border: 1px solid var(--line);
-      border-radius: 28px;
-      background: rgba(20, 35, 66, 0.58);
-      box-shadow: 0 28px 80px var(--shadow);
+      background: var(--panel);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
       overflow: hidden;
     }
 
-    .shot img {
+    .shot {
+      position: relative;
+      border-radius: 28px;
+      background: rgba(20, 35, 66, 0.58);
+      box-shadow: 0 28px 80px var(--shadow);
+    }
+
+    .shot img,
+    .demo-card img,
+    .pain-card img {
       width: 100%;
       height: 100%;
       object-fit: contain;
@@ -283,8 +331,7 @@
 
     .feature-card,
     .download-panel,
-    .step,
-    .pain-card {
+    .step {
       border: 1px solid var(--line);
       border-radius: 20px;
       background: var(--panel);
@@ -332,19 +379,12 @@
     }
 
     .demo-card {
-      border: 1px solid var(--line);
       border-radius: 24px;
-      overflow: hidden;
       background: rgba(20, 35, 66, 0.62);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
     }
 
     .demo-card img {
-      width: 100%;
       aspect-ratio: 9 / 16;
-      object-fit: contain;
-      object-position: center;
-      background: rgba(7, 20, 38, 0.72);
     }
 
     .demo-card figcaption {
@@ -368,15 +408,12 @@
     }
 
     .pain-card {
-      overflow: hidden;
+      border-radius: 20px;
       background: var(--panel-strong);
     }
 
     .pain-card img {
-      width: 100%;
       aspect-ratio: 16 / 9;
-      object-fit: cover;
-      object-position: center;
       border-bottom: 1px solid rgba(94, 214, 255, 0.16);
     }
 
@@ -488,13 +525,30 @@
       }
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 720px) {
       .shell {
         width: min(100% - 22px, 1180px);
       }
 
+      .nav-inner {
+        min-height: 84px;
+        align-items: flex-start;
+        padding: 14px 0;
+      }
+
+      .nav-actions {
+        align-items: flex-end;
+        flex-direction: column;
+        gap: 10px;
+      }
+
       .nav-links {
         display: none;
+      }
+
+      .language-select {
+        min-height: 38px;
+        font-size: 13px;
       }
 
       .hero-gallery,
@@ -523,11 +577,20 @@
         <span class="logo">↑</span>
         <span>Head Up</span>
       </a>
-      <div class="nav-links">
-        <a href="#features">功能</a>
-        <a href="#pain">衛教痛點</a>
-        <a href="#download">下載 Demo</a>
-        <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk">下載 APK</a>
+      <div class="nav-actions">
+        <div class="nav-links">
+          <a href="#features" data-i18n="navFeatures">功能</a>
+          <a href="#pain" data-i18n="navPain">痛點</a>
+          <a href="#download" data-i18n="navDownloadDemo">下載 Demo</a>
+          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk" data-i18n="downloadApk">下載 APK</a>
+        </div>
+        <label>
+          <span class="sr-only" data-i18n="languageLabel">語言</span>
+          <select id="languageSelect" class="language-select" aria-label="Language">
+            <option value="zh-Hant">繁體中文</option>
+            <option value="en">English</option>
+          </select>
+        </label>
       </div>
     </div>
   </nav>
@@ -535,41 +598,41 @@
   <main id="top">
     <div class="shell hero">
       <div>
-        <div class="eyebrow">AI posture guard for study time</div>
-        <h1 class="hero-title">Head Up<br /><strong>守護讀書姿勢</strong></h1>
-        <p class="hero-copy">
-          透過 MediaPipe Edge AI、姿勢角度分析與即時提醒，Head Up 協助學生在閱讀、寫作與使用平板時維持更安全的頭頸姿勢。
+        <div class="eyebrow" data-i18n="eyebrow">AI 姿勢與護眼守護 Demo</div>
+        <h1 class="hero-title">Head Up<br /><strong data-i18n="heroTitle">讓孩子讀書時抬頭一點</strong></h1>
+        <p class="hero-copy" data-i18n="heroCopy">
+          Head Up 使用 MediaPipe Edge AI 與 CameraX，即時偵測頭部前傾、肩膀平衡與螢幕距離。當姿勢不良持續發生時，App 會以紅框、震動與 Vision Dragon 提醒，並把資料記錄成可理解的守護報表。
         </p>
         <div class="hero-actions">
-          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk">下載 Android Demo</a>
-          <a class="button" href="https://github.com/AngleZero-collab/Head-Up">查看 GitHub 專案</a>
+          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk" data-i18n="downloadAndroidDemo">下載 Android Demo</a>
+          <a class="button" href="https://github.com/AngleZero-collab/Head-Up" data-i18n="viewGithub">查看 GitHub 專案</a>
         </div>
         <div class="trust-row">
           <div class="trust-item">
             <b>25°</b>
-            <span>姿勢不良警戒角度</span>
+            <span data-i18n="trustAngle">姿勢不良角度判斷門檻</span>
           </div>
           <div class="trust-item">
             <b>3s</b>
-            <span>連續危險姿勢防抖提醒</span>
+            <span data-i18n="trustDebounce">連續不良姿勢才觸發紅框警戒</span>
           </div>
           <div class="trust-item">
             <b>AI</b>
-            <span>角速度預測式提前提醒</span>
+            <span data-i18n="trustAi">角速度追蹤，提前提醒低頭趨勢</span>
           </div>
         </div>
       </div>
 
       <div class="hero-gallery" aria-label="Head Up demo screenshots">
         <figure class="shot primary-shot">
-          <img src="assets/demo-scan.png" alt="Head Up 姿勢掃描 demo 畫面" />
+          <img src="assets/demo-scan.png" alt="Head Up scan demo screen" />
         </figure>
         <div class="shot-stack">
           <figure class="shot small-shot">
-            <img src="assets/demo-stats.png" alt="Head Up 家長守護報表 demo 畫面" />
+            <img src="assets/demo-stats.png" alt="Head Up stats dashboard screen" />
           </figure>
           <figure class="shot small-shot">
-            <img src="assets/demo-challenge-blue.png" alt="Head Up Vision Dragon 挑戰 demo 畫面" />
+            <img src="assets/demo-challenge-blue.png" alt="Head Up Vision Dragon challenge screen" />
           </figure>
         </div>
       </div>
@@ -578,48 +641,48 @@
     <section id="features">
       <div class="shell">
         <div class="section-head">
-          <h2>Demo 功能</h2>
-          <p>Head Up demo 聚焦在前鏡頭姿勢偵測、背景守護、資料統計與遊戲化任務，適合展示產品原型與評審體驗。</p>
+          <h2 data-i18n="featuresTitle">Demo 功能</h2>
+          <p data-i18n="featuresCopy">從即時姿勢掃描、背景守護、資料統計到 Vision Dragon 挑戰，Demo 已把核心產品體驗串成完整流程。</p>
         </div>
         <div class="feature-grid">
           <article class="feature-card">
             <div class="feature-icon">01</div>
-            <h3>即時姿勢偵測</h3>
-            <p>前鏡頭辨識眼睛、鼻子、肩膀等點位，推估頭前傾、頸椎曲線、肩膀平衡與螢幕距離。</p>
+            <h3 data-i18n="feature1Title">即時姿勢掃描</h3>
+            <p data-i18n="feature1Copy">前鏡頭偵測眼睛、鼻子、嘴巴、肩膀等關鍵點，顯示頭部前傾、頸椎曲線、肩膀平衡與螢幕距離。</p>
           </article>
           <article class="feature-card">
             <div class="feature-icon">02</div>
-            <h3>AI 預警</h3>
-            <p>加入 EMA 降噪、3 秒防抖與角速度追蹤，降低誤觸提醒並提前攔截姿勢崩塌。</p>
+            <h3 data-i18n="feature2Title">穩定警戒機制</h3>
+            <p data-i18n="feature2Copy">EMA 降噪與 3 秒防抖降低誤報；當快速低頭時，角速度追蹤會先以短震動提醒。</p>
           </article>
           <article class="feature-card">
             <div class="feature-icon">03</div>
-            <h3>家長資料圖表</h3>
-            <p>將真實紀錄同步到後端，透過 dashboard 查看用戶、訪客與每日姿勢統計。</p>
+            <h3 data-i18n="feature3Title">家長守護報表</h3>
+            <p data-i18n="feature3Copy">本機記錄真實姿勢資料，呈現今日好姿勢比例、近七日不良次數與每日任務進度。</p>
           </article>
           <article class="feature-card">
             <div class="feature-icon">04</div>
             <h3>Vision Dragon</h3>
-            <p>以 Q 版 Vision Dragon、任務和獎勵提升學生持續使用動機。</p>
+            <p data-i18n="feature4Copy">用可愛角色把護眼與坐姿養成變成任務，讓提醒更像陪伴，而不是單純警告。</p>
           </article>
         </div>
 
         <div class="demo-grid">
           <figure class="demo-card">
-            <img src="assets/demo-scan-results.png" alt="姿勢掃描結果四項指標" />
-            <figcaption><b>姿勢掃描結果</b>頭部前傾、頸椎曲線、肩膀平衡與螢幕距離一目了然。</figcaption>
+            <img src="assets/demo-scan-results.png" alt="Posture scan results" />
+            <figcaption><b data-i18n="demo1Title">姿勢掃描結果</b><span data-i18n="demo1Copy">清楚顯示頭部、頸椎、肩膀與螢幕距離狀態。</span></figcaption>
           </figure>
           <figure class="demo-card">
-            <img src="assets/demo-stats-alert.png" alt="資料頁紅框提醒" />
-            <figcaption><b>危險紅框提醒</b>偵測到不良姿勢時，以柔和紅框提示抬頭休息。</figcaption>
+            <img src="assets/demo-stats-alert.png" alt="Stats alert screen" />
+            <figcaption><b data-i18n="demo2Title">數據與警戒</b><span data-i18n="demo2Copy">以圖表呈現守護紀錄，紅框提醒姿勢風險。</span></figcaption>
           </figure>
           <figure class="demo-card">
-            <img src="assets/demo-challenge-rest.png" alt="Vision Dragon 需要休息" />
-            <figcaption><b>遊戲化任務</b>Little Blue 會根據姿勢表現改變能量與狀態。</figcaption>
+            <img src="assets/demo-challenge-rest.png" alt="Vision Dragon rest screen" />
+            <figcaption><b data-i18n="demo3Title">挑戰與休息</b><span data-i18n="demo3Copy">Vision Dragon 會依今日表現切換狀態。</span></figcaption>
           </figure>
           <figure class="demo-card">
-            <img src="assets/demo-shop.png" alt="Head Up 商店頁" />
-            <figcaption><b>健康積分商店</b>以造型、背景與獎勵兌換鼓勵孩子維持好習慣。</figcaption>
+            <img src="assets/demo-shop.png" alt="Head Up shop screen" />
+            <figcaption><b data-i18n="demo4Title">健康積分商店</b><span data-i18n="demo4Copy">把正確坐姿與護眼休息轉換成可累積的獎勵。</span></figcaption>
           </figure>
         </div>
       </div>
@@ -628,32 +691,28 @@
     <section id="pain">
       <div class="shell">
         <div class="section-head">
-          <h2>衛教宣導痛點</h2>
-          <p>Head Up 不是醫療診斷工具，而是把日常風險變成孩子看得懂、家長看得到的提醒與紀錄。</p>
+          <h2 data-i18n="painTitle">為什麼需要 Head Up</h2>
+          <p data-i18n="painCopy">長時間低頭、近距離看螢幕與缺乏休息，容易讓孩子把錯誤姿勢變成習慣。Head Up 的目標是把風險提醒變得即時、溫和、可追蹤。</p>
         </div>
         <div class="pain-grid">
           <article class="pain-card">
-            <img src="assets/pain-neck-load.png" alt="低頭角度與頸椎壓力衛教圖" />
+            <img src="assets/pain-neck-load.png" alt="Neck load education graphic" />
             <div class="pain-copy">
-              <span class="pain-tag">痛點 1</span>
-              <h3>低頭角度越大，頸椎承受越多隱形重量</h3>
-              <p>
-                孩子長時間低頭看書、滑手機或使用平板時，頭頸角度會把負擔集中到頸椎。Head Up 以 25 度作為不良姿勢警戒，提醒孩子及早抬頭與休息。
-              </p>
+              <span class="pain-tag" data-i18n="painTag1">痛點 1</span>
+              <h3 data-i18n="pain1Title">低頭角度越大，頸椎負擔越高</h3>
+              <p data-i18n="pain1Copy">孩子常在不知不覺中低頭讀書或滑平板。Head Up 透過角度與肩膀關鍵點追蹤，協助在姿勢惡化前提醒抬頭。</p>
             </div>
           </article>
           <article class="pain-card">
-            <img src="assets/pain-myopia-risk.png" alt="高度近視與視網膜風險衛教圖" />
+            <img src="assets/pain-myopia-risk.png" alt="Myopia risk education graphic" />
             <div class="pain-copy">
-              <span class="pain-tag">痛點 2</span>
-              <h3>高度近視與長時間近距離用眼，需要被日常管理</h3>
-              <p>
-                近距離閱讀與螢幕使用時間拉長，會讓家長更難掌握孩子的用眼習慣。Head Up 將護眼任務、休息紀錄與家長報表整合，讓衛教不只停在口頭提醒。
-              </p>
+              <span class="pain-tag" data-i18n="painTag2">痛點 2</span>
+              <h3 data-i18n="pain2Title">近距離用眼與過長螢幕時間需要被管理</h3>
+              <p data-i18n="pain2Copy">螢幕距離過近時，App 會以顏色狀態提示；每日護眼休息也會被記錄，讓家長看見孩子實際使用狀況。</p>
             </div>
           </article>
         </div>
-        <p class="notice">衛教圖表與數值用於產品宣導與風險溝通；若有眼科或頸椎相關症狀，仍應由專業醫療人員評估。</p>
+        <p class="notice" data-i18n="notice">本 Demo 以教育宣導與姿勢輔助提醒為目的，不取代專業醫療診斷；若有眼睛或頸椎不適，請諮詢專業醫師。</p>
       </div>
     </section>
 
@@ -661,10 +720,10 @@
       <div class="shell">
         <div class="download-panel">
           <div>
-            <h2>下載 Head Up Demo APK</h2>
-            <p>下載按鈕連到 GitHub Releases 最新版本，Android 手機可直接下載安裝 Demo。</p>
+            <h2 data-i18n="downloadTitle">下載 Head Up Demo APK</h2>
+            <p data-i18n="downloadCopy">下載連結會取得 GitHub Releases 中最新的 Android Demo APK，可用於實機體驗 Scan、Stats、Challenge 與 Shop 頁面。</p>
           </div>
-          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk">下載 Demo</a>
+          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk" data-i18n="downloadDemo">下載 Demo</a>
         </div>
       </div>
     </section>
@@ -672,24 +731,24 @@
     <section id="install">
       <div class="shell">
         <div class="section-head">
-          <h2>Android 安裝方式</h2>
-          <p>Demo APK 不走 Play Store 時，手機會要求允許瀏覽器安裝未知來源應用程式。</p>
+          <h2 data-i18n="installTitle">Android 安裝步驟</h2>
+          <p data-i18n="installCopy">Demo APK 尚未上架 Play Store，首次安裝時 Android 可能會要求允許從瀏覽器或檔案管理器安裝。</p>
         </div>
         <div class="steps">
           <article class="step">
             <div class="step-number">1</div>
-            <h3>開啟網站</h3>
-            <p>用 Android 手機開啟 GitHub Pages 介紹頁，點擊下載 Demo。</p>
+            <h3 data-i18n="step1Title">下載 APK</h3>
+            <p data-i18n="step1Copy">在 Android 手機上開啟此網站，點擊下載 Demo。</p>
           </article>
           <article class="step">
             <div class="step-number">2</div>
-            <h3>允許安裝</h3>
-            <p>依照系統提示允許瀏覽器安裝未知來源 APK。</p>
+            <h3 data-i18n="step2Title">允許安裝</h3>
+            <p data-i18n="step2Copy">依照系統提示允許瀏覽器安裝此 APK。</p>
           </article>
           <article class="step">
             <div class="step-number">3</div>
-            <h3>開始體驗</h3>
-            <p>開啟 Head Up，使用訪客模式或註冊帳號體驗姿勢防護流程。</p>
+            <h3 data-i18n="step3Title">開始體驗</h3>
+            <p data-i18n="step3Copy">開啟 Head Up，使用訪客、快速使用或帳號登入開始姿勢守護。</p>
           </article>
         </div>
       </div>
@@ -699,8 +758,151 @@
   <footer class="footer">
     <div class="shell footer-inner">
       <span>Head Up Demo MVP</span>
-      <span>Built with Kotlin, CameraX, MediaPipe and FastAPI</span>
+      <span data-i18n="footerTech">使用 Kotlin、CameraX、MediaPipe 與 FastAPI 打造</span>
     </div>
   </footer>
+
+  <script>
+    const copy = {
+      "zh-Hant": {
+        title: "Head Up | AI 姿勢防護 Demo",
+        description: "Head Up 是為學生打造的 AI 姿勢與護眼 Demo App，使用 MediaPipe、CameraX、Kotlin 與 FastAPI。",
+        navFeatures: "功能",
+        navPain: "痛點",
+        navDownloadDemo: "下載 Demo",
+        downloadApk: "下載 APK",
+        languageLabel: "語言",
+        eyebrow: "AI 姿勢與護眼守護 Demo",
+        heroTitle: "讓孩子讀書時抬頭一點",
+        heroCopy: "Head Up 使用 MediaPipe Edge AI 與 CameraX，即時偵測頭部前傾、肩膀平衡與螢幕距離。當姿勢不良持續發生時，App 會以紅框、震動與 Vision Dragon 提醒，並把資料記錄成可理解的守護報表。",
+        downloadAndroidDemo: "下載 Android Demo",
+        viewGithub: "查看 GitHub 專案",
+        trustAngle: "姿勢不良角度判斷門檻",
+        trustDebounce: "連續不良姿勢才觸發紅框警戒",
+        trustAi: "角速度追蹤，提前提醒低頭趨勢",
+        featuresTitle: "Demo 功能",
+        featuresCopy: "從即時姿勢掃描、背景守護、資料統計到 Vision Dragon 挑戰，Demo 已把核心產品體驗串成完整流程。",
+        feature1Title: "即時姿勢掃描",
+        feature1Copy: "前鏡頭偵測眼睛、鼻子、嘴巴、肩膀等關鍵點，顯示頭部前傾、頸椎曲線、肩膀平衡與螢幕距離。",
+        feature2Title: "穩定警戒機制",
+        feature2Copy: "EMA 降噪與 3 秒防抖降低誤報；當快速低頭時，角速度追蹤會先以短震動提醒。",
+        feature3Title: "家長守護報表",
+        feature3Copy: "本機記錄真實姿勢資料，呈現今日好姿勢比例、近七日不良次數與每日任務進度。",
+        feature4Copy: "用可愛角色把護眼與坐姿養成變成任務，讓提醒更像陪伴，而不是單純警告。",
+        demo1Title: "姿勢掃描結果",
+        demo1Copy: "清楚顯示頭部、頸椎、肩膀與螢幕距離狀態。",
+        demo2Title: "數據與警戒",
+        demo2Copy: "以圖表呈現守護紀錄，紅框提醒姿勢風險。",
+        demo3Title: "挑戰與休息",
+        demo3Copy: "Vision Dragon 會依今日表現切換狀態。",
+        demo4Title: "健康積分商店",
+        demo4Copy: "把正確坐姿與護眼休息轉換成可累積的獎勵。",
+        painTitle: "為什麼需要 Head Up",
+        painCopy: "長時間低頭、近距離看螢幕與缺乏休息，容易讓孩子把錯誤姿勢變成習慣。Head Up 的目標是把風險提醒變得即時、溫和、可追蹤。",
+        painTag1: "痛點 1",
+        pain1Title: "低頭角度越大，頸椎負擔越高",
+        pain1Copy: "孩子常在不知不覺中低頭讀書或滑平板。Head Up 透過角度與肩膀關鍵點追蹤，協助在姿勢惡化前提醒抬頭。",
+        painTag2: "痛點 2",
+        pain2Title: "近距離用眼與過長螢幕時間需要被管理",
+        pain2Copy: "螢幕距離過近時，App 會以顏色狀態提示；每日護眼休息也會被記錄，讓家長看見孩子實際使用狀況。",
+        notice: "本 Demo 以教育宣導與姿勢輔助提醒為目的，不取代專業醫療診斷；若有眼睛或頸椎不適，請諮詢專業醫師。",
+        downloadTitle: "下載 Head Up Demo APK",
+        downloadCopy: "下載連結會取得 GitHub Releases 中最新的 Android Demo APK，可用於實機體驗 Scan、Stats、Challenge 與 Shop 頁面。",
+        downloadDemo: "下載 Demo",
+        installTitle: "Android 安裝步驟",
+        installCopy: "Demo APK 尚未上架 Play Store，首次安裝時 Android 可能會要求允許從瀏覽器或檔案管理器安裝。",
+        step1Title: "下載 APK",
+        step1Copy: "在 Android 手機上開啟此網站，點擊下載 Demo。",
+        step2Title: "允許安裝",
+        step2Copy: "依照系統提示允許瀏覽器安裝此 APK。",
+        step3Title: "開始體驗",
+        step3Copy: "開啟 Head Up，使用訪客、快速使用或帳號登入開始姿勢守護。",
+        footerTech: "使用 Kotlin、CameraX、MediaPipe 與 FastAPI 打造"
+      },
+      en: {
+        title: "Head Up | AI Posture Protection Demo",
+        description: "Head Up is an AI posture and eye-care demo app for students, built with MediaPipe, CameraX, Kotlin and FastAPI.",
+        navFeatures: "Features",
+        navPain: "Why It Matters",
+        navDownloadDemo: "Download Demo",
+        downloadApk: "Download APK",
+        languageLabel: "Language",
+        eyebrow: "AI posture and eye-care demo",
+        heroTitle: "Safer study posture, in real time",
+        heroCopy: "Head Up uses MediaPipe Edge AI and CameraX to track forward head tilt, shoulder balance, and screen distance in real time. When risky posture continues, the app warns with a red frame, vibration, and Vision Dragon, then turns the data into a clear protection dashboard.",
+        downloadAndroidDemo: "Download Android Demo",
+        viewGithub: "View GitHub Project",
+        trustAngle: "Poor-posture angle threshold",
+        trustDebounce: "Red frame appears after continuous risky posture",
+        trustAi: "Angular velocity tracking predicts posture collapse",
+        featuresTitle: "Demo Features",
+        featuresCopy: "The demo connects real-time scanning, background protection, data dashboards, and Vision Dragon challenges into one complete product flow.",
+        feature1Title: "Real-Time Posture Scan",
+        feature1Copy: "The front camera tracks key points such as eyes, nose, mouth, and shoulders to show head tilt, neck curve, shoulder balance, and screen distance.",
+        feature2Title: "Stable Warning Logic",
+        feature2Copy: "EMA smoothing and a 3-second debounce reduce false alarms. When the head drops quickly, angular velocity tracking can vibrate early.",
+        feature3Title: "Parent Dashboard",
+        feature3Copy: "Local records show real posture data, including today’s good-posture ratio, 7-day poor-posture events, and daily task progress.",
+        feature4Copy: "A friendly Vision Dragon turns eye care and posture training into small missions, so reminders feel supportive instead of purely punitive.",
+        demo1Title: "Scan Results",
+        demo1Copy: "Head, neck, shoulder, and screen-distance states are shown clearly.",
+        demo2Title: "Stats and Alerts",
+        demo2Copy: "Charts summarize protection records while the red frame highlights posture risk.",
+        demo3Title: "Challenge and Rest",
+        demo3Copy: "Vision Dragon changes state based on the user’s daily performance.",
+        demo4Title: "Health Points Shop",
+        demo4Copy: "Good posture and eye breaks become rewards the user can accumulate.",
+        painTitle: "Why Head Up Matters",
+        painCopy: "Long periods of looking down, close screen distance, and missing breaks can turn poor posture into a habit. Head Up makes risk reminders immediate, gentle, and trackable.",
+        painTag1: "Pain Point 1",
+        pain1Title: "Greater forward tilt increases neck load",
+        pain1Copy: "Students often look down while reading or using tablets without noticing. Head Up uses angle and shoulder-keypoint tracking to remind users before posture worsens.",
+        painTag2: "Pain Point 2",
+        pain2Title: "Close screen distance and long screen time need guidance",
+        pain2Copy: "When screen distance is too close, the app uses color status cues. Daily eye breaks are recorded so parents can see real usage patterns.",
+        notice: "This demo is for education and posture-assist reminders only. It does not replace professional medical diagnosis. Please consult a clinician for eye or neck discomfort.",
+        downloadTitle: "Download the Head Up Demo APK",
+        downloadCopy: "The download button fetches the latest Android Demo APK from GitHub Releases for real-device testing of Scan, Stats, Challenge, and Shop.",
+        downloadDemo: "Download Demo",
+        installTitle: "Android Installation Steps",
+        installCopy: "The Demo APK is not on the Play Store yet, so Android may ask you to allow installation from your browser or file manager.",
+        step1Title: "Download APK",
+        step1Copy: "Open this website on an Android phone and tap Download Demo.",
+        step2Title: "Allow Install",
+        step2Copy: "Follow the Android prompt to allow the browser to install this APK.",
+        step3Title: "Start Testing",
+        step3Copy: "Open Head Up and use guest mode, quick use, or account login to begin posture protection.",
+        footerTech: "Built with Kotlin, CameraX, MediaPipe and FastAPI"
+      }
+    };
+
+    const languageSelect = document.getElementById("languageSelect");
+    const supportedLanguages = Object.keys(copy);
+
+    function pickInitialLanguage() {
+      const saved = localStorage.getItem("headup-site-language");
+      if (supportedLanguages.includes(saved)) return saved;
+      return navigator.language && navigator.language.toLowerCase().startsWith("zh") ? "zh-Hant" : "en";
+    }
+
+    function applyLanguage(language) {
+      const dictionary = copy[language] || copy["zh-Hant"];
+      document.documentElement.lang = language;
+      document.title = dictionary.title;
+      document.querySelector('meta[name="description"]').setAttribute("content", dictionary.description);
+      document.querySelectorAll("[data-i18n]").forEach((node) => {
+        const key = node.getAttribute("data-i18n");
+        if (dictionary[key]) node.textContent = dictionary[key];
+      });
+      languageSelect.value = language;
+      localStorage.setItem("headup-site-language", language);
+    }
+
+    languageSelect.addEventListener("change", (event) => {
+      applyLanguage(event.target.value);
+    });
+
+    applyLanguage(pickInitialLanguage());
+  </script>
 </body>
 </html>
