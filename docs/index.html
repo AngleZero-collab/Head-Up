@@ -625,14 +625,14 @@
 
       <div class="hero-gallery" aria-label="Head Up demo screenshots">
         <figure class="shot primary-shot">
-          <img src="assets/demo-scan.png" alt="Head Up scan demo screen" />
+          <img data-media="heroScan" src="assets/demo-scan.png" alt="Head Up 姿勢掃描畫面" />
         </figure>
         <div class="shot-stack">
           <figure class="shot small-shot">
-            <img src="assets/demo-stats.png" alt="Head Up stats dashboard screen" />
+            <img data-media="heroStats" src="assets/demo-stats.png" alt="Head Up 數據統計畫面" />
           </figure>
           <figure class="shot small-shot">
-            <img src="assets/demo-challenge-blue.png" alt="Head Up Vision Dragon challenge screen" />
+            <img data-media="heroChallenge" src="assets/demo-challenge-blue.png" alt="Head Up Vision Dragon 挑戰畫面" />
           </figure>
         </div>
       </div>
@@ -669,19 +669,19 @@
 
         <div class="demo-grid">
           <figure class="demo-card">
-            <img src="assets/demo-scan-results.png" alt="Posture scan results" />
+            <img data-media="demoScanResults" src="assets/demo-scan-results.png" alt="姿勢掃描結果畫面" />
             <figcaption><b data-i18n="demo1Title">姿勢掃描結果</b><span data-i18n="demo1Copy">清楚顯示頭部、頸椎、肩膀與螢幕距離狀態。</span></figcaption>
           </figure>
           <figure class="demo-card">
-            <img src="assets/demo-stats-alert.png" alt="Stats alert screen" />
+            <img data-media="demoStatsAlert" src="assets/demo-stats-alert.png" alt="數據與紅框警戒畫面" />
             <figcaption><b data-i18n="demo2Title">數據與警戒</b><span data-i18n="demo2Copy">以圖表呈現守護紀錄，紅框提醒姿勢風險。</span></figcaption>
           </figure>
           <figure class="demo-card">
-            <img src="assets/demo-challenge-rest.png" alt="Vision Dragon rest screen" />
+            <img data-media="demoChallengeRest" src="assets/demo-challenge-rest.png" alt="Vision Dragon 休息提醒畫面" />
             <figcaption><b data-i18n="demo3Title">挑戰與休息</b><span data-i18n="demo3Copy">Vision Dragon 會依今日表現切換狀態。</span></figcaption>
           </figure>
           <figure class="demo-card">
-            <img src="assets/demo-shop.png" alt="Head Up shop screen" />
+            <img data-media="demoShop" src="assets/demo-shop.png" alt="Head Up 商店畫面" />
             <figcaption><b data-i18n="demo4Title">健康積分商店</b><span data-i18n="demo4Copy">把正確坐姿與護眼休息轉換成可累積的獎勵。</span></figcaption>
           </figure>
         </div>
@@ -696,7 +696,7 @@
         </div>
         <div class="pain-grid">
           <article class="pain-card">
-            <img src="assets/pain-neck-load.png" alt="Neck load education graphic" />
+            <img data-media="painNeck" src="assets/pain-neck-load.png" alt="頸椎負擔衛教圖" />
             <div class="pain-copy">
               <span class="pain-tag" data-i18n="painTag1">痛點 1</span>
               <h3 data-i18n="pain1Title">低頭角度越大，頸椎負擔越高</h3>
@@ -704,7 +704,7 @@
             </div>
           </article>
           <article class="pain-card">
-            <img src="assets/pain-myopia-risk.png" alt="Myopia risk education graphic" />
+            <img data-media="painMyopia" src="assets/pain-myopia-risk.png" alt="近視風險衛教圖" />
             <div class="pain-copy">
               <span class="pain-tag" data-i18n="painTag2">痛點 2</span>
               <h3 data-i18n="pain2Title">近距離用眼與過長螢幕時間需要被管理</h3>
@@ -876,6 +876,85 @@
       }
     };
 
+    const media = {
+      "zh-Hant": {
+        heroScan: {
+          src: "assets/demo-scan.png",
+          alt: "Head Up 姿勢掃描畫面"
+        },
+        heroStats: {
+          src: "assets/demo-stats.png",
+          alt: "Head Up 數據統計畫面"
+        },
+        heroChallenge: {
+          src: "assets/demo-challenge-blue.png",
+          alt: "Head Up Vision Dragon 挑戰畫面"
+        },
+        demoScanResults: {
+          src: "assets/demo-scan-results.png",
+          alt: "姿勢掃描結果畫面"
+        },
+        demoStatsAlert: {
+          src: "assets/demo-stats-alert.png",
+          alt: "數據與紅框警戒畫面"
+        },
+        demoChallengeRest: {
+          src: "assets/demo-challenge-rest.png",
+          alt: "Vision Dragon 休息提醒畫面"
+        },
+        demoShop: {
+          src: "assets/demo-shop.png",
+          alt: "Head Up 商店畫面"
+        },
+        painNeck: {
+          src: "assets/pain-neck-load.png",
+          alt: "頸椎負擔衛教圖"
+        },
+        painMyopia: {
+          src: "assets/pain-myopia-risk.png",
+          alt: "近視風險衛教圖"
+        }
+      },
+      en: {
+        heroScan: {
+          src: "assets/demo-scan-en.png",
+          alt: "Head Up Scan View screen in English"
+        },
+        heroStats: {
+          src: "assets/demo-stats-en.png",
+          alt: "Head Up Stats dashboard screen in English"
+        },
+        heroChallenge: {
+          src: "assets/demo-challenge-blue-en.png",
+          alt: "Head Up Vision Dragon challenge screen in English"
+        },
+        demoScanResults: {
+          src: "assets/demo-scan-results-en.png",
+          alt: "Posture scan results screen in English"
+        },
+        demoStatsAlert: {
+          src: "assets/demo-stats-alert-en.png",
+          alt: "Stats and daily tasks screen in English"
+        },
+        demoChallengeRest: {
+          src: "assets/demo-challenge-rest-en.png",
+          alt: "Vision Dragon rest reminder screen in English"
+        },
+        demoShop: {
+          src: "assets/demo-shop-en.png",
+          alt: "Head Up Shop screen in English"
+        },
+        painNeck: {
+          src: "assets/pain-neck-load-en.png",
+          alt: "English education graphic about neck load"
+        },
+        painMyopia: {
+          src: "assets/pain-myopia-risk-en.png",
+          alt: "English education graphic about myopia risk"
+        }
+      }
+    };
+
     const languageSelect = document.getElementById("languageSelect");
     const supportedLanguages = Object.keys(copy);
 
@@ -893,6 +972,13 @@
       document.querySelectorAll("[data-i18n]").forEach((node) => {
         const key = node.getAttribute("data-i18n");
         if (dictionary[key]) node.textContent = dictionary[key];
+      });
+      document.querySelectorAll("[data-media]").forEach((image) => {
+        const key = image.getAttribute("data-media");
+        const asset = (media[language] || media["zh-Hant"])[key];
+        if (!asset) return;
+        image.src = asset.src;
+        image.alt = asset.alt;
       });
       languageSelect.value = language;
       localStorage.setItem("headup-site-language", language);
