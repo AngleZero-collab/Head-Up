@@ -11,13 +11,14 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
+import android.graphics.SurfaceTexture
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.ToneGenerator
-import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -31,12 +32,13 @@ import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.Surface
+import android.view.TextureView
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.Toast
-import android.widget.VideoView
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -67,6 +69,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         private const val ALARM_COOLDOWN_MS = 3_000L
         private const val PET_SIZE_DP = 112
         private const val HAPPY_PET_HIDE_DELAY_MS = 1_800L
+        private const val PET_VIDEO_RETRY_MS = 350L
     }
 
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -86,11 +89,14 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var warningOverlayView: View? = null
     private var warningAnimator: ValueAnimator? = null
     private var petOverlayView: FrameLayout? = null
-    private var petVideoView: VideoView? = null
+    private var petTextureView: TextureView? = null
+    private var petSurface: Surface? = null
+    private var petMediaPlayer: MediaPlayer? = null
     private var petLayoutParams: WindowManager.LayoutParams? = null
     private var currentPetMood: PetMood? = null
     private var wasShowingBadPet = false
     private var hidePetRunnable: Runnable? = null
+    private var petVideoRetryRunnable: Runnable? = null
     private var sensorManager: SensorManager? = null
     private var gravitySensor: Sensor? = null
     private var lastDeviceTilt = 0
@@ -135,6 +141,25 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 processPostureMetrics(updatedState.metrics)
             }
         }
+    }
+
+    private val petSurfaceListener = object : TextureView.SurfaceTextureListener {
+        override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
+            petSurface?.release()
+            petSurface = Surface(texture)
+            currentPetMood?.let { playPetVideo(it, force = true) }
+        }
+
+        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
+
+        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+            releasePetMediaPlayer()
+            petSurface?.release()
+            petSurface = null
+            return true
+        }
+
+        override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -438,7 +463,9 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 this,
                 if (mood == PetMood.ANGRY) R.drawable.bg_headup_dragon_orb_danger else R.drawable.bg_headup_dragon_orb,
             )
-            playPetVideo(mood)
+            playPetVideo(mood, force = true)
+        } else {
+            ensurePetVideoPlaying(mood)
         }
     }
 
@@ -449,39 +476,106 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             setPadding(paddingPx, paddingPx, paddingPx, paddingPx)
             alpha = 0.98f
             elevation = dpToPx(12).toFloat()
-            petVideoView = VideoView(this@HeadUpService).also { video ->
-                video.isClickable = false
-                video.isFocusable = false
-                video.layoutParams = FrameLayout.LayoutParams(
+            petTextureView = TextureView(this@HeadUpService).also { texture ->
+                texture.isOpaque = false
+                texture.isClickable = false
+                texture.isFocusable = false
+                texture.surfaceTextureListener = petSurfaceListener
+                texture.layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     Gravity.CENTER,
                 )
-                addView(video)
+                addView(texture)
+                if (texture.isAvailable) {
+                    texture.surfaceTexture?.let {
+                        petSurface?.release()
+                        petSurface = Surface(it)
+                    }
+                }
             }
         }
     }
 
-    private fun playPetVideo(mood: PetMood) {
-        val video = petVideoView ?: return
+    private fun ensurePetVideoPlaying(mood: PetMood) {
+        val player = petMediaPlayer
+        if (player == null) {
+            playPetVideo(mood, force = true)
+            return
+        }
+        try {
+            if (!player.isPlaying) player.start()
+        } catch (error: IllegalStateException) {
+            Log.w(TAG, "Vision Dragon player was stale; restarting", error)
+            playPetVideo(mood, force = true)
+        }
+    }
+
+    private fun playPetVideo(mood: PetMood, force: Boolean = false) {
+        val surface = petSurface ?: return
+        if (!force && petMediaPlayer != null) {
+            ensurePetVideoPlaying(mood)
+            return
+        }
+        releasePetMediaPlayer()
         val resId = if (mood == PetMood.ANGRY) R.raw.angry_dragon else R.raw.happy_dragon
-        video.setOnPreparedListener { player ->
-            player.isLooping = mood == PetMood.ANGRY
-            player.setVolume(0f, 0f)
-            video.start()
+        try {
+            resources.openRawResourceFd(resId).use { descriptor ->
+                petMediaPlayer = MediaPlayer().apply {
+                    setSurface(surface)
+                    setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+                    isLooping = mood == PetMood.ANGRY
+                    setVolume(0f, 0f)
+                    setOnPreparedListener { player -> player.start() }
+                    setOnCompletionListener {
+                        if (mood == PetMood.HAPPY && petOverlayView != null) {
+                            it.seekTo(0)
+                            it.start()
+                        }
+                    }
+                    setOnErrorListener { _, what, extra ->
+                        Log.w(TAG, "Vision Dragon video failed: $what/$extra")
+                        schedulePetVideoRetry(mood)
+                        true
+                    }
+                    prepareAsync()
+                }
+            }
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to play Vision Dragon animation", error)
+            schedulePetVideoRetry(mood)
         }
-        video.setOnErrorListener { _, what, extra ->
-            Log.w(TAG, "Vision Dragon video failed: $what/$extra")
-            true
+    }
+
+    private fun schedulePetVideoRetry(mood: PetMood) {
+        petVideoRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+        petVideoRetryRunnable = Runnable {
+            petVideoRetryRunnable = null
+            if (petOverlayView != null && currentPetMood == mood) {
+                playPetVideo(mood, force = true)
+            }
         }
-        video.setVideoURI(Uri.parse("android.resource://$packageName/$resId"))
-        video.start()
+        mainHandler.postDelayed(petVideoRetryRunnable!!, PET_VIDEO_RETRY_MS)
+    }
+
+    private fun releasePetMediaPlayer() {
+        petVideoRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+        petVideoRetryRunnable = null
+        try {
+            petMediaPlayer?.release()
+        } catch (_: Exception) {
+            Unit
+        }
+        petMediaPlayer = null
     }
 
     private fun hidePetOverlay() {
         hidePetRunnable?.let { mainHandler.removeCallbacks(it) }
         hidePetRunnable = null
-        petVideoView?.stopPlayback()
+        petTextureView?.surfaceTextureListener = null
+        releasePetMediaPlayer()
+        petSurface?.release()
+        petSurface = null
         petOverlayView?.let { pet ->
             try {
                 windowManager?.removeView(pet)
@@ -490,7 +584,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             }
         }
         petOverlayView = null
-        petVideoView = null
+        petTextureView = null
         petLayoutParams = null
         currentPetMood = null
     }

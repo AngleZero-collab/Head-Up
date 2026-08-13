@@ -36,6 +36,7 @@ object PostureAnalyzer {
     private const val SHOULDER_DANGER_DEGREES = 14
     private const val NECK_RATIO_TO_DEGREES = 110f
     private const val EMA_ALPHA = 0.15f
+    private const val SHOULDER_DISTANCE_OVERRIDE_MARGIN_CM = 3
 
     private var smoothedAngle: Float? = null
     private var previousSmoothedAngle: Float? = null
@@ -270,11 +271,33 @@ object PostureAnalyzer {
             ?.takeIf { it > 0f }
             ?: DistanceCalculator.DEFAULT_CALIBRATION_CONSTANT
 
-        return distanceCalculator.estimateDistanceCm(
+        val eyeEstimate = distanceCalculator.estimateDistanceCm(
             leftEye = leftEye.toPixelPoint(width, height),
             rightEye = rightEye.toPixelPoint(width, height),
             calibrationConstantK = calibrationConstant,
         )
+        val shoulderDistanceCm = estimateShoulderDistanceCm(body, calibration)
+        return when {
+            eyeEstimate == null -> null
+            shoulderDistanceCm != null &&
+                shoulderDistanceCm < eyeEstimate.distanceCm - SHOULDER_DISTANCE_OVERRIDE_MARGIN_CM ->
+                eyeEstimate.copy(
+                    distanceCm = shoulderDistanceCm,
+                    rawDistanceCm = minOf(eyeEstimate.rawDistanceCm, shoulderDistanceCm),
+                )
+            else -> eyeEstimate
+        }
+    }
+
+    private fun estimateShoulderDistanceCm(
+        body: BodyLandmarks,
+        calibration: CalibrationProfile?,
+    ): Int? {
+        val baseline = calibration?.shoulderWidth?.takeIf { it > 0.05f } ?: return null
+        val current = distance2d(body.leftShoulder, body.rightShoulder).takeIf { it > 0.05f } ?: return null
+        return (DistanceCalculator.DEFAULT_CALIBRATION_DISTANCE_CM * baseline / current)
+            .roundToInt()
+            .coerceIn(10, 120)
     }
 
     private fun List<LandmarkPoint>.tracked(index: Int): LandmarkPoint? {

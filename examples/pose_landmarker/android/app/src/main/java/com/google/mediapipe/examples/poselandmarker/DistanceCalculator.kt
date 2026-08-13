@@ -21,26 +21,39 @@ class DistanceCalculator(
         if (rawPixelDistance < MIN_VALID_PIXEL_DISTANCE) return null
 
         val smoothed = smoothedPixelDistance?.let { previous ->
-            val effectiveAlpha = if (rawPixelDistance > previous * FAST_APPROACH_RATIO) {
+            val isFastApproach = rawPixelDistance > previous * FAST_APPROACH_RATIO &&
+                rawPixelDistance - previous >= FAST_APPROACH_MIN_DELTA_PX
+            val effectiveAlpha = if (isFastApproach) {
                 FAST_APPROACH_ALPHA
             } else {
                 alpha
             }
-            effectiveAlpha * rawPixelDistance + (1f - effectiveAlpha) * previous
+            val candidate = effectiveAlpha * rawPixelDistance + (1f - effectiveAlpha) * previous
+            if (isFastApproach) {
+                candidate.coerceAtLeast(rawPixelDistance * FAST_APPROACH_MIN_RAW_RATIO)
+            } else {
+                candidate
+            }
         } ?: rawPixelDistance
         smoothedPixelDistance = smoothed
 
-        val distanceCm = (calibrationConstantK / smoothed)
+        val smoothedDistanceCm = (calibrationConstantK / smoothed)
             .roundToInt()
             .coerceIn(MIN_DISTANCE_CM, MAX_DISTANCE_CM)
         val rawDistanceCm = (calibrationConstantK / rawPixelDistance)
             .roundToInt()
             .coerceIn(MIN_DISTANCE_CM, MAX_DISTANCE_CM)
 
+        val displayDistanceCm = if (rawDistanceCm <= IMMEDIATE_WARNING_DISTANCE_CM) {
+            rawDistanceCm
+        } else {
+            smoothedDistanceCm
+        }
+
         return DistanceEstimate(
             rawPixelDistance = rawPixelDistance,
             smoothedPixelDistance = smoothed,
-            distanceCm = if (rawDistanceCm < IMMEDIATE_DANGER_DISTANCE_CM) rawDistanceCm else distanceCm,
+            distanceCm = displayDistanceCm,
             rawDistanceCm = rawDistanceCm,
         )
     }
@@ -49,9 +62,11 @@ class DistanceCalculator(
         const val DEFAULT_EMA_ALPHA = 0.15f
         const val DEFAULT_CALIBRATION_DISTANCE_CM = 45f
         const val DEFAULT_CALIBRATION_CONSTANT = 4_000f
-        private const val FAST_APPROACH_ALPHA = 0.45f
-        private const val FAST_APPROACH_RATIO = 1.18f
-        private const val IMMEDIATE_DANGER_DISTANCE_CM = 20
+        private const val FAST_APPROACH_ALPHA = 0.82f
+        private const val FAST_APPROACH_RATIO = 1.12f
+        private const val FAST_APPROACH_MIN_DELTA_PX = 18f
+        private const val FAST_APPROACH_MIN_RAW_RATIO = 0.90f
+        private const val IMMEDIATE_WARNING_DISTANCE_CM = 30
         private const val MIN_VALID_PIXEL_DISTANCE = 8f
         private const val MIN_DISTANCE_CM = 10
         private const val MAX_DISTANCE_CM = 120
