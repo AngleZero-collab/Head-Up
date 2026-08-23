@@ -581,8 +581,7 @@
         <div class="nav-links">
           <a href="#features" data-i18n="navFeatures">功能</a>
           <a href="#pain" data-i18n="navPain">痛點</a>
-          <a href="#download" data-i18n="navDownloadDemo">下載 Demo</a>
-          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk" data-i18n="downloadApk">下載 APK</a>
+          <a href="#pilot" data-i18n="navPilot">內測狀態</a>
         </div>
         <label>
           <span class="sr-only" data-i18n="languageLabel">語言</span>
@@ -604,7 +603,7 @@
           Head Up 使用 MediaPipe Edge AI 與 CameraX，即時偵測頭部前傾、肩膀平衡與螢幕距離。當姿勢不良持續發生時，App 會以紅框、震動與 Vision Dragon 提醒，並把資料記錄成可理解的守護報表。
         </p>
         <div class="hero-actions">
-          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk" data-i18n="downloadAndroidDemo">下載 Android Demo</a>
+          <a class="button primary" href="#pilot" data-i18n="pilotCta">目前僅開放內測</a>
           <a class="button" href="https://github.com/AngleZero-collab/Head-Up" data-i18n="viewGithub">查看 GitHub 專案</a>
         </div>
         <div class="trust-row">
@@ -716,40 +715,14 @@
       </div>
     </section>
 
-    <section id="download">
+    <section id="pilot">
       <div class="shell">
         <div class="download-panel">
           <div>
-            <h2 data-i18n="downloadTitle">下載 Head Up Demo APK</h2>
-            <p data-i18n="downloadCopy">下載連結會取得 GitHub Releases 中最新的 Android Demo APK，可用於實機體驗 Scan、Stats、Challenge 與 Shop 頁面。</p>
+            <h2 data-i18n="pilotTitle">目前僅開放內測</h2>
+            <p data-i18n="pilotCopy">Head Up 目前仍在內部測試與實機校準階段，公開下載入口暫時關閉。測試版本會透過團隊指定管道提供給內測成員。</p>
           </div>
-          <a class="button primary" href="https://github.com/AngleZero-collab/Head-Up/releases/latest/download/Head.Up-demo-debug.apk" data-i18n="downloadDemo">下載 Demo</a>
-        </div>
-      </div>
-    </section>
-
-    <section id="install">
-      <div class="shell">
-        <div class="section-head">
-          <h2 data-i18n="installTitle">Android 安裝步驟</h2>
-          <p data-i18n="installCopy">Demo APK 尚未上架 Play Store，首次安裝時 Android 可能會要求允許從瀏覽器或檔案管理器安裝。</p>
-        </div>
-        <div class="steps">
-          <article class="step">
-            <div class="step-number">1</div>
-            <h3 data-i18n="step1Title">下載 APK</h3>
-            <p data-i18n="step1Copy">在 Android 手機上開啟此網站，點擊下載 Demo。</p>
-          </article>
-          <article class="step">
-            <div class="step-number">2</div>
-            <h3 data-i18n="step2Title">允許安裝</h3>
-            <p data-i18n="step2Copy">依照系統提示允許瀏覽器安裝此 APK。</p>
-          </article>
-          <article class="step">
-            <div class="step-number">3</div>
-            <h3 data-i18n="step3Title">開始體驗</h3>
-            <p data-i18n="step3Copy">開啟 Head Up，使用訪客、快速使用或帳號登入開始姿勢守護。</p>
-          </article>
+          <span class="button" data-i18n="pilotBadge">Internal testing only</span>
         </div>
       </div>
     </section>
@@ -769,13 +742,12 @@
         description: "Head Up 是為學生打造的 AI 姿勢與護眼 Demo App，使用 MediaPipe、CameraX、Kotlin 與 FastAPI。",
         navFeatures: "功能",
         navPain: "痛點",
-        navDownloadDemo: "下載 Demo",
-        downloadApk: "下載 APK",
+        navPilot: "內測狀態",
         languageLabel: "語言",
         eyebrow: "AI 姿勢與護眼守護 Demo",
         heroTitle: "讓孩子讀書時抬頭一點",
         heroCopy: "Head Up 使用 MediaPipe Edge AI 與 CameraX，即時偵測頭部前傾、肩膀平衡與螢幕距離。當姿勢不良持續發生時，App 會以紅框、震動與 Vision Dragon 提醒，並把資料記錄成可理解的守護報表。",
-        downloadAndroidDemo: "下載 Android Demo",
+        pilotCta: "目前僅開放內測",
         viewGithub: "查看 GitHub 專案",
         trustAngle: "姿勢不良角度判斷門檻",
         trustDebounce: "連續不良姿勢才觸發紅框警戒",
@@ -806,17 +778,9 @@
         pain2Title: "近距離用眼與過長螢幕時間需要被管理",
         pain2Copy: "螢幕距離過近時，App 會以顏色狀態提示；每日護眼休息也會被記錄，讓家長看見孩子實際使用狀況。",
         notice: "本 Demo 以教育宣導與姿勢輔助提醒為目的，不取代專業醫療診斷；若有眼睛或頸椎不適，請諮詢專業醫師。",
-        downloadTitle: "下載 Head Up Demo APK",
-        downloadCopy: "下載連結會取得 GitHub Releases 中最新的 Android Demo APK，可用於實機體驗 Scan、Stats、Challenge 與 Shop 頁面。",
-        downloadDemo: "下載 Demo",
-        installTitle: "Android 安裝步驟",
-        installCopy: "Demo APK 尚未上架 Play Store，首次安裝時 Android 可能會要求允許從瀏覽器或檔案管理器安裝。",
-        step1Title: "下載 APK",
-        step1Copy: "在 Android 手機上開啟此網站，點擊下載 Demo。",
-        step2Title: "允許安裝",
-        step2Copy: "依照系統提示允許瀏覽器安裝此 APK。",
-        step3Title: "開始體驗",
-        step3Copy: "開啟 Head Up，使用訪客、快速使用或帳號登入開始姿勢守護。",
+        pilotTitle: "目前僅開放內測",
+        pilotCopy: "Head Up 目前仍在內部測試與實機校準階段，公開下載入口暫時關閉。測試版本會透過團隊指定管道提供給內測成員。",
+        pilotBadge: "Internal testing only",
         footerTech: "使用 Kotlin、CameraX、MediaPipe 與 FastAPI 打造"
       },
       en: {
@@ -824,13 +788,12 @@
         description: "Head Up is an AI posture and eye-care demo app for students, built with MediaPipe, CameraX, Kotlin and FastAPI.",
         navFeatures: "Features",
         navPain: "Why It Matters",
-        navDownloadDemo: "Download Demo",
-        downloadApk: "Download APK",
+        navPilot: "Pilot Status",
         languageLabel: "Language",
         eyebrow: "AI posture and eye-care demo",
         heroTitle: "Safer study posture, in real time",
         heroCopy: "Head Up uses MediaPipe Edge AI and CameraX to track forward head tilt, shoulder balance, and screen distance in real time. When risky posture continues, the app warns with a red frame, vibration, and Vision Dragon, then turns the data into a clear protection dashboard.",
-        downloadAndroidDemo: "Download Android Demo",
+        pilotCta: "Internal testing only",
         viewGithub: "View GitHub Project",
         trustAngle: "Poor-posture angle threshold",
         trustDebounce: "Red frame appears after continuous risky posture",
@@ -861,17 +824,9 @@
         pain2Title: "Close screen distance and long screen time need guidance",
         pain2Copy: "When screen distance is too close, the app uses color status cues. Daily eye breaks are recorded so parents can see real usage patterns.",
         notice: "This demo is for education and posture-assist reminders only. It does not replace professional medical diagnosis. Please consult a clinician for eye or neck discomfort.",
-        downloadTitle: "Download the Head Up Demo APK",
-        downloadCopy: "The download button fetches the latest Android Demo APK from GitHub Releases for real-device testing of Scan, Stats, Challenge, and Shop.",
-        downloadDemo: "Download Demo",
-        installTitle: "Android Installation Steps",
-        installCopy: "The Demo APK is not on the Play Store yet, so Android may ask you to allow installation from your browser or file manager.",
-        step1Title: "Download APK",
-        step1Copy: "Open this website on an Android phone and tap Download Demo.",
-        step2Title: "Allow Install",
-        step2Copy: "Follow the Android prompt to allow the browser to install this APK.",
-        step3Title: "Start Testing",
-        step3Copy: "Open Head Up and use guest mode, quick use, or account login to begin posture protection.",
+        pilotTitle: "Internal testing only",
+        pilotCopy: "Head Up is currently in internal testing and real-device calibration, so public download access is temporarily closed. Test builds are shared only through the team’s designated pilot channel.",
+        pilotBadge: "Internal testing only",
         footerTech: "Built with Kotlin, CameraX, MediaPipe and FastAPI"
       }
     };
