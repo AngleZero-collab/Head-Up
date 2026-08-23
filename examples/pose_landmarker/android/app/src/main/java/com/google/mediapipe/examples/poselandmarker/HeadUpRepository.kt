@@ -303,17 +303,20 @@ object HeadUpRepository {
         val todayStart = startOfDay(System.currentTimeMillis())
         val firstDay = addDays(todayStart, -6)
         val records = dao.recordsBetween(firstDay, addDays(todayStart, 1))
-        val summaries = (0..6).map { index ->
+        val healthSummaries = (0..6).map { index ->
             val dayStart = addDays(firstDay, index)
             val dayEnd = addDays(dayStart, 1)
-            summarizeDay(dayStart, records.filter { it.timestampMs in dayStart until dayEnd })
+            summarizeHealthDay(dayStart, records.filter { it.timestampMs in dayStart until dayEnd })
         }
+        val summaries = healthSummaries.map { it.toDailyPostureSummary() }
 
         dashboardLiveData.postValue(
             PostureDashboard(
                 today = summaries.lastOrNull() ?: DailyPostureSummary(todayStart, 0L, 0L, 0L, 0),
                 week = summaries,
-                insights = generateInsights(summaries),
+                todayHealth = healthSummaries.lastOrNull() ?: emptyHealthSummary(todayStart),
+                weekHealth = healthSummaries,
+                insights = generateInsights(context, healthSummaries),
             ),
         )
         dao.deleteOlderThan(addDays(todayStart, -HISTORY_RETENTION_DAYS))
@@ -331,44 +334,146 @@ object HeadUpRepository {
         }
     }
 
-    private fun generateInsights(summaries: List<DailyPostureSummary>): List<PostureInsight> {
+    private fun generateInsights(context: Context, summaries: List<DailyHealthTrendSummary>): List<PostureInsight> {
         val today = summaries.lastOrNull() ?: return emptyList()
-        val totalSeconds = today.safeSeconds + today.warningSeconds + today.dangerSeconds
+        val totalSeconds = today.totalSeconds
         if (totalSeconds < 300L) {
-            return listOf(PostureInsight("資料累積中", "累積更多偵測時間後，家長報表會顯示更穩定的趨勢。"))
+            return listOf(
+                PostureInsight(
+                    context.getString(R.string.insight_collecting_title),
+                    context.getString(R.string.insight_collecting_desc),
+                ),
+            )
         }
 
-        val safePercent = (today.safeSeconds * 100L / totalSeconds).toInt()
+        val safePercent = today.safePercent
         val insights = mutableListOf<PostureInsight>()
         when {
-            safePercent >= 90 -> insights += PostureInsight("姿勢表現優秀", "今日正確坐姿比例達 $safePercent%。", InsightLevel.SUCCESS)
-            safePercent >= 70 -> insights += PostureInsight("姿勢穩定", "今日正確坐姿比例達 $safePercent%，仍有進步空間。")
-            else -> insights += PostureInsight("需要更多提醒", "今日姿勢不良時間偏高，建議重新校準並調整桌椅。", InsightLevel.WARNING)
+            safePercent >= 90 -> insights += PostureInsight(
+                context.getString(R.string.insight_posture_excellent_title),
+                context.getString(R.string.insight_posture_excellent_desc, safePercent),
+                InsightLevel.SUCCESS,
+            )
+            safePercent >= 70 -> insights += PostureInsight(
+                context.getString(R.string.insight_posture_stable_title),
+                context.getString(R.string.insight_posture_stable_desc, safePercent),
+            )
+            else -> insights += PostureInsight(
+                context.getString(R.string.insight_posture_attention_title),
+                context.getString(R.string.insight_posture_attention_desc),
+                InsightLevel.WARNING,
+            )
         }
         if (today.dangerEvents > 10) {
-            insights += PostureInsight("低頭次數偏多", "今日已出現 ${today.dangerEvents} 次姿勢不良事件。", InsightLevel.WARNING)
+            insights += PostureInsight(
+                context.getString(R.string.insight_slouch_events_title),
+                context.getString(R.string.insight_slouch_events_desc, today.dangerEvents),
+                InsightLevel.WARNING,
+            )
+        }
+        if (today.closeScreenSeconds >= 300L) {
+            insights += PostureInsight(
+                context.getString(R.string.insight_close_screen_title),
+                context.getString(R.string.insight_close_screen_desc, formatDurationForInsight(context, today.closeScreenSeconds)),
+                InsightLevel.WARNING,
+            )
+        }
+        if (today.shoulderImbalanceEvents >= 6) {
+            insights += PostureInsight(
+                context.getString(R.string.insight_shoulder_title),
+                context.getString(R.string.insight_shoulder_desc, today.shoulderImbalanceEvents),
+                InsightLevel.WARNING,
+            )
+        }
+
+        val previousTracked = summaries.dropLast(1).lastOrNull { it.totalSeconds >= 300L }
+        if (previousTracked != null) {
+            val delta = today.safePercent - previousTracked.safePercent
+            when {
+                delta >= 10 -> insights += PostureInsight(
+                    context.getString(R.string.insight_trend_improving_title),
+                    context.getString(R.string.insight_trend_improving_desc, delta),
+                    InsightLevel.SUCCESS,
+                )
+                delta <= -10 -> insights += PostureInsight(
+                    context.getString(R.string.insight_trend_declining_title),
+                    context.getString(R.string.insight_trend_declining_desc, -delta),
+                    InsightLevel.WARNING,
+                )
+            }
         }
         return insights
     }
 
-    private fun summarizeDay(dayStart: Long, records: List<PostureRecordEntity>): DailyPostureSummary {
+    private fun summarizeHealthDay(dayStart: Long, records: List<PostureRecordEntity>): DailyHealthTrendSummary {
         var previousDanger = false
         var dangerEvents = 0
+        var previousShoulderImbalance = false
+        var shoulderImbalanceEvents = 0
+        var previousRapidFall = false
+        var rapidFallEvents = 0
         records.forEach { record ->
             val danger = record.zone == PostureZone.DANGER.name
             if (danger && !previousDanger) dangerEvents++
             previousDanger = danger
+
+            val shoulderImbalance = record.shoulderBalanceDegrees >= 8
+            if (shoulderImbalance && !previousShoulderImbalance) shoulderImbalanceEvents++
+            previousShoulderImbalance = shoulderImbalance
+
+            if (record.isRapidFall && !previousRapidFall) rapidFallEvents++
+            previousRapidFall = record.isRapidFall
         }
         fun secondsFor(zone: PostureZone): Long = records
             .filter { it.zone == zone.name }
             .sumOf { it.durationMs } / 1_000L
-        return DailyPostureSummary(
+        val totalDurationMs = records.sumOf { it.durationMs }.coerceAtLeast(1L)
+        val averageAngle = if (records.isEmpty()) 0 else
+            (records.sumOf { (it.angleDegrees * it.durationMs).toDouble() } / totalDurationMs).toInt()
+        val screenDistanceRecords = records.filter { it.screenDistanceCm != null && it.durationMs > 0L }
+        val screenDistanceDurationMs = screenDistanceRecords.sumOf { it.durationMs }.coerceAtLeast(1L)
+        val averageScreenDistance = screenDistanceRecords
+            .takeIf { it.isNotEmpty() }
+            ?.let { items ->
+                (items.sumOf { ((it.screenDistanceCm ?: 0) * it.durationMs).toDouble() } / screenDistanceDurationMs).toInt()
+            }
+        return DailyHealthTrendSummary(
             dayStartMs = dayStart,
             safeSeconds = secondsFor(PostureZone.SAFE),
             warningSeconds = secondsFor(PostureZone.WARNING),
             dangerSeconds = secondsFor(PostureZone.DANGER),
             dangerEvents = dangerEvents,
+            averageAngleDegrees = averageAngle,
+            peakAngleDegrees = records.maxOfOrNull { it.angleDegrees } ?: 0,
+            closeScreenSeconds = records
+                .filter { (it.screenDistanceCm ?: Int.MAX_VALUE) < 30 }
+                .sumOf { it.durationMs } / 1_000L,
+            veryCloseScreenSeconds = records
+                .filter { (it.screenDistanceCm ?: Int.MAX_VALUE) < 20 }
+                .sumOf { it.durationMs } / 1_000L,
+            shoulderImbalanceEvents = shoulderImbalanceEvents,
+            rapidFallEvents = rapidFallEvents,
+            averageScreenDistanceCm = averageScreenDistance,
         )
+    }
+
+    private fun DailyHealthTrendSummary.toDailyPostureSummary(): DailyPostureSummary =
+        DailyPostureSummary(
+            dayStartMs = dayStartMs,
+            safeSeconds = safeSeconds,
+            warningSeconds = warningSeconds,
+            dangerSeconds = dangerSeconds,
+            dangerEvents = dangerEvents,
+        )
+
+    private fun emptyHealthSummary(dayStart: Long): DailyHealthTrendSummary =
+        DailyHealthTrendSummary(dayStart, 0L, 0L, 0L, 0, 0, 0, 0L, 0L, 0, 0, null)
+
+    private fun formatDurationForInsight(context: Context, seconds: Long): String {
+        val hours = seconds / 3_600L
+        val minutes = (seconds % 3_600L) / 60L
+        return if (hours > 0L) context.getString(R.string.hours_minutes_format, hours, minutes)
+        else context.getString(R.string.minutes_only_format, minutes)
     }
 
     private fun PostureMetrics.energyDelta(elapsedSeconds: Long): Int = when (zone) {

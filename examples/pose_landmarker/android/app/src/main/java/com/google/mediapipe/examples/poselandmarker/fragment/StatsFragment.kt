@@ -57,11 +57,6 @@ class StatsFragment : Fragment() {
         )
         binding.currentStatusText.setTextColor(zoneColor)
 
-        bindStat(binding.cumulativeCard, "P", getString(R.string.cumulative_points), "%,d".format(state.coins))
-        bindStat(binding.protectCard, "E", getString(R.string.protect_eyes), "${state.protectEyesPercent}%")
-        bindStat(binding.goodPostureCard, "G", getString(R.string.good_posture_today), formatDuration(state.goodPostureSecondsToday))
-        bindStat(binding.streakCard, "7", getString(R.string.streak_days), getString(R.string.days_format, state.consecutiveDays))
-
         val rows = listOf(binding.taskRowOne, binding.taskRowTwo, binding.taskRowThree)
         val titles = listOf(R.string.task_good_posture, R.string.task_eye_rest, R.string.task_posture_challenge)
         state.tasks.zip(rows).forEachIndexed { index, (task, row) ->
@@ -71,15 +66,37 @@ class StatsFragment : Fragment() {
     }
 
     private fun renderDashboard(dashboard: PostureDashboard) {
-        val today = dashboard.today
-        val total = today.safeSeconds + today.warningSeconds + today.dangerSeconds
-        val safePercent = if (total == 0L) 0 else (today.safeSeconds * 100L / total).toInt()
-        val badPercent = if (total == 0L) 0 else ((today.warningSeconds + today.dangerSeconds) * 100L / total).toInt()
+        val today = dashboard.todayHealth
+        val total = today.totalSeconds
+        val safePercent = today.safePercent
+        val badPercent = today.riskPercent
+
+        bindStat(binding.cumulativeCard, "T", getString(R.string.tracked_today), formatDuration(total))
+        bindStat(binding.protectCard, "G", getString(R.string.good_posture_rate), "$safePercent%")
+        bindStat(binding.goodPostureCard, "R", getString(R.string.risk_time_today), formatDuration(today.riskSeconds))
+        bindStat(binding.streakCard, "E", getString(R.string.posture_event_count), getString(R.string.events_format, today.dangerEvents))
+
+        binding.reportSummaryText.text = getString(
+            R.string.health_report_summary_format,
+            safePercent,
+            today.dangerEvents,
+            formatDuration(today.riskSeconds),
+        )
+        binding.healthTrendChart.setData(dashboard.weekHealth)
         binding.posturePieChart.setData(today.safeSeconds, today.warningSeconds, today.dangerSeconds)
-        binding.postureLineChart.setData(dashboard.week.map { it.dangerEvents })
         binding.safePercentText.text = getString(R.string.safe_posture_percent, safePercent)
         binding.badPercentText.text = getString(R.string.bad_posture_percent, badPercent)
         binding.trackedTimeText.text = getString(R.string.tracked_time, formatDuration(total))
+        binding.averageAngleValue.text = getString(R.string.angle_degrees_format, today.averageAngleDegrees)
+        binding.peakAngleValue.text = getString(R.string.angle_degrees_format, today.peakAngleDegrees)
+        binding.closeScreenValue.text = formatDuration(today.closeScreenSeconds)
+        binding.rapidFallValue.text = getString(R.string.events_format, today.rapidFallEvents)
+        binding.secondaryMarkerText.text = getString(
+            R.string.health_secondary_markers_format,
+            today.shoulderImbalanceEvents,
+            formatDistance(today.averageScreenDistanceCm),
+            formatDuration(today.veryCloseScreenSeconds),
+        )
 
         renderInsights(dashboard.insights)
     }
@@ -146,6 +163,9 @@ class StatsFragment : Fragment() {
         card.statLabel.text = label
         card.statValue.text = value
     }
+
+    private fun formatDistance(distanceCm: Int?): String =
+        distanceCm?.let { getString(R.string.centimeters_format, it) } ?: getString(R.string.no_data_placeholder)
 
     private fun bindTask(row: ItemDailyTaskBinding, task: HeadUpTask, title: String) {
         row.taskTitle.text = title
