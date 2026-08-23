@@ -1,7 +1,3 @@
-/*
- * Copyright 2023 The TensorFlow Authors. All Rights Reserved.
- * Licensed under the Apache License, Version 2.0.
- */
 package com.google.mediapipe.examples.poselandmarker
 
 import android.Manifest
@@ -18,14 +14,20 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.os.LocaleListCompat
+import androidx.navigation.NavController
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.google.mediapipe.examples.poselandmarker.databinding.ActivityMainBinding
 import com.google.mediapipe.examples.poselandmarker.fragment.PermissionsFragment
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
+    private lateinit var navController: NavController
+    private var suppressBackgroundGuardResume = false
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -45,21 +47,30 @@ class MainActivity : AppCompatActivity() {
 
         val navHost = supportFragmentManager
             .findFragmentById(R.id.fragment_container) as NavHostFragment
-        binding.navigation.setupWithNavController(navHost.navController)
+        navController = navHost.navController
+        binding.navigation.setupWithNavController(navController)
         binding.navigation.setOnItemReselectedListener { }
+        configureNavigationChrome()
 
         binding.notificationButton.setOnClickListener { openNotificationControls() }
+        binding.stopGuardButton.setOnClickListener { toggleBackgroundGuard() }
         binding.settingsButton.setOnClickListener { showSettingsDialog() }
+        updateGuardButton()
+        PostureSyncScheduler.schedulePeriodic(this)
         initPermissionFlow()
     }
 
     fun startHeadUpService(action: String = HeadUpService.ACTION_PAUSE_CAMERA) {
+        if (!HeadUpRepository.isBackgroundGuardEnabled(this)) return
         if (!PermissionsFragment.hasPermissions(this)) return
         ContextCompat.startForegroundService(
             this,
             Intent(this, HeadUpService::class.java).setAction(action),
         )
     }
+
+    fun shouldResumeBackgroundGuard(): Boolean =
+        !suppressBackgroundGuardResume && HeadUpRepository.isBackgroundGuardEnabled(this)
 
     private fun playLaunchAnimation() {
         binding.splashLogo.apply {
@@ -90,22 +101,184 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSettingsDialog() {
         val items = arrayOf(
+            getString(R.string.settings_account, HeadUpAuthStore.userLabel(this)),
+            getString(R.string.settings_sync_now),
             getString(R.string.settings_language),
             getString(R.string.settings_overlay),
+            getString(
+                if (HeadUpRepository.isPetOverlayEnabled(this)) {
+                    R.string.settings_pet_overlay_on
+                } else {
+                    R.string.settings_pet_overlay_off
+                },
+            ),
             getString(R.string.settings_calibration),
+            getString(R.string.settings_data_management),
+            getString(R.string.settings_logout),
             getString(R.string.settings_reset_data),
         )
         AlertDialog.Builder(this)
             .setTitle(R.string.settings_title)
             .setItems(items) { _, index ->
                 when (index) {
-                    0 -> showLanguagePicker()
-                    1 -> openOverlaySettingsIfNeeded()
-                    2 -> navigateToCalibration()
-                    3 -> confirmResetData()
+                    0 -> showAccountDialog()
+                    1 -> enqueueManualSync()
+                    2 -> showLanguagePicker()
+                    3 -> openOverlaySettingsIfNeeded()
+                    4 -> togglePetOverlay()
+                    5 -> navigateToCalibration()
+                    6 -> showDataManagementDialog()
+                    7 -> confirmLogout()
+                    8 -> confirmResetData()
                 }
             }
             .show()
+    }
+
+    private fun showAccountDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.account_title)
+            .setMessage(
+                getString(
+                    R.string.account_message,
+                    HeadUpAuthStore.currentUserId(this),
+                    HeadUpAuthStore.role(this),
+                    HeadUpAuthStore.subscriptionTier(this),
+                ),
+            )
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun enqueueManualSync() {
+        PostureSyncScheduler.enqueueOneTime(this)
+        Toast.makeText(this, R.string.sync_queued, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun confirmLogout() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.logout_title)
+            .setMessage(R.string.logout_message)
+            .setPositiveButton(R.string.logout_confirm) { _, _ ->
+                HeadUpAuthStore.clearSession(this)
+                suppressBackgroundGuardResume = true
+                HeadUpRepository.setForegroundScanActive(this, false)
+                stopService(Intent(this, HeadUpService::class.java))
+                navigateToLogin()
+                Toast.makeText(this, R.string.logout_complete, Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun navigateToLogin() {
+        val options = NavOptions.Builder()
+            .setLaunchSingleTop(true)
+            .setPopUpTo(navController.graph.id, true)
+            .build()
+        navController.navigate(R.id.login_fragment, null, options)
+    }
+
+    private fun configureNavigationChrome() {
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            val showAppChrome = destination.id != R.id.login_fragment &&
+                destination.id != R.id.permissions_fragment
+            if (showAppChrome) {
+                suppressBackgroundGuardResume = false
+            }
+            binding.headupTopBar.visibility = if (showAppChrome) View.VISIBLE else View.GONE
+            binding.navigationShell.visibility = if (showAppChrome) View.VISIBLE else View.GONE
+            updateGuardButton()
+        }
+    }
+
+    private fun toggleBackgroundGuard() {
+        val enabled = HeadUpRepository.isBackgroundGuardEnabled(this)
+        if (enabled) {
+            HeadUpRepository.setBackgroundGuardEnabled(this, false)
+            suppressBackgroundGuardResume = true
+            stopService(Intent(this, HeadUpService::class.java))
+            Toast.makeText(this, R.string.guard_stopped, Toast.LENGTH_SHORT).show()
+        } else {
+            HeadUpRepository.setBackgroundGuardEnabled(this, true)
+            suppressBackgroundGuardResume = false
+            val action = if (HeadUpRepository.isForegroundScanActive(this)) {
+                HeadUpService.ACTION_PAUSE_CAMERA
+            } else {
+                HeadUpService.ACTION_RESUME_CAMERA
+            }
+            startHeadUpService(action)
+            Toast.makeText(this, R.string.guard_started, Toast.LENGTH_SHORT).show()
+        }
+        updateGuardButton()
+    }
+
+    private fun togglePetOverlay() {
+        val enabled = HeadUpRepository.isPetOverlayEnabled(this)
+        HeadUpRepository.setPetOverlayEnabled(this, !enabled)
+        if (enabled) {
+            Toast.makeText(this, R.string.pet_overlay_disabled, Toast.LENGTH_SHORT).show()
+        } else {
+            if (!Settings.canDrawOverlays(this)) {
+                openOverlaySettingsIfNeeded()
+            } else {
+                val action = if (HeadUpRepository.isForegroundScanActive(this)) {
+                    HeadUpService.ACTION_PAUSE_CAMERA
+                } else {
+                    HeadUpService.ACTION_RESUME_CAMERA
+                }
+                ContextCompat.startForegroundService(
+                    this,
+                    Intent(this, HeadUpService::class.java).setAction(action),
+                )
+            }
+            Toast.makeText(this, R.string.pet_overlay_enabled, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateGuardButton() {
+        if (!::binding.isInitialized) return
+        val enabled = HeadUpRepository.isBackgroundGuardEnabled(this)
+        binding.stopGuardButton.setImageResource(
+            if (enabled) R.drawable.ic_stop_headup else R.drawable.ic_play_headup,
+        )
+        binding.stopGuardButton.contentDescription = getString(
+            if (enabled) R.string.guard_stop else R.string.guard_start,
+        )
+    }
+
+    private fun showDataManagementDialog() {
+        HeadUpRepository.getRecordStats(this) { count, unsynced, sizeKb ->
+            runOnUiThread {
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.data_management_title)
+                    .setMessage(getString(R.string.data_management_message, count, unsynced, sizeKb))
+                    .setPositiveButton(android.R.string.ok, null)
+                    .setNeutralButton(R.string.export_csv) { _, _ -> exportDataToCsv() }
+                    .show()
+            }
+        }
+    }
+
+    private fun exportDataToCsv() {
+        HeadUpRepository.getAllRecordsAsCsv(this) { csvString ->
+            runOnUiThread {
+                try {
+                    val file = File(cacheDir, "Head Up_Data_${System.currentTimeMillis()}.csv")
+                    file.writeText(csvString)
+                    val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/csv"
+                        putExtra(Intent.EXTRA_SUBJECT, "Head Up Posture Data Export")
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(intent, getString(R.string.export_csv)))
+                } catch (error: Exception) {
+                    Toast.makeText(this, getString(R.string.export_failed, error.message), Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun navigateToCalibration() {
@@ -120,6 +293,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage(R.string.reset_data_message)
             .setPositiveButton(R.string.reset_data_confirm) { _, _ ->
                 HeadUpRepository.resetAllData(this)
+                updateGuardButton()
                 Toast.makeText(this, R.string.reset_data_complete, Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(android.R.string.cancel, null)

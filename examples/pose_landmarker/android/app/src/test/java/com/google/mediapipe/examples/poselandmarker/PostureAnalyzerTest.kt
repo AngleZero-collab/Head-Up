@@ -103,12 +103,32 @@ class PostureAnalyzerTest {
             angleDegrees = 0f,
             postureRatio = 0.8f,
             shoulderWidth = 0.3f,
+            distanceConstantK = 2_400f,
         )
 
-        val metrics = PostureAnalyzer.analyze(samplePose(rawAngle = 5f), calibration = calibration)
+        val metrics = PostureAnalyzer.analyze(
+            samplePose(rawAngle = 5f),
+            calibration = calibration,
+            inputImageWidth = 640,
+            inputImageHeight = 480,
+        )
 
         assertTrue(metrics?.isTooClose == true)
         assertEquals(PostureZone.DANGER, metrics?.zone)
+        assertEquals(19, metrics?.screenDistanceCm)
+    }
+
+    @Test
+    fun screenDistanceUsesEyePixelDistance() {
+        val metrics = PostureAnalyzer.analyze(
+            samplePose(rawAngle = 5f),
+            inputImageWidth = 640,
+            inputImageHeight = 480,
+        )
+
+        assertNotNull(metrics?.eyeDistancePixels)
+        assertEquals(31, metrics?.screenDistanceCm)
+        assertFalse(metrics?.isTooClose == true)
     }
 
     @Test

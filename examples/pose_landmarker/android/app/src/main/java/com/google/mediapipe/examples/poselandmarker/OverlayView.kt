@@ -25,13 +25,17 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     private var imageWidth = 1
     private var imageHeight = 1
     private var postureZone = PostureZone.SAFE
+    private val facePath = Path()
+    private val facePathIndices = listOf(3, 2, 1, 0, 4, 5, 6)
 
     init {
-        linePaint.strokeWidth = LANDMARK_STROKE_WIDTH
-        linePaint.style = Paint.Style.STROKE
-        linePaint.strokeCap = Paint.Cap.ROUND
-        pointPaint.style = Paint.Style.FILL
-        applyZoneColor()
+        if (!isInEditMode) {
+            linePaint.strokeWidth = LANDMARK_STROKE_WIDTH
+            linePaint.style = Paint.Style.STROKE
+            linePaint.strokeCap = Paint.Cap.ROUND
+            pointPaint.style = Paint.Style.FILL
+            applyZoneColor()
+        }
     }
 
     fun clear() {
@@ -41,6 +45,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        if (isInEditMode) return
         val landmarks = results?.landmarks()?.firstOrNull() ?: return
         applyZoneColor()
 
@@ -66,8 +71,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         drawConnection(canvas, landmarks, 6, 8)
         drawConnection(canvas, landmarks, 9, 10)
 
-        val facePathIndices = listOf(3, 2, 1, 0, 4, 5, 6)
-        val facePath = Path()
+        facePath.reset()
         facePathIndices.forEachIndexed { pathIndex, landmarkIndex ->
             landmarks.getOrNull(landmarkIndex)?.let { point ->
                 if (pathIndex == 0) facePath.moveTo(mapX(point.x()), mapY(point.y()))

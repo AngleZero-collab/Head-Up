@@ -191,7 +191,7 @@ class GalleryFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener {
                     p3: Long
                 ) {
 
-                    viewModel.setDelegate(p2)
+                    viewModel.setDelegate(requireContext(), p2)
                     updateControlsUi()
                 }
 
@@ -213,6 +213,7 @@ class GalleryFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener {
                     p2: Int,
                     p3: Long
                 ) {
+                    viewModel.setModel(requireContext(), p2)
                     poseLandmarkerHelper.currentModel = p2
                     updateControlsUi()
                 }
@@ -279,7 +280,8 @@ class GalleryFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener {
                             minPoseDetectionConfidence = viewModel.currentMinPoseDetectionConfidence,
                             minPoseTrackingConfidence = viewModel.currentMinPoseTrackingConfidence,
                             minPosePresenceConfidence = viewModel.currentMinPosePresenceConfidence,
-                            currentDelegate = viewModel.currentDelegate
+                            currentDelegate = viewModel.currentDelegate,
+                            currentModel = viewModel.currentModel
                         )
 
                     poseLandmarkerHelper.detectImage(bitmap)?.let { result ->
@@ -323,7 +325,8 @@ class GalleryFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener {
                     minPoseDetectionConfidence = viewModel.currentMinPoseDetectionConfidence,
                     minPoseTrackingConfidence = viewModel.currentMinPoseTrackingConfidence,
                     minPosePresenceConfidence = viewModel.currentMinPosePresenceConfidence,
-                    currentDelegate = viewModel.currentDelegate
+                    currentDelegate = viewModel.currentDelegate,
+                    currentModel = viewModel.currentModel
                 )
 
             activity?.runOnUiThread {
@@ -443,6 +446,14 @@ class GalleryFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener {
 
     override fun onResults(resultBundle: PoseLandmarkerHelper.ResultBundle) {
         // no-op
+    }
+
+    override fun onDestroyView() {
+        _fragmentGalleryBinding = null
+        if (this::backgroundExecutor.isInitialized) {
+            backgroundExecutor.shutdownNow()
+        }
+        super.onDestroyView()
     }
 
     companion object {

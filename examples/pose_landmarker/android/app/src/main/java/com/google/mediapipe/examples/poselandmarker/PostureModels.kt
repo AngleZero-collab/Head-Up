@@ -18,6 +18,8 @@ data class CalibrationProfile(
     val angleDegrees: Float,
     val postureRatio: Float,
     val shoulderWidth: Float,
+    val eyeDistancePixels: Float? = null,
+    val distanceConstantK: Float? = null,
     val calibratedAtMs: Long = System.currentTimeMillis(),
 )
 
@@ -34,6 +36,8 @@ data class PostureMetrics(
     val neckFlexionDegrees: Int = 0,
     val screenDistanceCm: Int? = null,
     val isTooClose: Boolean = false,
+    val eyeDistancePixels: Float? = null,
+    val smoothedEyeDistancePixels: Float? = null,
     val landmarkConfidence: Float = 0f,
     val shoulderWidth: Float = 0f,
     val deviceTiltDegrees: Int = 0,
@@ -110,9 +114,60 @@ data class DailyPostureSummary(
     val warningSeconds: Long,
     val dangerSeconds: Long,
     val dangerEvents: Int,
+) {
+    val totalSeconds: Long
+        get() = safeSeconds + warningSeconds + dangerSeconds
+
+    val riskSeconds: Long
+        get() = warningSeconds + dangerSeconds
+
+    val safePercent: Int
+        get() = if (totalSeconds == 0L) 0 else ((safeSeconds * 100L) / totalSeconds).toInt().coerceIn(0, 100)
+}
+
+data class DailyHealthTrendSummary(
+    val dayStartMs: Long,
+    val safeSeconds: Long,
+    val warningSeconds: Long,
+    val dangerSeconds: Long,
+    val dangerEvents: Int,
+    val averageAngleDegrees: Int,
+    val peakAngleDegrees: Int,
+    val closeScreenSeconds: Long,
+    val veryCloseScreenSeconds: Long,
+    val shoulderImbalanceEvents: Int,
+    val rapidFallEvents: Int,
+    val averageScreenDistanceCm: Int?,
+) {
+    val totalSeconds: Long
+        get() = safeSeconds + warningSeconds + dangerSeconds
+
+    val riskSeconds: Long
+        get() = warningSeconds + dangerSeconds
+
+    val safePercent: Int
+        get() = if (totalSeconds == 0L) 0 else ((safeSeconds * 100L) / totalSeconds).toInt().coerceIn(0, 100)
+
+    val riskPercent: Int
+        get() = if (totalSeconds == 0L) 0 else ((riskSeconds * 100L) / totalSeconds).toInt().coerceIn(0, 100)
+}
+
+data class PostureInsight(
+    val title: String,
+    val description: String,
+    val level: InsightLevel = InsightLevel.INFO,
 )
+
+enum class InsightLevel {
+    INFO,
+    SUCCESS,
+    WARNING,
+}
 
 data class PostureDashboard(
     val today: DailyPostureSummary = DailyPostureSummary(0L, 0L, 0L, 0L, 0),
     val week: List<DailyPostureSummary> = emptyList(),
+    val todayHealth: DailyHealthTrendSummary = DailyHealthTrendSummary(0L, 0L, 0L, 0L, 0, 0, 0, 0L, 0L, 0, 0, null),
+    val weekHealth: List<DailyHealthTrendSummary> = emptyList(),
+    val insights: List<PostureInsight> = emptyList(),
 )

@@ -15,6 +15,7 @@
  */
 package com.google.mediapipe.examples.poselandmarker
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 
 /**
@@ -31,6 +32,11 @@ class MainViewModel : ViewModel() {
     private var _minPosePresenceConfidence: Float = PoseLandmarkerHelper
         .DEFAULT_POSE_PRESENCE_CONFIDENCE
 
+    fun initSettings(context: Context) {
+        _model = HeadUpRepository.getSelectedModel(context)
+        _delegate = HeadUpRepository.getSelectedDelegate(context)
+    }
+
     val currentDelegate: Int get() = _delegate
     val currentModel: Int get() = _model
     val currentMinPoseDetectionConfidence: Float
@@ -43,8 +49,9 @@ class MainViewModel : ViewModel() {
         get() =
             _minPosePresenceConfidence
 
-    fun setDelegate(delegate: Int) {
+    fun setDelegate(context: Context, delegate: Int) {
         _delegate = delegate
+        HeadUpRepository.setSelectedDelegate(context, delegate)
     }
 
     fun setMinPoseDetectionConfidence(confidence: Float) {
@@ -59,7 +66,8 @@ class MainViewModel : ViewModel() {
         _minPosePresenceConfidence = confidence
     }
 
-    fun setModel(model: Int) {
+    fun setModel(context: Context, model: Int) {
         _model = model
+        HeadUpRepository.setSelectedModel(context, model)
     }
 }

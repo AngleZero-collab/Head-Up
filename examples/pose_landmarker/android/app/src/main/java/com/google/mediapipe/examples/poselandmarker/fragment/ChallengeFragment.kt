@@ -43,8 +43,9 @@ class ChallengeFragment : Fragment() {
         setupDragonOrb()
         binding.dragonVideoView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
+                currentSurface?.release()
                 currentSurface = Surface(texture)
-                updateDragonVideo(currentVideoResId.takeIf { it != 0 } ?: R.raw.blue_dragon)
+                updateDragonVideo(currentVideoResId.takeIf { it != 0 } ?: R.raw.happy_dragon)
             }
 
             override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
@@ -59,7 +60,14 @@ class ChallengeFragment : Fragment() {
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
         }
         binding.dragonVideoView.setOnClickListener {
-            mediaPlayer?.let { player -> if (player.isPlaying) player.pause() else player.start() }
+            mediaPlayer?.let { player ->
+                try {
+                    if (player.isPlaying) player.pause() else player.start()
+                } catch (error: IllegalStateException) {
+                    Log.w("ChallengeFragment", "Dragon player was stale after surface change", error)
+                    updateDragonVideo(currentVideoResId.takeIf { it != 0 } ?: R.raw.happy_dragon, force = true)
+                }
+            }
         }
         binding.claimMaintainButton.setOnClickListener { claimGoodPostureReward() }
         binding.recordEyeRestButton.setOnClickListener { showEyeRestDialog() }
@@ -124,7 +132,7 @@ class ChallengeFragment : Fragment() {
         val goodTask = state.tasks.first { it.id == "good_posture" }
         binding.claimMaintainButton.isEnabled = goodTask.isComplete && !goodTask.claimed
         binding.claimMaintainButton.setText(if (goodTask.claimed) R.string.claimed else R.string.claim_reward)
-        updateDragonVideo(if (state.metrics.zone == PostureZone.DANGER) R.raw.angry_dragon else R.raw.blue_dragon)
+        updateDragonVideo(if (state.metrics.zone == PostureZone.DANGER) R.raw.angry_dragon else R.raw.happy_dragon)
     }
 
     private fun claimGoodPostureReward() {
@@ -148,24 +156,44 @@ class ChallengeFragment : Fragment() {
             .show()
     }
 
-    private fun updateDragonVideo(videoResId: Int) {
-        if (currentVideoResId == videoResId && mediaPlayer?.isPlaying == true) return
+    private fun updateDragonVideo(videoResId: Int, force: Boolean = false) {
+        if (!force && currentVideoResId == videoResId && mediaPlayer != null) {
+            ensureDragonVideoPlaying(videoResId)
+            return
+        }
+        val surface = currentSurface ?: run {
+            currentVideoResId = videoResId
+            return
+        }
         currentVideoResId = videoResId
-        val surface = currentSurface ?: return
         releaseMediaPlayer()
         try {
-            val descriptor = resources.openRawResourceFd(videoResId)
-            mediaPlayer = MediaPlayer().apply {
-                setSurface(surface)
-                setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-                isLooping = true
-                setVolume(0f, 0f)
-                setOnPreparedListener { it.start() }
-                prepareAsync()
+            resources.openRawResourceFd(videoResId).use { descriptor ->
+                mediaPlayer = MediaPlayer().apply {
+                    setSurface(surface)
+                    setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+                    isLooping = true
+                    setVolume(0f, 0f)
+                    setOnPreparedListener { it.start() }
+                    setOnErrorListener { _, what, extra ->
+                        Log.w("ChallengeFragment", "Dragon video failed: $what/$extra")
+                        true
+                    }
+                    prepareAsync()
+                }
             }
-            descriptor.close()
         } catch (error: Exception) {
             Log.e("ChallengeFragment", "Unable to play dragon animation", error)
+        }
+    }
+
+    private fun ensureDragonVideoPlaying(videoResId: Int) {
+        val player = mediaPlayer ?: return updateDragonVideo(videoResId, force = true)
+        try {
+            if (!player.isPlaying) player.start()
+        } catch (error: IllegalStateException) {
+            Log.w("ChallengeFragment", "Dragon player stopped unexpectedly; rebuilding", error)
+            updateDragonVideo(videoResId, force = true)
         }
     }
 

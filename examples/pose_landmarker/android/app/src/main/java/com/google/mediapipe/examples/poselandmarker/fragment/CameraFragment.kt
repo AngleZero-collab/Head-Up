@@ -30,6 +30,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.navigation.Navigation
 import com.google.mediapipe.examples.poselandmarker.CalibrationProfile
 import com.google.mediapipe.examples.poselandmarker.CameraOwnership
+import com.google.mediapipe.examples.poselandmarker.DistanceCalculator
 import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
 import com.google.mediapipe.examples.poselandmarker.HeadUpService
 import com.google.mediapipe.examples.poselandmarker.MainActivity
@@ -90,6 +91,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        viewModel.initSettings(requireContext())
         backgroundExecutor = Executors.newSingleThreadExecutor()
         binding.viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         initializeResultRows()
@@ -262,15 +264,17 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
             viewModel.setMinPoseDetectionConfidence(poseLandmarkerHelper.minPoseDetectionConfidence)
             viewModel.setMinPoseTrackingConfidence(poseLandmarkerHelper.minPoseTrackingConfidence)
             viewModel.setMinPosePresenceConfidence(poseLandmarkerHelper.minPosePresenceConfidence)
-            viewModel.setDelegate(poseLandmarkerHelper.currentDelegate)
-            viewModel.setModel(poseLandmarkerHelper.currentModel)
+            viewModel.setDelegate(requireContext(), poseLandmarkerHelper.currentDelegate)
+            viewModel.setModel(requireContext(), poseLandmarkerHelper.currentModel)
             backgroundExecutor.execute { poseLandmarkerHelper.clearPoseLandmarker() }
         }
         PostureAnalyzer.resetSmoothing()
 
         if (handOffToService && context != null) {
             HeadUpRepository.setForegroundScanActive(requireContext(), false)
-            (activity as? MainActivity)?.startHeadUpService(HeadUpService.ACTION_RESUME_CAMERA)
+            if ((activity as? MainActivity)?.shouldResumeBackgroundGuard() != false) {
+                (activity as? MainActivity)?.startHeadUpService(HeadUpService.ACTION_RESUME_CAMERA)
+            }
         }
     }
 
@@ -332,10 +336,23 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
         if (validSamples.isEmpty()) {
             Toast.makeText(requireContext(), R.string.calibration_failed, Toast.LENGTH_SHORT).show()
         } else {
+            val calibratedEyeDistance = validSamples
+                .mapNotNull { it.smoothedEyeDistancePixels ?: it.eyeDistancePixels }
+                .average()
+                .takeIf { !it.isNaN() }
+                ?.toFloat()
+            val distanceConstantK = calibratedEyeDistance?.let {
+                DistanceCalculator.calibrationConstantFor(
+                    DistanceCalculator.DEFAULT_CALIBRATION_DISTANCE_CM,
+                    it,
+                )
+            }
             val profile = CalibrationProfile(
                 angleDegrees = validSamples.map { it.rawAngleDegrees }.average().toFloat(),
                 postureRatio = validSamples.map { it.postureRatio }.average().toFloat(),
                 shoulderWidth = validSamples.map { it.shoulderWidth }.average().toFloat(),
+                eyeDistancePixels = calibratedEyeDistance,
+                distanceConstantK = distanceConstantK,
             )
             HeadUpRepository.setCalibration(requireContext(), profile)
             Toast.makeText(requireContext(), R.string.calibration_complete, Toast.LENGTH_SHORT).show()
@@ -355,6 +372,8 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
                 deviceTilt = lastDeviceTilt,
                 isFlat = isDeviceFlat,
                 calibration = HeadUpRepository.getCalibration(requireContext()),
+                inputImageWidth = resultBundle.inputImageWidth,
+                inputImageHeight = resultBundle.inputImageHeight,
             )
         }
 
@@ -415,11 +434,22 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
             getString(R.string.screen_distance),
             when {
                 metrics.screenDistanceCm == null -> getString(R.string.distance_requires_calibration)
-                metrics.isTooClose -> getString(R.string.distance_too_close)
+                metrics.screenDistanceCm < 20 -> getString(R.string.distance_too_close)
+                metrics.screenDistanceCm < 30 -> getString(R.string.distance_attention)
+                metrics.screenDistanceCm <= 40 -> getString(R.string.distance_normal)
                 else -> getString(R.string.distance_normal)
             },
-            metrics.screenDistanceCm?.let { getString(R.string.centimeters_format, it) } ?: "--",
-            if (metrics.isTooClose) R.color.headup_warning else R.color.headup_safe,
+            when {
+                metrics.screenDistanceCm == null -> "--"
+                metrics.screenDistanceCm < 20 -> getString(R.string.distance_less_than_20_cm)
+                else -> getString(R.string.centimeters_format, metrics.screenDistanceCm)
+            },
+            when {
+                metrics.screenDistanceCm == null -> R.color.headup_text_secondary
+                metrics.screenDistanceCm < 20 -> R.color.headup_danger
+                metrics.screenDistanceCm < 30 -> R.color.headup_warning
+                else -> R.color.headup_safe
+            },
         )
     }
 

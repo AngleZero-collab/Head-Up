@@ -19,7 +19,16 @@ plugins {
     id 'kotlin-android'
     id 'org.jetbrains.kotlin.kapt'
     id 'de.undercouch.download'
+    // id 'com.google.gms.google-services'
 }
+
+def appLocalProperties = new Properties()
+def appLocalPropertiesFile = project.file("local.properties")
+if (appLocalPropertiesFile.exists()) {
+    appLocalPropertiesFile.withInputStream { appLocalProperties.load(it) }
+}
+def headupApiBaseUrl = appLocalProperties.getProperty("headupApiBaseUrl", "http://10.0.2.2:8000/")
+def escapedHeadupApiBaseUrl = headupApiBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")
 
 android {
     namespace 'com.google.mediapipe.examples.poselandmarker'
@@ -31,6 +40,7 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        buildConfigField "String", "HEADUP_API_BASE_URL", "\"${escapedHeadupApiBaseUrl}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -51,6 +61,7 @@ android {
 
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
     androidResources {
         generateLocaleConfig true
@@ -78,6 +89,16 @@ dependencies {
     implementation "androidx.room:room-runtime:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
     kapt "androidx.room:room-compiler:$room_version"
+
+    // Encrypted Room database
+    implementation 'net.zetetic:android-database-sqlcipher:4.5.4'
+    implementation 'androidx.sqlite:sqlite-ktx:2.5.2'
+
+    // Offline sync
+    implementation 'androidx.work:work-runtime-ktx:2.9.1'
+    implementation 'com.squareup.retrofit2:retrofit:2.11.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.11.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
 
     // Navigation library
     def nav_version = "2.5.3"
@@ -109,4 +130,13 @@ dependencies {
 
     // MediaPipe Library
     implementation 'com.google.mediapipe:tasks-vision:0.10.29'
+
+    // Firebase BOM & SDKs
+    implementation platform('com.google.firebase:firebase-bom:33.2.0')
+    implementation 'com.google.firebase:firebase-auth-ktx'
+    implementation 'com.google.firebase:firebase-firestore-ktx'
+    implementation 'com.google.android.gms:play-services-auth:21.2.0'
+
+    // Security & Crypto
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 }

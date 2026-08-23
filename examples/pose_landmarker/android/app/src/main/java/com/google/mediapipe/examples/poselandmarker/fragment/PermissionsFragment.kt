@@ -70,12 +70,13 @@ class PermissionsFragment : Fragment() {
 
     private fun navigateToCamera() {
         lifecycleScope.launchWhenStarted {
-            Navigation.findNavController(
+            val navController = Navigation.findNavController(
                 requireActivity(),
                 R.id.fragment_container
-            ).navigate(
-                R.id.action_permissions_to_camera
             )
+            if (navController.currentDestination?.id == R.id.permissions_fragment) {
+                navController.navigate(R.id.action_permissions_to_camera)
+            }
         }
     }
 

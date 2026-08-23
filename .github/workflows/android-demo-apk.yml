@@ -1,0 +1,57 @@
+name: Build Demo APK Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "Public backend API base URL, for example https://headup-api.example.com/"
+        required: true
+        type: string
+      tag:
+        description: "Release tag"
+        required: true
+        default: "demo-latest"
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/pose_landmarker/android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Configure API URL
+        run: |
+          echo "headupApiBaseUrl=${{ inputs.api_base_url }}" >> app/local.properties
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: |
+          mkdir -p release
+          cp app/build/outputs/apk/debug/app-debug.apk release/Head.Up-demo-debug.apk
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Head Up Demo APK
+          body: |
+            Head Up Android demo APK.
+
+            API base URL: `${{ inputs.api_base_url }}`
+          files: examples/pose_landmarker/android/release/Head.Up-demo-debug.apk
+          make_latest: true

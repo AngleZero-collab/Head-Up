@@ -71,6 +71,23 @@ class PoseLandmarkerHelper(
     @Synchronized
     fun setupPoseLandmarker() {
         if (poseLandmarker != null) return
+
+        val modelName =
+            when (currentModel) {
+                MODEL_POSE_LANDMARKER_FULL -> "pose_landmarker_full.task"
+                MODEL_POSE_LANDMARKER_LITE -> "pose_landmarker_lite.task"
+                MODEL_POSE_LANDMARKER_HEAVY -> "pose_landmarker_heavy.task"
+                else -> "pose_landmarker_full.task"
+            }
+
+        // Verify model exists in assets to prevent MediaPipe internal NPE during layout preview
+        try {
+            context.assets.open(modelName).close()
+        } catch (e: Exception) {
+            poseLandmarkerHelperListener?.onError("Pose Landmarker model not found: $modelName")
+            return
+        }
+
         // Set general pose landmarker options
         val baseOptionBuilder = BaseOptions.builder()
 
@@ -83,14 +100,6 @@ class PoseLandmarkerHelper(
                 baseOptionBuilder.setDelegate(Delegate.GPU)
             }
         }
-
-        val modelName =
-            when (currentModel) {
-                MODEL_POSE_LANDMARKER_FULL -> "pose_landmarker_full.task"
-                MODEL_POSE_LANDMARKER_LITE -> "pose_landmarker_lite.task"
-                MODEL_POSE_LANDMARKER_HEAVY -> "pose_landmarker_heavy.task"
-                else -> "pose_landmarker_full.task"
-            }
 
         baseOptionBuilder.setModelAssetPath(modelName)
 
@@ -173,7 +182,9 @@ class PoseLandmarkerHelper(
                 Bitmap.Config.ARGB_8888
             )
 
-        bitmapBuffer.copyPixelsFromBuffer(imageProxy.planes[0].buffer)
+        val buffer = imageProxy.planes[0].buffer
+        buffer.rewind()
+        bitmapBuffer.copyPixelsFromBuffer(buffer)
 
         val matrix = Matrix().apply {
             // Rotate the frame received from the camera to be in the same direction as it'll be shown
