@@ -72,24 +72,17 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"
             android:fontFamily="sans-serif-medium"
-            android:text="@string/dragon_styles"
+            android:text="@string/shop_equipment_title"
             android:textColor="@color/headup_text_primary"
             android:textSize="22sp"
             android:textStyle="bold" />
 
-        <include
-            android:id="@+id/shop_item_one"
-            layout="@layout/item_shop_item"
+        <LinearLayout
+            android:id="@+id/shop_equipment_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" />
-
-        <include
-            android:id="@+id/shop_item_two"
-            layout="@layout/item_shop_item"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp" />
+            android:layout_marginTop="12dp"
+            android:orientation="vertical" />
 
         <TextView
             android:layout_width="match_parent"
@@ -101,18 +94,11 @@
             android:textSize="22sp"
             android:textStyle="bold" />
 
-        <include
-            android:id="@+id/shop_item_three"
-            layout="@layout/item_shop_item"
+        <LinearLayout
+            android:id="@+id/shop_reward_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" />
-
-        <include
-            android:id="@+id/shop_item_four"
-            layout="@layout/item_shop_item"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp" />
+            android:layout_marginTop="12dp"
+            android:orientation="vertical" />
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

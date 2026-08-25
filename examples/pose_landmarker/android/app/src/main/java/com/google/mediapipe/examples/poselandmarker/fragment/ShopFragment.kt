@@ -4,12 +4,14 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
 import com.google.mediapipe.examples.poselandmarker.HeadUpUiState
 import com.google.mediapipe.examples.poselandmarker.R
 import com.google.mediapipe.examples.poselandmarker.ShopItem
+import com.google.mediapipe.examples.poselandmarker.ShopItemCategory
 import com.google.mediapipe.examples.poselandmarker.databinding.FragmentShopBinding
 import com.google.mediapipe.examples.poselandmarker.databinding.ItemShopItemBinding
 
@@ -36,16 +38,17 @@ class ShopFragment : Fragment() {
     private fun render(state: HeadUpUiState) {
         latestState = state
         binding.shopCoinValue.text = "%,d".format(state.coins)
-        val rows = listOf(binding.shopItemOne, binding.shopItemTwo, binding.shopItemThree, binding.shopItemFour)
-        val labels = listOf(
-            Triple(R.string.shop_starlight_armor, R.string.shop_starlight_detail, "A"),
-            Triple(R.string.shop_ocean_background, R.string.shop_ocean_detail, "B"),
-            Triple(R.string.shop_eye_time_ticket, R.string.shop_eye_time_detail, "T"),
-            Triple(R.string.shop_focus_badge, R.string.shop_focus_detail, "F"),
-        )
-        state.shopItems.zip(rows).forEachIndexed { index, (item, row) ->
-            val label = labels[index]
-            bindItem(row, item, getString(label.first), getString(label.second), label.third, state.coins)
+        binding.shopEquipmentContainer.removeAllViews()
+        binding.shopRewardContainer.removeAllViews()
+        state.shopItems.forEach { item ->
+            val container = if (item.category == ShopItemCategory.CONSUMABLE) {
+                binding.shopRewardContainer
+            } else {
+                binding.shopEquipmentContainer
+            }
+            val row = ItemShopItemBinding.inflate(LayoutInflater.from(requireContext()), container, false)
+            bindItem(row, item, item.title(), item.detail(), item.icon(), state.coins)
+            container.addView(row.root, rowLayoutParams())
         }
     }
 
@@ -61,22 +64,70 @@ class ShopFragment : Fragment() {
         row.shopItemTitle.text = title
         row.shopItemDetail.text = detail
         row.shopItemCost.text = when {
-            item.isOwned -> getString(R.string.shop_owned)
+            !item.isOwned -> getString(R.string.shop_cost_format, item.cost)
+            item.isEquipped -> getString(R.string.shop_equipped)
+            item.isEquippable -> getString(R.string.shop_equip)
+            item.category == ShopItemCategory.CONSUMABLE -> getString(R.string.shop_use)
             else -> getString(R.string.shop_cost_format, item.cost)
         }
-        row.shopItemCost.isEnabled = !item.isOwned
-        row.root.alpha = if (item.isOwned) 0.7f else 1f
+        row.shopItemCost.isEnabled = true
+        row.root.alpha = if (item.isOwned) 0.86f else 1f
         row.shopItemCost.setOnClickListener {
-            val purchased = HeadUpRepository.purchaseItem(requireContext(), item.id)
+            val purchased = !item.isOwned && HeadUpRepository.purchaseItem(requireContext(), item.id)
+            val equipped = item.isOwned && item.isEquippable && HeadUpRepository.equipItem(requireContext(), item.id)
+            val used = item.isOwned && item.category == ShopItemCategory.CONSUMABLE && HeadUpRepository.useShopItem(requireContext(), item.id)
             val message = when {
                 purchased -> R.string.shop_purchase_success
-                item.isOwned -> R.string.shop_already_owned
+                equipped -> R.string.shop_equipment_changed
+                used -> R.string.shop_item_used
                 coins < item.cost -> R.string.shop_not_enough_points
+                item.isOwned -> R.string.shop_already_owned
                 else -> R.string.shop_purchase_failed
             }
             Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         }
     }
+
+    private fun rowLayoutParams(): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            bottomMargin = 10.dp()
+        }
+
+    private fun ShopItem.title(): String = getString(
+        when (id) {
+            "starlight_armor" -> R.string.shop_starlight_armor
+            "focus_goggles" -> R.string.shop_focus_goggles
+            "moon_cape" -> R.string.shop_moon_cape
+            "ocean_background" -> R.string.shop_ocean_background
+            "eye_time_ticket" -> R.string.shop_eye_time_ticket
+            "focus_badge" -> R.string.shop_focus_badge
+            else -> R.string.shop_unknown_item
+        },
+    )
+
+    private fun ShopItem.detail(): String = getString(
+        when (id) {
+            "starlight_armor" -> R.string.shop_starlight_detail
+            "focus_goggles" -> R.string.shop_focus_goggles_detail
+            "moon_cape" -> R.string.shop_moon_cape_detail
+            "ocean_background" -> R.string.shop_ocean_detail
+            "eye_time_ticket" -> R.string.shop_eye_time_detail
+            "focus_badge" -> R.string.shop_focus_detail
+            else -> R.string.shop_unknown_detail
+        },
+    )
+
+    private fun ShopItem.icon(): String = when (id) {
+        "starlight_armor" -> "A"
+        "focus_goggles" -> "G"
+        "moon_cape" -> "C"
+        "ocean_background" -> "B"
+        "eye_time_ticket" -> "T"
+        "focus_badge" -> "F"
+        else -> "I"
+    }
+
+    private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 
     override fun onDestroyView() {
         _binding = null

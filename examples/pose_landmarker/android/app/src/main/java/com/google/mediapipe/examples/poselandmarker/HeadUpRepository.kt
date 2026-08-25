@@ -23,6 +23,8 @@ object HeadUpRepository {
     private const val KEY_CONSECUTIVE_DAYS = "consecutive_days"
     private const val KEY_DRAGON_ENERGY = "dragon_energy"
     private const val KEY_DRAGON_LEVEL = "dragon_level"
+    private const val KEY_DRAGON_BOND = "dragon_bond"
+    private const val KEY_SELECTED_DRAGON = "selected_dragon"
     private const val KEY_COINS = "coins"
     private const val KEY_LAST_UPDATED = "last_updated"
     private const val KEY_STATE_DAY = "state_day"
@@ -34,6 +36,7 @@ object HeadUpRepository {
     private const val KEY_CALIBRATION_TIME = "calibration_time"
     private const val KEY_FOREGROUND_SCAN_ACTIVE = "foreground_scan_active"
     private const val KEY_OWNED_ITEMS = "owned_items"
+    private const val KEY_EQUIPPED_ITEMS = "equipped_items"
     private const val KEY_CLAIMED_TASKS = "claimed_tasks"
     private const val KEY_ALARM_ENABLED = "alarm_enabled"
     private const val KEY_BACKGROUND_GUARD_ENABLED = "background_guard_enabled"
@@ -199,10 +202,72 @@ object HeadUpRepository {
         val next = state.copy(
             coins = state.coins - item.cost,
             ownedShopItems = state.ownedShopItems + itemId,
+            equippedShopItems = if (item.isEquippable) state.equippedShopItems + itemId else state.equippedShopItems,
         )
         saveState(context, next)
         stateLiveData.postValue(next)
         return true
+    }
+
+    fun equipItem(context: Context, itemId: String): Boolean {
+        val state = loadState(context)
+        val item = state.shopItems.firstOrNull { it.id == itemId } ?: return false
+        if (!item.isOwned || !item.isEquippable) return false
+        val nextEquipped = if (itemId in state.equippedShopItems) {
+            state.equippedShopItems - itemId
+        } else {
+            state.equippedShopItems + itemId
+        }
+        val next = state.copy(equippedShopItems = nextEquipped)
+        saveState(context, next)
+        stateLiveData.postValue(next)
+        return true
+    }
+
+    fun useShopItem(context: Context, itemId: String): Boolean {
+        val state = loadState(context)
+        val item = state.shopItems.firstOrNull { it.id == itemId } ?: return false
+        if (!item.isOwned || item.category != ShopItemCategory.CONSUMABLE) return false
+        val next = when (itemId) {
+            "eye_time_ticket" -> state.copy(
+                eyeRestCountToday = state.eyeRestCountToday + 1,
+                dragonEnergy = (state.dragonEnergy + 8).coerceAtMost(100),
+                dragonBond = (state.dragonBond + 4).coerceAtMost(999),
+            )
+            else -> state
+        }
+        saveState(context, next)
+        stateLiveData.postValue(next)
+        return true
+    }
+
+    fun selectDragon(context: Context, dragonId: String): Boolean {
+        if (VisionDragonCatalog.all.none { it.id == dragonId }) return false
+        val state = loadState(context)
+        val next = state.copy(selectedDragonId = dragonId)
+        saveState(context, next)
+        stateLiveData.postValue(next)
+        return true
+    }
+
+    fun interactWithDragon(context: Context, interaction: DragonInteraction): HeadUpUiState {
+        val state = loadState(context)
+        val previousBondLevel = state.dragonBond / 100
+        val (energyDelta, bondDelta, coinDelta) = when (interaction) {
+            DragonInteraction.FEED -> Triple(16, 5, 0)
+            DragonInteraction.PLAY -> Triple(-6, 14, 2)
+            DragonInteraction.REST -> Triple(12, 7, 0)
+        }
+        val nextBond = (state.dragonBond + bondDelta).coerceIn(0, 999)
+        val next = state.copy(
+            dragonEnergy = (state.dragonEnergy + energyDelta).coerceIn(0, 100),
+            dragonBond = nextBond,
+            dragonLevel = state.dragonLevel + if (nextBond / 100 > previousBondLevel) 1 else 0,
+            coins = (state.coins + coinDelta).coerceAtLeast(0),
+        )
+        saveState(context, next)
+        stateLiveData.postValue(next)
+        return next
     }
 
     fun refreshDashboard(context: Context) {
@@ -496,10 +561,15 @@ object HeadUpRepository {
             consecutiveDays = prefs.getInt(KEY_CONSECUTIVE_DAYS, 0),
             dragonEnergy = prefs.getInt(KEY_DRAGON_ENERGY, 50),
             dragonLevel = prefs.getInt(KEY_DRAGON_LEVEL, 1),
+            dragonBond = prefs.getInt(KEY_DRAGON_BOND, 0),
+            selectedDragonId = prefs.getString(KEY_SELECTED_DRAGON, VisionDragonCatalog.DEFAULT_DRAGON_ID)
+                ?.takeIf { id -> VisionDragonCatalog.all.any { it.id == id } }
+                ?: VisionDragonCatalog.DEFAULT_DRAGON_ID,
             coins = prefs.getInt(KEY_COINS, 0),
             lastUpdatedMs = if (isToday) prefs.getLong(KEY_LAST_UPDATED, 0L) else 0L,
             calibrationProfile = getCalibration(context),
             ownedShopItems = prefs.getStringSet(KEY_OWNED_ITEMS, emptySet())?.toSet().orEmpty(),
+            equippedShopItems = prefs.getStringSet(KEY_EQUIPPED_ITEMS, emptySet())?.toSet().orEmpty(),
             claimedTasks = if (isToday) prefs.getStringSet(KEY_CLAIMED_TASKS, emptySet())?.toSet().orEmpty() else emptySet(),
             isAlarmEnabled = prefs.getBoolean(KEY_ALARM_ENABLED, false),
         )
@@ -515,9 +585,12 @@ object HeadUpRepository {
             putInt(KEY_CONSECUTIVE_DAYS, state.consecutiveDays)
             putInt(KEY_DRAGON_ENERGY, state.dragonEnergy)
             putInt(KEY_DRAGON_LEVEL, state.dragonLevel)
+            putInt(KEY_DRAGON_BOND, state.dragonBond)
+            putString(KEY_SELECTED_DRAGON, state.selectedDragonId)
             putInt(KEY_COINS, state.coins)
             putLong(KEY_LAST_UPDATED, state.lastUpdatedMs)
             putStringSet(KEY_OWNED_ITEMS, state.ownedShopItems)
+            putStringSet(KEY_EQUIPPED_ITEMS, state.equippedShopItems)
             putStringSet(KEY_CLAIMED_TASKS, state.claimedTasks)
         }
     }

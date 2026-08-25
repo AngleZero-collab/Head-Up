@@ -56,6 +56,14 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/dragon_trait_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/headup_text_secondary"
+                android:textSize="14sp" />
+
             <FrameLayout
                 android:id="@+id/dragon_orb"
                 android:layout_width="188dp"
@@ -69,9 +77,37 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:contentDescription="@string/vision_dragon_animation" />
+
+                <TextView
+                    android:id="@+id/dragon_type_badge"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
+                    android:layout_gravity="top|start"
+                    android:background="@drawable/bg_headup_icon_button"
+                    android:gravity="center"
+                    android:text="B"
+                    android:textColor="@color/headup_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/dragon_gear_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_gravity="bottom|end"
+                    android:background="@drawable/bg_headup_reward"
+                    android:gravity="center"
+                    android:minWidth="56dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="@string/no_gear_short"
+                    android:textColor="@color/headup_text_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
             </FrameLayout>
 
             <TextView
+                android:id="@+id/dragon_name_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
@@ -99,6 +135,14 @@
                 android:textSize="16sp" />
 
             <TextView
+                android:id="@+id/dragon_bond_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="@color/headup_text_secondary"
+                android:textSize="14sp" />
+
+            <TextView
                 android:id="@+id/dragon_mood_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -106,6 +150,76 @@
                 android:textColor="@color/headup_safe"
                 android:textSize="16sp"
                 android:textStyle="bold" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:overScrollMode="never"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/dragon_selector_container"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:fontFamily="sans-serif-medium"
+            android:text="@string/pet_interactions"
+            android:textColor="@color/headup_text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/feed_dragon_button"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:text="@string/feed_dragon" />
+
+            <Button
+                android:id="@+id/play_dragon_button"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="@string/play_dragon" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/rest_dragon_button"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:text="@string/rest_dragon" />
+
+            <Button
+                android:id="@+id/equip_dragon_button"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="@string/equip_dragon" />
         </LinearLayout>
 
         <LinearLayout

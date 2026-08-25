@@ -11,14 +11,19 @@ import android.view.TextureView
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.google.mediapipe.examples.poselandmarker.DragonInteraction
 import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
 import com.google.mediapipe.examples.poselandmarker.HeadUpUiState
 import com.google.mediapipe.examples.poselandmarker.PostureZone
 import com.google.mediapipe.examples.poselandmarker.R
+import com.google.mediapipe.examples.poselandmarker.ShopItem
+import com.google.mediapipe.examples.poselandmarker.VisionDragonCatalog
 import com.google.mediapipe.examples.poselandmarker.databinding.FragmentChallengeBinding
 
 class ChallengeFragment : Fragment() {
@@ -71,6 +76,10 @@ class ChallengeFragment : Fragment() {
         }
         binding.claimMaintainButton.setOnClickListener { claimGoodPostureReward() }
         binding.recordEyeRestButton.setOnClickListener { showEyeRestDialog() }
+        binding.feedDragonButton.setOnClickListener { handleDragonInteraction(DragonInteraction.FEED) }
+        binding.playDragonButton.setOnClickListener { handleDragonInteraction(DragonInteraction.PLAY) }
+        binding.restDragonButton.setOnClickListener { handleDragonInteraction(DragonInteraction.REST) }
+        binding.equipDragonButton.setOnClickListener { showEquipmentDialog() }
 
         render(HeadUpRepository.currentState(requireContext()))
         HeadUpRepository.observeState().observe(viewLifecycleOwner) { render(it) }
@@ -99,27 +108,39 @@ class ChallengeFragment : Fragment() {
         if (_binding == null) return
         latestState = state
         val zoneColor = ContextCompat.getColor(requireContext(), state.metrics.zone.colorRes())
+        val selectedDragon = state.selectedDragon
         binding.dragonLevelBadge.text = "Lv.${state.dragonLevel}"
+        binding.dragonNameText.text = getString(selectedDragon.nameRes)
+        binding.dragonTraitText.text = getString(selectedDragon.traitRes)
+        binding.dragonTypeBadge.text = selectedDragon.icon
+        binding.dragonTypeBadge.setTextColor(ContextCompat.getColor(requireContext(), selectedDragon.accentColorRes))
+        binding.dragonGearBadge.text = if (state.equippedShopItems.isEmpty()) {
+            getString(R.string.no_gear_short)
+        } else {
+            getString(R.string.gear_count_short, state.equippedShopItems.size)
+        }
         binding.dragonEnergyProgress.progress = state.dragonEnergy
         binding.dragonEnergyText.text = getString(
             if (state.metrics.isGoodPosture) R.string.dragon_energy_good else R.string.dragon_energy_rest,
             state.dragonEnergy,
         )
-        binding.dragonMoodText.setText(
+        binding.dragonBondText.text = getString(R.string.dragon_bond_format, state.dragonBond)
+        binding.dragonMoodText.text = getString(
             when (state.metrics.zone) {
-                PostureZone.SAFE -> R.string.dragon_mood_safe
-                PostureZone.WARNING -> R.string.dragon_mood_warning
-                PostureZone.DANGER -> R.string.dragon_mood_danger
+                PostureZone.SAFE -> R.string.dragon_mood_safe_format
+                PostureZone.WARNING -> R.string.dragon_mood_warning_format
+                PostureZone.DANGER -> R.string.dragon_mood_danger_format
             },
+            getString(selectedDragon.nameRes),
         )
         binding.dragonMoodText.setTextColor(zoneColor)
-        
-        // 亮起紅框：當姿勢為 DANGER 時顯示紅框
+
         if (state.metrics.zone == PostureZone.DANGER) {
             binding.dragonOrb.setBackgroundResource(R.drawable.bg_headup_dragon_orb_danger)
         } else {
             binding.dragonOrb.setBackgroundResource(R.drawable.bg_headup_dragon_orb)
         }
+        renderDragonSelector(state)
 
         binding.maintainTaskDetail.text = getString(
             R.string.minutes_progress_format,
@@ -132,7 +153,68 @@ class ChallengeFragment : Fragment() {
         val goodTask = state.tasks.first { it.id == "good_posture" }
         binding.claimMaintainButton.isEnabled = goodTask.isComplete && !goodTask.claimed
         binding.claimMaintainButton.setText(if (goodTask.claimed) R.string.claimed else R.string.claim_reward)
-        updateDragonVideo(if (state.metrics.zone == PostureZone.DANGER) R.raw.angry_dragon else R.raw.happy_dragon)
+        updateDragonVideo(videoFor(state))
+    }
+
+    private fun renderDragonSelector(state: HeadUpUiState) {
+        val container = binding.dragonSelectorContainer
+        container.removeAllViews()
+        VisionDragonCatalog.all.forEach { dragon ->
+            val chip = TextView(requireContext()).apply {
+                text = getString(R.string.dragon_selector_format, dragon.icon, getString(dragon.nameRes))
+                setTextColor(
+                    ContextCompat.getColor(
+                        requireContext(),
+                        if (dragon.id == state.selectedDragonId) R.color.headup_text_primary else R.color.headup_text_secondary,
+                    ),
+                )
+                textSize = 13f
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                gravity = android.view.Gravity.CENTER
+                minWidth = 112.dp()
+                setPadding(12.dp(), 0, 12.dp(), 0)
+                setBackgroundResource(if (dragon.id == state.selectedDragonId) R.drawable.bg_headup_nav_item_selected else R.drawable.bg_headup_icon_button)
+                setOnClickListener {
+                    HeadUpRepository.selectDragon(requireContext(), dragon.id)
+                    Toast.makeText(requireContext(), getString(R.string.dragon_selected, getString(dragon.nameRes)), Toast.LENGTH_SHORT).show()
+                }
+            }
+            val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 44.dp()).apply {
+                marginEnd = 8.dp()
+            }
+            container.addView(chip, params)
+        }
+    }
+
+    private fun handleDragonInteraction(interaction: DragonInteraction) {
+        HeadUpRepository.interactWithDragon(requireContext(), interaction)
+        val message = when (interaction) {
+            DragonInteraction.FEED -> R.string.dragon_fed
+            DragonInteraction.PLAY -> R.string.dragon_played
+            DragonInteraction.REST -> R.string.dragon_rested
+        }
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showEquipmentDialog() {
+        val equipment = latestState.shopItems.filter { it.isOwned && it.isEquippable }
+        if (equipment.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.no_equipment_owned, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val labels = equipment.map { item ->
+            val suffix = if (item.isEquipped) getString(R.string.shop_equipped) else getString(R.string.shop_equip)
+            "${item.title()} - $suffix"
+        }.toTypedArray()
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.equip_dragon)
+            .setItems(labels) { _, index ->
+                val item = equipment[index]
+                HeadUpRepository.equipItem(requireContext(), item.id)
+                Toast.makeText(requireContext(), getString(R.string.shop_equipment_updated, item.title()), Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun claimGoodPostureReward() {
@@ -186,6 +268,25 @@ class ChallengeFragment : Fragment() {
             Log.e("ChallengeFragment", "Unable to play dragon animation", error)
         }
     }
+
+    private fun videoFor(state: HeadUpUiState): Int =
+        if (state.metrics.zone == PostureZone.DANGER) R.raw.angry_dragon
+        else if (state.selectedDragonId == VisionDragonCatalog.DEFAULT_DRAGON_ID) R.raw.happy_dragon
+        else R.raw.blue_dragon
+
+    private fun ShopItem.title(): String = getString(
+        when (id) {
+            "starlight_armor" -> R.string.shop_starlight_armor
+            "focus_goggles" -> R.string.shop_focus_goggles
+            "moon_cape" -> R.string.shop_moon_cape
+            "ocean_background" -> R.string.shop_ocean_background
+            "eye_time_ticket" -> R.string.shop_eye_time_ticket
+            "focus_badge" -> R.string.shop_focus_badge
+            else -> R.string.shop_unknown_item
+        },
+    )
+
+    private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 
     private fun ensureDragonVideoPlaying(videoResId: Int) {
         val player = mediaPlayer ?: return updateDragonVideo(videoResId, force = true)

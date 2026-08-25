@@ -60,11 +60,54 @@ data class HeadUpTask(
         get() = progress >= max
 }
 
+data class VisionDragonType(
+    val id: String,
+    val nameRes: Int,
+    val traitRes: Int,
+    val icon: String,
+    val accentColorRes: Int,
+)
+
+object VisionDragonCatalog {
+    const val DEFAULT_DRAGON_ID = "little_blue"
+
+    val all: List<VisionDragonType> = listOf(
+        VisionDragonType(DEFAULT_DRAGON_ID, R.string.dragon_little_blue, R.string.dragon_trait_little_blue, "B", R.color.headup_primary),
+        VisionDragonType("ember_red", R.string.dragon_ember_red, R.string.dragon_trait_ember_red, "R", R.color.headup_danger),
+        VisionDragonType("mint_leaf", R.string.dragon_mint_leaf, R.string.dragon_trait_mint_leaf, "M", R.color.headup_safe),
+        VisionDragonType("violet_star", R.string.dragon_violet_star, R.string.dragon_trait_violet_star, "V", R.color.headup_purple),
+        VisionDragonType("sunny_gold", R.string.dragon_sunny_gold, R.string.dragon_trait_sunny_gold, "G", R.color.headup_warning),
+    )
+
+    fun byId(id: String): VisionDragonType =
+        all.firstOrNull { it.id == id } ?: all.first()
+}
+
+enum class ShopItemCategory {
+    EQUIPMENT,
+    BACKGROUND,
+    CONSUMABLE,
+    BADGE,
+}
+
 data class ShopItem(
     val id: String,
     val cost: Int,
     val isOwned: Boolean,
-)
+    val category: ShopItemCategory,
+    val isEquipped: Boolean = false,
+) {
+    val isEquippable: Boolean
+        get() = category == ShopItemCategory.EQUIPMENT ||
+            category == ShopItemCategory.BACKGROUND ||
+            category == ShopItemCategory.BADGE
+}
+
+enum class DragonInteraction {
+    FEED,
+    PLAY,
+    REST,
+}
 
 data class HeadUpUiState(
     val metrics: PostureMetrics = PostureAnalyzer.defaultMetrics(),
@@ -75,10 +118,13 @@ data class HeadUpUiState(
     val consecutiveDays: Int = 0,
     val dragonEnergy: Int = 50,
     val dragonLevel: Int = 1,
+    val dragonBond: Int = 0,
+    val selectedDragonId: String = VisionDragonCatalog.DEFAULT_DRAGON_ID,
     val coins: Int = 0,
     val lastUpdatedMs: Long = 0L,
     val calibrationProfile: CalibrationProfile? = null,
     val ownedShopItems: Set<String> = emptySet(),
+    val equippedShopItems: Set<String> = emptySet(),
     val claimedTasks: Set<String> = emptySet(),
     val isAlarmEnabled: Boolean = false,
 ) {
@@ -99,12 +145,17 @@ data class HeadUpUiState(
             HeadUpTask("posture_challenge", 100, if (protectEyesPercent >= 80 && totalTrackedSecondsToday >= 600L) 1 else 0, 1, "posture_challenge" in claimedTasks),
         )
 
+    val selectedDragon: VisionDragonType
+        get() = VisionDragonCatalog.byId(selectedDragonId)
+
     val shopItems: List<ShopItem>
         get() = listOf(
-            ShopItem("starlight_armor", 300, "starlight_armor" in ownedShopItems),
-            ShopItem("ocean_background", 180, "ocean_background" in ownedShopItems),
-            ShopItem("eye_time_ticket", 500, "eye_time_ticket" in ownedShopItems),
-            ShopItem("focus_badge", 220, "focus_badge" in ownedShopItems),
+            ShopItem("starlight_armor", 300, "starlight_armor" in ownedShopItems, ShopItemCategory.EQUIPMENT, "starlight_armor" in equippedShopItems),
+            ShopItem("focus_goggles", 260, "focus_goggles" in ownedShopItems, ShopItemCategory.EQUIPMENT, "focus_goggles" in equippedShopItems),
+            ShopItem("moon_cape", 220, "moon_cape" in ownedShopItems, ShopItemCategory.EQUIPMENT, "moon_cape" in equippedShopItems),
+            ShopItem("ocean_background", 180, "ocean_background" in ownedShopItems, ShopItemCategory.BACKGROUND, "ocean_background" in equippedShopItems),
+            ShopItem("eye_time_ticket", 120, "eye_time_ticket" in ownedShopItems, ShopItemCategory.CONSUMABLE),
+            ShopItem("focus_badge", 220, "focus_badge" in ownedShopItems, ShopItemCategory.BADGE, "focus_badge" in equippedShopItems),
         )
 }
 
