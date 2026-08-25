@@ -11,13 +11,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
-import android.graphics.SurfaceTexture
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioManager
-import android.media.MediaPlayer
 import android.media.ToneGenerator
 import android.os.Build
 import android.os.Handler
@@ -32,12 +30,11 @@ import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
-import android.view.Surface
-import android.view.TextureView
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -69,7 +66,6 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         private const val ALARM_COOLDOWN_MS = 3_000L
         private const val PET_SIZE_DP = 112
         private const val HAPPY_PET_HIDE_DELAY_MS = 1_800L
-        private const val PET_VIDEO_RETRY_MS = 350L
     }
 
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -89,14 +85,13 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var warningOverlayView: View? = null
     private var warningAnimator: ValueAnimator? = null
     private var petOverlayView: FrameLayout? = null
-    private var petTextureView: TextureView? = null
-    private var petSurface: Surface? = null
-    private var petMediaPlayer: MediaPlayer? = null
+    private var petImageView: ImageView? = null
+    private var petMotionAnimator: ValueAnimator? = null
     private var petLayoutParams: WindowManager.LayoutParams? = null
     private var currentPetMood: PetMood? = null
+    private var currentPetDragonId: String? = null
     private var wasShowingBadPet = false
     private var hidePetRunnable: Runnable? = null
-    private var petVideoRetryRunnable: Runnable? = null
     private var sensorManager: SensorManager? = null
     private var gravitySensor: Sensor? = null
     private var lastDeviceTilt = 0
@@ -141,25 +136,6 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 processPostureMetrics(updatedState.metrics)
             }
         }
-    }
-
-    private val petSurfaceListener = object : TextureView.SurfaceTextureListener {
-        override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
-            petSurface?.release()
-            petSurface = Surface(texture)
-            currentPetMood?.let { playPetVideo(it, force = true) }
-        }
-
-        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
-
-        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-            releasePetMediaPlayer()
-            petSurface?.release()
-            petSurface = null
-            return true
-        }
-
-        override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -457,15 +433,17 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             }
         }
 
-        if (currentPetMood != mood) {
+        val selectedDragon = HeadUpRepository.currentState(this).selectedDragon
+        val dragonChanged = currentPetDragonId != selectedDragon.id
+        if (currentPetMood != mood || dragonChanged) {
             currentPetMood = mood
+            currentPetDragonId = selectedDragon.id
             overlay.background = ContextCompat.getDrawable(
                 this,
                 if (mood == PetMood.ANGRY) R.drawable.bg_headup_dragon_orb_danger else R.drawable.bg_headup_dragon_orb,
             )
-            playPetVideo(mood, force = true)
-        } else {
-            ensurePetVideoPlaying(mood)
+            petImageView?.setImageResource(selectedDragon.imageRes)
+            animatePetOverlay(mood)
         }
     }
 
@@ -476,106 +454,71 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             setPadding(paddingPx, paddingPx, paddingPx, paddingPx)
             alpha = 0.98f
             elevation = dpToPx(12).toFloat()
-            petTextureView = TextureView(this@HeadUpService).also { texture ->
-                texture.isOpaque = false
-                texture.isClickable = false
-                texture.isFocusable = false
-                texture.surfaceTextureListener = petSurfaceListener
-                texture.layoutParams = FrameLayout.LayoutParams(
+            petImageView = ImageView(this@HeadUpService).also { image ->
+                image.isClickable = false
+                image.isFocusable = false
+                image.adjustViewBounds = true
+                image.scaleType = ImageView.ScaleType.FIT_CENTER
+                image.setImageResource(HeadUpRepository.currentState(this@HeadUpService).selectedDragon.imageRes)
+                image.layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     Gravity.CENTER,
                 )
-                addView(texture)
-                if (texture.isAvailable) {
-                    texture.surfaceTexture?.let {
-                        petSurface?.release()
-                        petSurface = Surface(it)
-                    }
+                addView(image)
+            }
+        }
+    }
+
+    private fun animatePetOverlay(mood: PetMood) {
+        petMotionAnimator?.cancel()
+        petMotionAnimator = null
+        val image = petImageView ?: return
+        image.animate().cancel()
+        image.alpha = 1f
+        image.rotation = 0f
+        image.scaleX = 1f
+        image.scaleY = 1f
+        image.translationY = 0f
+
+        if (mood == PetMood.ANGRY) {
+            petMotionAnimator = ValueAnimator.ofFloat(-7f, 7f).apply {
+                duration = 95L
+                repeatMode = ValueAnimator.REVERSE
+                repeatCount = 9
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animator ->
+                    petImageView?.rotation = animator.animatedValue as Float
                 }
+                start()
             }
-        }
-    }
-
-    private fun ensurePetVideoPlaying(mood: PetMood) {
-        val player = petMediaPlayer
-        if (player == null) {
-            playPetVideo(mood, force = true)
-            return
-        }
-        try {
-            if (!player.isPlaying) player.start()
-        } catch (error: IllegalStateException) {
-            Log.w(TAG, "Vision Dragon player was stale; restarting", error)
-            playPetVideo(mood, force = true)
-        }
-    }
-
-    private fun playPetVideo(mood: PetMood, force: Boolean = false) {
-        val surface = petSurface ?: return
-        if (!force && petMediaPlayer != null) {
-            ensurePetVideoPlaying(mood)
-            return
-        }
-        releasePetMediaPlayer()
-        val resId = if (mood == PetMood.ANGRY) R.raw.angry_dragon else R.raw.happy_dragon
-        try {
-            resources.openRawResourceFd(resId).use { descriptor ->
-                petMediaPlayer = MediaPlayer().apply {
-                    setSurface(surface)
-                    setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-                    isLooping = mood == PetMood.ANGRY
-                    setVolume(0f, 0f)
-                    setOnPreparedListener { player -> player.start() }
-                    setOnCompletionListener {
-                        if (mood == PetMood.HAPPY && petOverlayView != null) {
-                            it.seekTo(0)
-                            it.start()
-                        }
-                    }
-                    setOnErrorListener { _, what, extra ->
-                        Log.w(TAG, "Vision Dragon video failed: $what/$extra")
-                        schedulePetVideoRetry(mood)
-                        true
-                    }
-                    prepareAsync()
+        } else {
+            image.scaleX = 0.82f
+            image.scaleY = 0.82f
+            image.animate()
+                .scaleX(1.08f)
+                .scaleY(1.08f)
+                .translationY(-8f)
+                .setDuration(220L)
+                .setInterpolator(AccelerateDecelerateInterpolator())
+                .withEndAction {
+                    petImageView?.animate()
+                        ?.scaleX(1f)
+                        ?.scaleY(1f)
+                        ?.translationY(0f)
+                        ?.setDuration(180L)
+                        ?.start()
                 }
-            }
-        } catch (error: Exception) {
-            Log.e(TAG, "Unable to play Vision Dragon animation", error)
-            schedulePetVideoRetry(mood)
+                .start()
         }
-    }
-
-    private fun schedulePetVideoRetry(mood: PetMood) {
-        petVideoRetryRunnable?.let { mainHandler.removeCallbacks(it) }
-        petVideoRetryRunnable = Runnable {
-            petVideoRetryRunnable = null
-            if (petOverlayView != null && currentPetMood == mood) {
-                playPetVideo(mood, force = true)
-            }
-        }
-        mainHandler.postDelayed(petVideoRetryRunnable!!, PET_VIDEO_RETRY_MS)
-    }
-
-    private fun releasePetMediaPlayer() {
-        petVideoRetryRunnable?.let { mainHandler.removeCallbacks(it) }
-        petVideoRetryRunnable = null
-        try {
-            petMediaPlayer?.release()
-        } catch (_: Exception) {
-            Unit
-        }
-        petMediaPlayer = null
     }
 
     private fun hidePetOverlay() {
         hidePetRunnable?.let { mainHandler.removeCallbacks(it) }
         hidePetRunnable = null
-        petTextureView?.surfaceTextureListener = null
-        releasePetMediaPlayer()
-        petSurface?.release()
-        petSurface = null
+        petMotionAnimator?.cancel()
+        petMotionAnimator = null
+        petImageView?.animate()?.cancel()
         petOverlayView?.let { pet ->
             try {
                 windowManager?.removeView(pet)
@@ -584,9 +527,10 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             }
         }
         petOverlayView = null
-        petTextureView = null
+        petImageView = null
         petLayoutParams = null
         currentPetMood = null
+        currentPetDragonId = null
     }
 
     private fun createPetDragListener(params: WindowManager.LayoutParams): View.OnTouchListener {

@@ -66,17 +66,18 @@ data class VisionDragonType(
     val traitRes: Int,
     val icon: String,
     val accentColorRes: Int,
+    val imageRes: Int,
 )
 
 object VisionDragonCatalog {
     const val DEFAULT_DRAGON_ID = "little_blue"
 
     val all: List<VisionDragonType> = listOf(
-        VisionDragonType(DEFAULT_DRAGON_ID, R.string.dragon_little_blue, R.string.dragon_trait_little_blue, "B", R.color.headup_primary),
-        VisionDragonType("ember_red", R.string.dragon_ember_red, R.string.dragon_trait_ember_red, "R", R.color.headup_danger),
-        VisionDragonType("mint_leaf", R.string.dragon_mint_leaf, R.string.dragon_trait_mint_leaf, "M", R.color.headup_safe),
-        VisionDragonType("violet_star", R.string.dragon_violet_star, R.string.dragon_trait_violet_star, "V", R.color.headup_purple),
-        VisionDragonType("sunny_gold", R.string.dragon_sunny_gold, R.string.dragon_trait_sunny_gold, "G", R.color.headup_warning),
+        VisionDragonType(DEFAULT_DRAGON_ID, R.string.dragon_little_blue, R.string.dragon_trait_little_blue, "B", R.color.headup_primary, R.drawable.vision_dragon_little_blue),
+        VisionDragonType("ember_red", R.string.dragon_ember_red, R.string.dragon_trait_ember_red, "R", R.color.headup_danger, R.drawable.vision_dragon_ember_red),
+        VisionDragonType("mint_leaf", R.string.dragon_mint_leaf, R.string.dragon_trait_mint_leaf, "M", R.color.headup_safe, R.drawable.vision_dragon_mint_leaf),
+        VisionDragonType("violet_star", R.string.dragon_violet_star, R.string.dragon_trait_violet_star, "V", R.color.headup_purple, R.drawable.vision_dragon_violet_star),
+        VisionDragonType("sunny_gold", R.string.dragon_sunny_gold, R.string.dragon_trait_sunny_gold, "G", R.color.headup_warning, R.drawable.vision_dragon_sunny_gold),
     )
 
     fun byId(id: String): VisionDragonType =

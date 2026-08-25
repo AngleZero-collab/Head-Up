@@ -1,20 +1,18 @@
 package com.google.mediapipe.examples.poselandmarker.fragment
 
+import android.animation.ValueAnimator
 import android.graphics.Outline
-import android.graphics.SurfaceTexture
-import android.media.MediaPlayer
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
-import android.view.Surface
-import android.view.TextureView
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.ViewGroup
+import android.view.animation.OvershootInterpolator
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.google.mediapipe.examples.poselandmarker.DragonInteraction
@@ -29,10 +27,10 @@ import com.google.mediapipe.examples.poselandmarker.databinding.FragmentChalleng
 class ChallengeFragment : Fragment() {
     private var _binding: FragmentChallengeBinding? = null
     private val binding get() = _binding!!
-    private var mediaPlayer: MediaPlayer? = null
-    private var currentSurface: Surface? = null
-    private var currentVideoResId = 0
     private var latestState = HeadUpUiState()
+    private var currentDragonImageResId = 0
+    private var dragonBreathingAnimator: ValueAnimator? = null
+    private var isDragonInDangerPose = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -46,34 +44,7 @@ class ChallengeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupDragonOrb()
-        binding.dragonVideoView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-            override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
-                currentSurface?.release()
-                currentSurface = Surface(texture)
-                updateDragonVideo(currentVideoResId.takeIf { it != 0 } ?: R.raw.happy_dragon)
-            }
-
-            override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
-
-            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-                releaseMediaPlayer()
-                currentSurface?.release()
-                currentSurface = null
-                return true
-            }
-
-            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
-        }
-        binding.dragonVideoView.setOnClickListener {
-            mediaPlayer?.let { player ->
-                try {
-                    if (player.isPlaying) player.pause() else player.start()
-                } catch (error: IllegalStateException) {
-                    Log.w("ChallengeFragment", "Dragon player was stale after surface change", error)
-                    updateDragonVideo(currentVideoResId.takeIf { it != 0 } ?: R.raw.happy_dragon, force = true)
-                }
-            }
-        }
+        binding.dragonImageView.setOnClickListener { handleDragonInteraction(DragonInteraction.PLAY) }
         binding.claimMaintainButton.setOnClickListener { claimGoodPostureReward() }
         binding.recordEyeRestButton.setOnClickListener { showEyeRestDialog() }
         binding.feedDragonButton.setOnClickListener { handleDragonInteraction(DragonInteraction.FEED) }
@@ -87,21 +58,21 @@ class ChallengeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (currentSurface != null && currentVideoResId != 0) updateDragonVideo(currentVideoResId)
+        startDragonBreathing()
     }
 
     override fun onPause() {
-        releaseMediaPlayer()
+        stopDragonAnimation()
         super.onPause()
     }
 
     private fun setupDragonOrb() {
-        binding.dragonVideoView.outlineProvider = object : ViewOutlineProvider() {
+        binding.dragonImageView.outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
                 outline.setOval(0, 0, view.width, view.height)
             }
         }
-        binding.dragonVideoView.clipToOutline = true
+        binding.dragonImageView.clipToOutline = false
     }
 
     private fun render(state: HeadUpUiState) {
@@ -137,9 +108,12 @@ class ChallengeFragment : Fragment() {
 
         if (state.metrics.zone == PostureZone.DANGER) {
             binding.dragonOrb.setBackgroundResource(R.drawable.bg_headup_dragon_orb_danger)
+        } else if ("ocean_background" in state.equippedShopItems) {
+            binding.dragonOrb.setBackgroundResource(R.drawable.bg_headup_dragon_orb_ocean)
         } else {
             binding.dragonOrb.setBackgroundResource(R.drawable.bg_headup_dragon_orb)
         }
+        renderDragonVisuals(state)
         renderDragonSelector(state)
 
         binding.maintainTaskDetail.text = getString(
@@ -153,7 +127,6 @@ class ChallengeFragment : Fragment() {
         val goodTask = state.tasks.first { it.id == "good_posture" }
         binding.claimMaintainButton.isEnabled = goodTask.isComplete && !goodTask.claimed
         binding.claimMaintainButton.setText(if (goodTask.claimed) R.string.claimed else R.string.claim_reward)
-        updateDragonVideo(videoFor(state))
     }
 
     private fun renderDragonSelector(state: HeadUpUiState) {
@@ -188,6 +161,7 @@ class ChallengeFragment : Fragment() {
 
     private fun handleDragonInteraction(interaction: DragonInteraction) {
         HeadUpRepository.interactWithDragon(requireContext(), interaction)
+        animateDragonInteraction(interaction)
         val message = when (interaction) {
             DragonInteraction.FEED -> R.string.dragon_fed
             DragonInteraction.PLAY -> R.string.dragon_played
@@ -238,41 +212,144 @@ class ChallengeFragment : Fragment() {
             .show()
     }
 
-    private fun updateDragonVideo(videoResId: Int, force: Boolean = false) {
-        if (!force && currentVideoResId == videoResId && mediaPlayer != null) {
-            ensureDragonVideoPlaying(videoResId)
-            return
+    private fun renderDragonVisuals(state: HeadUpUiState) {
+        val imageRes = state.selectedDragon.imageRes
+        if (currentDragonImageResId != imageRes) {
+            currentDragonImageResId = imageRes
+            binding.dragonImageView.setImageResource(imageRes)
+            animateDragonSwap()
         }
-        val surface = currentSurface ?: run {
-            currentVideoResId = videoResId
-            return
-        }
-        currentVideoResId = videoResId
-        releaseMediaPlayer()
-        try {
-            resources.openRawResourceFd(videoResId).use { descriptor ->
-                mediaPlayer = MediaPlayer().apply {
-                    setSurface(surface)
-                    setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-                    isLooping = true
-                    setVolume(0f, 0f)
-                    setOnPreparedListener { it.start() }
-                    setOnErrorListener { _, what, extra ->
-                        Log.w("ChallengeFragment", "Dragon video failed: $what/$extra")
-                        true
-                    }
-                    prepareAsync()
-                }
-            }
-        } catch (error: Exception) {
-            Log.e("ChallengeFragment", "Unable to play dragon animation", error)
+
+        binding.dragonCapeOverlay.visibility =
+            if ("moon_cape" in state.equippedShopItems) View.VISIBLE else View.GONE
+        binding.dragonGogglesOverlay.visibility =
+            if ("focus_goggles" in state.equippedShopItems) View.VISIBLE else View.GONE
+        binding.dragonArmorOverlay.visibility =
+            if ("starlight_armor" in state.equippedShopItems) View.VISIBLE else View.GONE
+        binding.dragonBadgeOverlay.visibility =
+            if ("focus_badge" in state.equippedShopItems) View.VISIBLE else View.GONE
+
+        val isDanger = state.metrics.zone == PostureZone.DANGER
+        if (isDanger && !isDragonInDangerPose) {
+            isDragonInDangerPose = true
+            animateDragonDanger()
+        } else if (!isDanger && isDragonInDangerPose) {
+            isDragonInDangerPose = false
+            startDragonBreathing()
+        } else if (!isDanger) {
+            startDragonBreathing()
         }
     }
 
-    private fun videoFor(state: HeadUpUiState): Int =
-        if (state.metrics.zone == PostureZone.DANGER) R.raw.angry_dragon
-        else if (state.selectedDragonId == VisionDragonCatalog.DEFAULT_DRAGON_ID) R.raw.happy_dragon
-        else R.raw.blue_dragon
+    private fun animateDragonSwap() {
+        val image = binding.dragonImageView
+        image.animate().cancel()
+        image.alpha = 0f
+        image.scaleX = 0.88f
+        image.scaleY = 0.88f
+        image.rotation = 0f
+        image.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(260L)
+            .setInterpolator(OvershootInterpolator(1.4f))
+            .withEndAction { if (!isDragonInDangerPose) startDragonBreathing() }
+            .start()
+    }
+
+    private fun animateDragonInteraction(interaction: DragonInteraction) {
+        stopDragonAnimation()
+        val image = binding.dragonImageView
+        image.animate().cancel()
+        image.rotation = 0f
+        image.alpha = 1f
+        when (interaction) {
+            DragonInteraction.FEED -> image.animate()
+                .scaleX(1.12f)
+                .scaleY(1.12f)
+                .translationY(-8f)
+                .setDuration(140L)
+                .setInterpolator(OvershootInterpolator(1.8f))
+                .withEndAction { settleDragonImage() }
+                .start()
+
+            DragonInteraction.PLAY -> ValueAnimator.ofFloat(0f, -10f, 10f, -7f, 7f, 0f).apply {
+                duration = 520L
+                addUpdateListener { animator ->
+                    if (_binding == null) return@addUpdateListener
+                    image.rotation = animator.animatedValue as Float
+                }
+                doOnEnd { settleDragonImage() }
+                start()
+            }
+
+            DragonInteraction.REST -> image.animate()
+                .alpha(0.72f)
+                .translationY(12f)
+                .scaleX(0.94f)
+                .scaleY(0.94f)
+                .setDuration(220L)
+                .withEndAction { settleDragonImage() }
+                .start()
+        }
+    }
+
+    private fun animateDragonDanger() {
+        stopDragonAnimation()
+        val image = binding.dragonImageView
+        ValueAnimator.ofFloat(-5f, 5f).apply {
+            duration = 90L
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = 7
+            addUpdateListener { animator ->
+                if (_binding == null) return@addUpdateListener
+                image.rotation = animator.animatedValue as Float
+            }
+            doOnEnd {
+                image.rotation = 0f
+                if (_binding != null && !isDragonInDangerPose) startDragonBreathing()
+            }
+            start()
+        }
+    }
+
+    private fun settleDragonImage() {
+        if (_binding == null) return
+        binding.dragonImageView.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .rotation(0f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(180L)
+            .withEndAction { if (!isDragonInDangerPose) startDragonBreathing() }
+            .start()
+    }
+
+    private fun startDragonBreathing() {
+        if (_binding == null || isDragonInDangerPose || dragonBreathingAnimator?.isRunning == true) return
+        val image = binding.dragonImageView
+        dragonBreathingAnimator = ValueAnimator.ofFloat(0.97f, 1.03f).apply {
+            duration = 1_300L
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            addUpdateListener { animator ->
+                if (_binding == null) return@addUpdateListener
+                val scale = animator.animatedValue as Float
+                image.scaleX = scale
+                image.scaleY = scale
+            }
+            start()
+        }
+    }
+
+    private fun stopDragonAnimation() {
+        dragonBreathingAnimator?.cancel()
+        dragonBreathingAnimator = null
+        _binding?.dragonImageView?.animate()?.cancel()
+    }
 
     private fun ShopItem.title(): String = getString(
         when (id) {
@@ -288,25 +365,6 @@ class ChallengeFragment : Fragment() {
 
     private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 
-    private fun ensureDragonVideoPlaying(videoResId: Int) {
-        val player = mediaPlayer ?: return updateDragonVideo(videoResId, force = true)
-        try {
-            if (!player.isPlaying) player.start()
-        } catch (error: IllegalStateException) {
-            Log.w("ChallengeFragment", "Dragon player stopped unexpectedly; rebuilding", error)
-            updateDragonVideo(videoResId, force = true)
-        }
-    }
-
-    private fun releaseMediaPlayer() {
-        try {
-            mediaPlayer?.release()
-        } catch (_: Exception) {
-            Unit
-        }
-        mediaPlayer = null
-    }
-
     private fun PostureZone.colorRes(): Int = when (this) {
         PostureZone.SAFE -> R.color.headup_safe
         PostureZone.WARNING -> R.color.headup_warning
@@ -314,7 +372,7 @@ class ChallengeFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        releaseMediaPlayer()
+        stopDragonAnimation()
         _binding = null
         super.onDestroyView()
     }
