@@ -4,11 +4,23 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.google.mediapipe.examples.poselandmarker.FamilyAccountResponse
+import com.google.mediapipe.examples.poselandmarker.FamilyCreateRequest
+import com.google.mediapipe.examples.poselandmarker.FamilyDashboardResponse
+import com.google.mediapipe.examples.poselandmarker.FamilyJoinRequest
+import com.google.mediapipe.examples.poselandmarker.FamilyLeaderboardEntryResponse
+import com.google.mediapipe.examples.poselandmarker.FamilyLeaderboardResponse
+import com.google.mediapipe.examples.poselandmarker.HeadUpApiClient
+import com.google.mediapipe.examples.poselandmarker.HeadUpAuthStore
 import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
 import com.google.mediapipe.examples.poselandmarker.HeadUpTask
 import com.google.mediapipe.examples.poselandmarker.HeadUpUiState
@@ -20,6 +32,7 @@ import com.google.mediapipe.examples.poselandmarker.R
 import com.google.mediapipe.examples.poselandmarker.databinding.FragmentStatsBinding
 import com.google.mediapipe.examples.poselandmarker.databinding.ItemDailyTaskBinding
 import com.google.mediapipe.examples.poselandmarker.databinding.ItemStatCardBinding
+import kotlinx.coroutines.launch
 
 class StatsFragment : Fragment() {
     private var _binding: FragmentStatsBinding? = null
@@ -37,10 +50,271 @@ class StatsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setupAccountControls()
+        renderLocalAccount()
         render(HeadUpRepository.currentState(requireContext()))
         HeadUpRepository.observeState().observe(viewLifecycleOwner) { render(it) }
         HeadUpRepository.observeDashboard().observe(viewLifecycleOwner) { renderDashboard(it) }
         HeadUpRepository.refreshDashboard(requireContext())
+        refreshFamilyAccount()
+    }
+
+    private fun setupAccountControls() {
+        binding.familyCreateButton.setOnClickListener { showCreateFamilyDialog() }
+        binding.familyJoinButton.setOnClickListener { showJoinFamilyDialog() }
+        binding.familyRefreshButton.setOnClickListener { refreshFamilyAccount(showToast = true) }
+    }
+
+    private fun renderLocalAccount() {
+        val context = requireContext()
+        val label = HeadUpAuthStore.userLabel(context)
+        val plan = HeadUpAuthStore.subscriptionTier(context)
+        val role = HeadUpAuthStore.role(context)
+        val signedIn = HeadUpAuthStore.isSignedIn(context)
+        binding.accountPlanTitle.text = getString(R.string.account_management)
+        binding.accountPlanDetail.text = if (signedIn) {
+            getString(R.string.account_personal_format, label, planLabel(plan), roleLabel(role))
+        } else {
+            getString(R.string.account_quick_use_format, label)
+        }
+        binding.familyCreateButton.visibility = if (signedIn && plan != "family" && role != "guest") View.VISIBLE else View.GONE
+        binding.familyJoinButton.visibility = if (signedIn && plan != "family" && role != "guest") View.VISIBLE else View.GONE
+        binding.familyRefreshButton.isEnabled = signedIn
+        binding.familyManagementSection.visibility = View.GONE
+    }
+
+    private fun refreshFamilyAccount(showToast: Boolean = false) {
+        val appContext = requireContext().applicationContext
+        if (!HeadUpAuthStore.isSignedIn(appContext)) {
+            renderLocalAccount()
+            return
+        }
+        binding.accountPlanDetail.text = getString(R.string.family_loading)
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val service = HeadUpApiClient.authenticatedService(appContext)
+                val account = service.familyAccount()
+                HeadUpAuthStore.updateAccountMetadata(
+                    appContext,
+                    account.currentUser.id,
+                    account.currentUser.subscriptionTier,
+                    account.currentUser.role,
+                    account.currentUser.displayName,
+                    account.currentUser.familyId,
+                )
+                val dashboard = service.familyDashboard()
+                val leaderboard = service.familyLeaderboard()
+                renderFamilyAccount(account, dashboard, leaderboard)
+                if (showToast) {
+                    Toast.makeText(requireContext(), R.string.family_refreshed, Toast.LENGTH_SHORT).show()
+                }
+            } catch (error: Exception) {
+                renderLocalAccount()
+                if (showToast) {
+                    Toast.makeText(
+                        requireContext(),
+                        getString(R.string.family_unavailable, error.message ?: ""),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun renderFamilyAccount(
+        account: FamilyAccountResponse,
+        dashboard: FamilyDashboardResponse,
+        leaderboard: FamilyLeaderboardResponse,
+    ) {
+        val userName = account.currentUser.displayName?.takeIf { it.isNotBlank() }
+            ?: account.currentUser.email
+        val family = account.family
+        binding.accountPlanDetail.text = if (family == null) {
+            getString(
+                R.string.account_personal_format,
+                userName,
+                planLabel(account.plan),
+                roleLabel(account.role),
+            )
+        } else {
+            getString(
+                R.string.account_family_format,
+                userName,
+                roleLabel(account.role),
+                family.name,
+                family.inviteCode,
+            )
+        }
+        binding.familyCreateButton.visibility = if (family == null && account.role != "guest") View.VISIBLE else View.GONE
+        binding.familyJoinButton.visibility = if (family == null && account.role != "guest") View.VISIBLE else View.GONE
+        binding.familyRefreshButton.isEnabled = true
+
+        if (family == null) {
+            binding.familyManagementSection.visibility = View.GONE
+            return
+        }
+
+        binding.familyManagementSection.visibility = View.VISIBLE
+        binding.familyManagementTitle.text = if (account.isFamilyManager) {
+            getString(R.string.family_dashboard)
+        } else {
+            getString(R.string.family_leaderboard)
+        }
+        binding.familyOverviewText.text = if (account.isFamilyManager) {
+            getString(
+                R.string.family_overview_format,
+                family.name,
+                dashboard.memberCount,
+                dashboard.totalSlouchCount,
+                (dashboard.averageAiInterceptRate * 100).toInt(),
+                dashboard.totalPetExp,
+                family.inviteCode,
+            )
+        } else {
+            getString(R.string.family_member_privacy_note, family.name)
+        }
+        renderLeaderboard(leaderboard.leaderboard)
+    }
+
+    private fun renderLeaderboard(entries: List<FamilyLeaderboardEntryResponse>) {
+        binding.familyLeaderboardContainer.removeAllViews()
+        if (entries.isEmpty()) {
+            binding.familyLeaderboardContainer.addView(accountTextRow(getString(R.string.family_no_rank_data)))
+            return
+        }
+        entries.forEach { entry ->
+            binding.familyLeaderboardContainer.addView(
+                accountTextRow(
+                    getString(
+                        R.string.family_rank_format,
+                        entry.rank,
+                        entry.displayName,
+                        entry.goodPostureScore,
+                        entry.slouchCount,
+                    ),
+                ),
+            )
+        }
+    }
+
+    private fun accountTextRow(text: String): TextView =
+        TextView(requireContext()).apply {
+            this.text = text
+            setTextColor(ContextCompat.getColor(requireContext(), R.color.headup_text_primary))
+            textSize = 14f
+            setPadding(0, 8, 0, 8)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+        }
+
+    private fun showCreateFamilyDialog() {
+        if (!HeadUpAuthStore.isSignedIn(requireContext())) {
+            Toast.makeText(requireContext(), R.string.family_requires_login, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val input = EditText(requireContext()).apply {
+            hint = getString(R.string.register_family_name)
+            setSingleLine(true)
+        }
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(R.string.family_create)
+            .setView(input)
+            .setPositiveButton(R.string.family_create, null)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val name = input.text.toString().trim()
+                if (name.isBlank()) {
+                    Toast.makeText(requireContext(), R.string.family_name_required, Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                runFamilyAction {
+                    HeadUpApiClient.authenticatedService(requireContext()).createFamily(FamilyCreateRequest(name))
+                    Toast.makeText(requireContext(), R.string.family_create_success, Toast.LENGTH_SHORT).show()
+                    refreshFamilyAccount()
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    private fun showJoinFamilyDialog() {
+        if (!HeadUpAuthStore.isSignedIn(requireContext())) {
+            Toast.makeText(requireContext(), R.string.family_requires_login, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val input = EditText(requireContext()).apply {
+            hint = getString(R.string.register_invite_code)
+            setSingleLine(true)
+        }
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(R.string.family_join)
+            .setView(input)
+            .setPositiveButton(R.string.family_join, null)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val inviteCode = input.text.toString().trim()
+                if (inviteCode.isBlank()) {
+                    Toast.makeText(requireContext(), R.string.register_invite_required, Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                runFamilyAction {
+                    HeadUpApiClient.authenticatedService(requireContext()).joinFamily(
+                        FamilyJoinRequest(
+                            inviteCode = inviteCode,
+                            displayName = HeadUpAuthStore.displayName(requireContext()),
+                        ),
+                    )
+                    Toast.makeText(requireContext(), R.string.family_join_success, Toast.LENGTH_SHORT).show()
+                    refreshFamilyAccount()
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    private fun runFamilyAction(action: suspend () -> Unit) {
+        setFamilyButtonsEnabled(false)
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                action()
+            } catch (error: Exception) {
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.family_unavailable, error.message ?: ""),
+                    Toast.LENGTH_LONG,
+                ).show()
+            } finally {
+                setFamilyButtonsEnabled(true)
+            }
+        }
+    }
+
+    private fun setFamilyButtonsEnabled(enabled: Boolean) {
+        _binding?.familyCreateButton?.isEnabled = enabled
+        _binding?.familyJoinButton?.isEnabled = enabled
+        _binding?.familyRefreshButton?.isEnabled = enabled
+    }
+
+    private fun planLabel(plan: String): String = when (plan) {
+        "family" -> getString(R.string.plan_family_title)
+        "guest" -> getString(R.string.plan_guest_title)
+        "admin" -> getString(R.string.plan_admin_title)
+        else -> getString(R.string.plan_individual_title)
+    }
+
+    private fun roleLabel(role: String): String = when (role) {
+        "family_manager", "admin" -> getString(R.string.family_manager_role)
+        "family_member" -> getString(R.string.family_member_role)
+        "guest" -> getString(R.string.guest_role)
+        else -> getString(R.string.personal_role)
     }
 
     private fun render(state: HeadUpUiState) {

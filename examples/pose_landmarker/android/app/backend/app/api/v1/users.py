@@ -31,6 +31,8 @@ async def update_my_account(
         current_user.email = payload.email.lower()
     if payload.password is not None:
         current_user.hashed_password = hash_password(payload.password)
+    if payload.display_name is not None:
+        current_user.display_name = payload.display_name
 
     try:
         await session.commit()
@@ -70,10 +72,14 @@ async def admin_update_user(
         user.email = payload.email.lower()
     if payload.password is not None:
         user.hashed_password = hash_password(payload.password)
+    if payload.display_name is not None:
+        user.display_name = payload.display_name
     if payload.subscription_tier is not None:
         user.subscription_tier = payload.subscription_tier
     if payload.role is not None:
         user.role = payload.role
+    if payload.family_id is not None:
+        user.family_id = payload.family_id
 
     try:
         await session.commit()

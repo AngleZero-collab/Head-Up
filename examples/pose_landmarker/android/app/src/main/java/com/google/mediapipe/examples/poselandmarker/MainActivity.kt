@@ -147,6 +147,9 @@ class MainActivity : AppCompatActivity() {
                 ),
             )
             .setPositiveButton(android.R.string.ok, null)
+            .setNeutralButton(R.string.account_open_management) { _, _ ->
+                binding.navigation.selectedItemId = R.id.stats_fragment
+            }
             .show()
     }
 

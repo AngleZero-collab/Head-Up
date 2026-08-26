@@ -42,3 +42,20 @@ async def get_current_admin_user(
             detail="Admin privileges required",
         )
     return current_user
+
+
+async def get_current_family_manager(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role == "admin":
+        return current_user
+    if (
+        current_user.subscription_tier == "family"
+        and current_user.role == "family_manager"
+        and current_user.family_id is not None
+    ):
+        return current_user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Family manager privileges required",
+    )

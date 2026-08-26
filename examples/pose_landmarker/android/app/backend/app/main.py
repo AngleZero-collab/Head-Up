@@ -9,7 +9,7 @@ from app.api.v1.router import api_router
 from app.config import get_settings
 from app.dashboard import router as dashboard_router
 from app.database import Base, engine
-from app.models import User
+from app.models import Family, User
 from app.security import hash_password
 
 
@@ -26,12 +26,24 @@ def ensure_user_account_columns(connection) -> None:
     columns = {column["name"] for column in inspect(connection).get_columns("users")}
     if "subscription_tier" not in columns:
         connection.execute(
-            text("ALTER TABLE users ADD COLUMN subscription_tier VARCHAR(32) NOT NULL DEFAULT 'free'")
+            text("ALTER TABLE users ADD COLUMN subscription_tier VARCHAR(32) NOT NULL DEFAULT 'individual'")
         )
     if "role" not in columns:
         connection.execute(
             text("ALTER TABLE users ADD COLUMN role VARCHAR(32) NOT NULL DEFAULT 'user'")
         )
+    if "display_name" not in columns:
+        connection.execute(text("ALTER TABLE users ADD COLUMN display_name VARCHAR(100)"))
+    if "family_id" not in columns:
+        if connection.dialect.name == "postgresql":
+            connection.execute(
+                text("ALTER TABLE users ADD COLUMN family_id UUID REFERENCES families(id) ON DELETE SET NULL")
+            )
+        else:
+            connection.execute(text("ALTER TABLE users ADD COLUMN family_id CHAR(32)"))
+    connection.execute(
+        text("UPDATE users SET subscription_tier = 'individual' WHERE subscription_tier = 'free'")
+    )
 
 
 async def seed_admin_account(connection) -> None:
@@ -46,6 +58,7 @@ async def seed_admin_account(connection) -> None:
             User.__table__.insert().values(
                 id=uuid.uuid4(),
                 email=email,
+                display_name="Head Up Admin",
                 hashed_password=hash_password(settings.admin_password),
                 subscription_tier=settings.admin_subscription_tier,
                 role="admin",
@@ -56,7 +69,11 @@ async def seed_admin_account(connection) -> None:
     await connection.execute(
         update(User)
         .where(User.email == email)
-        .values(role="admin", subscription_tier=settings.admin_subscription_tier)
+        .values(
+            display_name="Head Up Admin",
+            role="admin",
+            subscription_tier=settings.admin_subscription_tier,
+        )
     )
 
 

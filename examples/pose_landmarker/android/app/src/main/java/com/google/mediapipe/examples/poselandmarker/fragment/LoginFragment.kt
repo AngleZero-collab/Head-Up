@@ -5,10 +5,16 @@ import android.util.Patterns
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.google.mediapipe.examples.poselandmarker.FamilyJoinRequest
 import com.google.mediapipe.examples.poselandmarker.GuestLoginRequest
 import com.google.mediapipe.examples.poselandmarker.HeadUpApiClient
 import com.google.mediapipe.examples.poselandmarker.HeadUpAuthStore
@@ -54,7 +60,7 @@ class LoginFragment : Fragment() {
             val email = binding.emailInput.text.toString().trim()
             val password = binding.passwordInput.text.toString()
             if (!validateInput(email, password)) return@setOnClickListener
-            register(email, password)
+            showRegistrationPlanDialog(email, password)
         }
     }
 
@@ -140,12 +146,111 @@ class LoginFragment : Fragment() {
         }
     }
 
-    private fun register(email: String, password: String) {
+    private fun showRegistrationPlanDialog(email: String, password: String) {
+        val context = requireContext()
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 8, 32, 0)
+        }
+        val displayNameInput = EditText(context).apply {
+            hint = getString(R.string.register_display_name)
+            setSingleLine(true)
+        }
+        val familyNameInput = EditText(context).apply {
+            hint = getString(R.string.register_family_name)
+            setSingleLine(true)
+            visibility = View.GONE
+        }
+        val inviteCodeInput = EditText(context).apply {
+            hint = getString(R.string.register_invite_code)
+            setSingleLine(true)
+            visibility = View.GONE
+        }
+        val individualId = View.generateViewId()
+        val managerId = View.generateViewId()
+        val memberId = View.generateViewId()
+        val planGroup = RadioGroup(context).apply {
+            orientation = RadioGroup.VERTICAL
+            addView(RadioButton(context).apply {
+                id = individualId
+                setText(R.string.plan_individual)
+                isChecked = true
+            })
+            addView(RadioButton(context).apply {
+                id = managerId
+                setText(R.string.plan_family_manager)
+            })
+            addView(RadioButton(context).apply {
+                id = memberId
+                setText(R.string.plan_family_member)
+            })
+        }
+        planGroup.setOnCheckedChangeListener { _, checkedId ->
+            familyNameInput.visibility = if (checkedId == managerId) View.VISIBLE else View.GONE
+            inviteCodeInput.visibility = if (checkedId == memberId) View.VISIBLE else View.GONE
+        }
+
+        container.addView(displayNameInput)
+        container.addView(planGroup)
+        container.addView(familyNameInput)
+        container.addView(inviteCodeInput)
+
+        val dialog = AlertDialog.Builder(context)
+            .setTitle(R.string.register_plan_title)
+            .setView(container)
+            .setPositiveButton(R.string.register_button, null)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val displayName = displayNameInput.text.toString().trim().takeIf { it.isNotBlank() }
+                val familyName = familyNameInput.text.toString().trim().takeIf { it.isNotBlank() }
+                val inviteCode = inviteCodeInput.text.toString().trim().takeIf { it.isNotBlank() }
+                when (planGroup.checkedRadioButtonId) {
+                    managerId -> {
+                        dialog.dismiss()
+                        register(email, password, displayName, "family", familyName, null)
+                    }
+                    memberId -> {
+                        if (inviteCode == null) {
+                            Toast.makeText(context, R.string.register_invite_required, Toast.LENGTH_SHORT).show()
+                            return@setOnClickListener
+                        }
+                        dialog.dismiss()
+                        register(email, password, displayName, "individual", null, inviteCode)
+                    }
+                    else -> {
+                        dialog.dismiss()
+                        register(email, password, displayName, "individual", null, null)
+                    }
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    private fun register(
+        email: String,
+        password: String,
+        displayName: String?,
+        subscriptionTier: String,
+        familyName: String?,
+        inviteCode: String?,
+    ) {
         setAuthButtonsEnabled(false)
         binding.registerButton.setText(R.string.register_connecting)
         viewLifecycleOwner.lifecycleScope.launch {
+            val appContext = requireContext().applicationContext
             try {
-                val response = HeadUpApiClient.service.register(RegisterRequest(email, password))
+                val response = HeadUpApiClient.service.register(
+                    RegisterRequest(
+                        email = email,
+                        password = password,
+                        displayName = displayName,
+                        subscriptionTier = subscriptionTier,
+                        familyName = familyName,
+                    ),
+                )
                 if (!response.isSuccessful) {
                     val message = if (response.code() == 409) {
                         getString(R.string.register_email_exists)
@@ -157,6 +262,16 @@ class LoginFragment : Fragment() {
                 }
                 val token = HeadUpApiClient.service.login(email, password)
                 saveToken(token)
+                if (!inviteCode.isNullOrBlank()) {
+                    val account = HeadUpApiClient.authenticatedService(appContext).joinFamily(
+                        FamilyJoinRequest(
+                            inviteCode = inviteCode,
+                            displayName = displayName,
+                        ),
+                    )
+                    saveFamilyAccount(account)
+                    Toast.makeText(requireContext(), R.string.family_join_success, Toast.LENGTH_SHORT).show()
+                }
                 Toast.makeText(requireContext(), R.string.register_success, Toast.LENGTH_SHORT).show()
                 navigateToNext()
             } catch (error: Exception) {
@@ -180,6 +295,19 @@ class LoginFragment : Fragment() {
             token.userId,
             token.subscriptionTier,
             token.role,
+            token.displayName,
+            token.familyId,
+        )
+    }
+
+    private fun saveFamilyAccount(account: com.google.mediapipe.examples.poselandmarker.FamilyAccountResponse) {
+        HeadUpAuthStore.updateAccountMetadata(
+            requireContext(),
+            account.currentUser.id,
+            account.currentUser.subscriptionTier,
+            account.currentUser.role,
+            account.currentUser.displayName,
+            account.currentUser.familyId,
         )
     }
 

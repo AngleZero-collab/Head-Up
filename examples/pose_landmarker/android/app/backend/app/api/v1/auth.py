@@ -1,6 +1,7 @@
 from datetime import timedelta
 import hashlib
 import secrets
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -11,7 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_db_session
 from app.dependencies import get_current_user
-from app.models import User
+from app.family_utils import generate_unique_invite_code
+from app.models import Family, User
 from app.schemas import GuestLoginRequest, TokenResponse, UserCreate, UserRead
 from app.security import create_access_token, hash_password, verify_password
 
@@ -28,6 +30,8 @@ def token_for_user(user: User) -> TokenResponse:
         user_id=str(user.id),
         subscription_tier=user.subscription_tier,
         role=user.role,
+        display_name=user.display_name,
+        family_id=str(user.family_id) if user.family_id else None,
     )
 
 
@@ -42,12 +46,25 @@ async def register(
     session: AsyncSession = Depends(get_db_session),
 ) -> User:
     normalized_email = payload.email.lower()
+    plan = payload.subscription_tier
+    user_id = uuid.uuid4()
     user = User(
+        id=user_id,
         email=normalized_email,
+        display_name=payload.display_name,
         hashed_password=hash_password(payload.password),
-        subscription_tier="free",
-        role="user",
+        subscription_tier=plan,
+        role="family_manager" if plan == "family" else "user",
     )
+    if plan == "family":
+        family = Family(
+            name=payload.family_name or f"{payload.display_name or normalized_email.split('@')[0]}'s family",
+            invite_code=await generate_unique_invite_code(session),
+            owner_user_id=user_id,
+        )
+        session.add(family)
+        await session.flush()
+        user.family_id = family.id
     session.add(user)
     try:
         await session.commit()
@@ -91,6 +108,7 @@ async def guest_login(
 
     user = User(
         email=email,
+        display_name=f"Guest {email.split('-')[1][:6]}",
         hashed_password=hash_password(secrets.token_urlsafe(48)),
         subscription_tier="guest",
         role="guest",
