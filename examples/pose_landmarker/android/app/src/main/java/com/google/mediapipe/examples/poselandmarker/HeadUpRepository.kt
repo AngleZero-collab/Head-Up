@@ -199,10 +199,15 @@ object HeadUpRepository {
         val state = loadState(context)
         val item = state.shopItems.firstOrNull { it.id == itemId } ?: return false
         if (item.isOwned || state.coins < item.cost) return false
+        val ownedItems = state.ownedShopItems + itemId
         val next = state.copy(
             coins = state.coins - item.cost,
-            ownedShopItems = state.ownedShopItems + itemId,
-            equippedShopItems = if (item.isEquippable) state.equippedShopItems + itemId else state.equippedShopItems,
+            ownedShopItems = ownedItems,
+            equippedShopItems = if (item.isEquippable) {
+                nextEquippedItemsFor(state, item, forceEquip = true)
+            } else {
+                state.equippedShopItems
+            },
         )
         saveState(context, next)
         stateLiveData.postValue(next)
@@ -213,12 +218,7 @@ object HeadUpRepository {
         val state = loadState(context)
         val item = state.shopItems.firstOrNull { it.id == itemId } ?: return false
         if (!item.isOwned || !item.isEquippable) return false
-        val nextEquipped = if (itemId in state.equippedShopItems) {
-            state.equippedShopItems - itemId
-        } else {
-            state.equippedShopItems + itemId
-        }
-        val next = state.copy(equippedShopItems = nextEquipped)
+        val next = state.copy(equippedShopItems = nextEquippedItemsFor(state, item, forceEquip = false))
         saveState(context, next)
         stateLiveData.postValue(next)
         return true
@@ -227,18 +227,46 @@ object HeadUpRepository {
     fun useShopItem(context: Context, itemId: String): Boolean {
         val state = loadState(context)
         val item = state.shopItems.firstOrNull { it.id == itemId } ?: return false
-        if (!item.isOwned || item.category != ShopItemCategory.CONSUMABLE) return false
+        if (!item.isOwned || (item.category != ShopItemCategory.CONSUMABLE && item.category != ShopItemCategory.VOUCHER)) {
+            return false
+        }
         val next = when (itemId) {
             "eye_time_ticket" -> state.copy(
                 eyeRestCountToday = state.eyeRestCountToday + 1,
                 dragonEnergy = (state.dragonEnergy + 8).coerceAtMost(100),
                 dragonBond = (state.dragonBond + 4).coerceAtMost(999),
+                ownedShopItems = state.ownedShopItems - itemId,
+            )
+            "voucher_711",
+            "voucher_familymart",
+            "voucher_pxmart" -> state.copy(
+                dragonBond = (state.dragonBond + 2).coerceAtMost(999),
+                ownedShopItems = state.ownedShopItems - itemId,
             )
             else -> state
         }
         saveState(context, next)
         stateLiveData.postValue(next)
         return true
+    }
+
+    private fun nextEquippedItemsFor(
+        state: HeadUpUiState,
+        item: ShopItem,
+        forceEquip: Boolean,
+    ): Set<String> {
+        val shouldUnequip = !forceEquip && item.id in state.equippedShopItems
+        if (shouldUnequip) return state.equippedShopItems - item.id
+        val base = if (item.category == ShopItemCategory.BACKGROUND) {
+            val backgroundIds = state.shopItems
+                .filter { it.category == ShopItemCategory.BACKGROUND }
+                .map { it.id }
+                .toSet()
+            state.equippedShopItems - backgroundIds
+        } else {
+            state.equippedShopItems
+        }
+        return base + item.id
     }
 
     fun selectDragon(context: Context, dragonId: String): Boolean {

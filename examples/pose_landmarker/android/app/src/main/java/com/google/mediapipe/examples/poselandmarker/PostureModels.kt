@@ -89,6 +89,7 @@ enum class ShopItemCategory {
     BACKGROUND,
     CONSUMABLE,
     BADGE,
+    VOUCHER,
 }
 
 data class ShopItem(
@@ -155,8 +156,13 @@ data class HeadUpUiState(
             ShopItem("focus_goggles", 260, "focus_goggles" in ownedShopItems, ShopItemCategory.EQUIPMENT, "focus_goggles" in equippedShopItems),
             ShopItem("moon_cape", 220, "moon_cape" in ownedShopItems, ShopItemCategory.EQUIPMENT, "moon_cape" in equippedShopItems),
             ShopItem("ocean_background", 180, "ocean_background" in ownedShopItems, ShopItemCategory.BACKGROUND, "ocean_background" in equippedShopItems),
+            ShopItem("sunrise_background", 180, "sunrise_background" in ownedShopItems, ShopItemCategory.BACKGROUND, "sunrise_background" in equippedShopItems),
+            ShopItem("forest_background", 180, "forest_background" in ownedShopItems, ShopItemCategory.BACKGROUND, "forest_background" in equippedShopItems),
             ShopItem("eye_time_ticket", 120, "eye_time_ticket" in ownedShopItems, ShopItemCategory.CONSUMABLE),
             ShopItem("focus_badge", 220, "focus_badge" in ownedShopItems, ShopItemCategory.BADGE, "focus_badge" in equippedShopItems),
+            ShopItem("voucher_711", 700, "voucher_711" in ownedShopItems, ShopItemCategory.VOUCHER),
+            ShopItem("voucher_familymart", 700, "voucher_familymart" in ownedShopItems, ShopItemCategory.VOUCHER),
+            ShopItem("voucher_pxmart", 900, "voucher_pxmart" in ownedShopItems, ShopItemCategory.VOUCHER),
         )
 }
 

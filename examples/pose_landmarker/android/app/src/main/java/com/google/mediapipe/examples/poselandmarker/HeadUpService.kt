@@ -85,11 +85,13 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var warningOverlayView: View? = null
     private var warningAnimator: ValueAnimator? = null
     private var petOverlayView: FrameLayout? = null
+    private var petVideoView: VisionDragonVideoView? = null
     private var petImageView: ImageView? = null
     private var petMotionAnimator: ValueAnimator? = null
     private var petLayoutParams: WindowManager.LayoutParams? = null
     private var currentPetMood: PetMood? = null
     private var currentPetDragonId: String? = null
+    private var currentPetBackgroundResId = 0
     private var wasShowingBadPet = false
     private var hidePetRunnable: Runnable? = null
     private var sensorManager: SensorManager? = null
@@ -433,32 +435,48 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             }
         }
 
-        val selectedDragon = HeadUpRepository.currentState(this).selectedDragon
+        val state = HeadUpRepository.currentState(this)
+        val selectedDragon = state.selectedDragon
+        val backgroundRes = petOrbBackground(mood, state)
         val dragonChanged = currentPetDragonId != selectedDragon.id
-        if (currentPetMood != mood || dragonChanged) {
+        val backgroundChanged = currentPetBackgroundResId != backgroundRes
+        if (currentPetMood != mood || dragonChanged || backgroundChanged) {
             currentPetMood = mood
             currentPetDragonId = selectedDragon.id
-            overlay.background = ContextCompat.getDrawable(
-                this,
-                if (mood == PetMood.ANGRY) R.drawable.bg_headup_dragon_orb_danger else R.drawable.bg_headup_dragon_orb,
-            )
+            currentPetBackgroundResId = backgroundRes
+            overlay.background = ContextCompat.getDrawable(this, backgroundRes)
             petImageView?.setImageResource(selectedDragon.imageRes)
+            petImageView?.visibility = View.GONE
+            petVideoView?.visibility = View.VISIBLE
+            petVideoView?.play(
+                if (mood == PetMood.ANGRY) R.raw.angry_dragon else R.raw.happy_dragon,
+                loop = true,
+            )
             animatePetOverlay(mood)
         }
     }
 
     private fun createPetOverlayView(): FrameLayout {
         val paddingPx = dpToPx(7)
-        return FrameLayout(this).apply {
+        return CircleClipFrameLayout(this).apply {
             contentDescription = getString(R.string.vision_dragon_animation)
             setPadding(paddingPx, paddingPx, paddingPx, paddingPx)
             alpha = 0.98f
             elevation = dpToPx(12).toFloat()
+            petVideoView = VisionDragonVideoView(this@HeadUpService).also { video ->
+                video.isClickable = false
+                video.isFocusable = false
+                video.layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    Gravity.CENTER,
+                )
+                addView(video)
+            }
             petImageView = ImageView(this@HeadUpService).also { image ->
                 image.isClickable = false
                 image.isFocusable = false
-                image.adjustViewBounds = true
-                image.scaleType = ImageView.ScaleType.FIT_CENTER
+                image.scaleType = ImageView.ScaleType.CENTER_CROP
                 image.setImageResource(HeadUpRepository.currentState(this@HeadUpService).selectedDragon.imageRes)
                 image.layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
@@ -473,13 +491,13 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private fun animatePetOverlay(mood: PetMood) {
         petMotionAnimator?.cancel()
         petMotionAnimator = null
-        val image = petImageView ?: return
-        image.animate().cancel()
-        image.alpha = 1f
-        image.rotation = 0f
-        image.scaleX = 1f
-        image.scaleY = 1f
-        image.translationY = 0f
+        val target = petOverlayView ?: return
+        target.animate().cancel()
+        target.alpha = 1f
+        target.rotation = 0f
+        target.scaleX = 1f
+        target.scaleY = 1f
+        target.translationY = 0f
 
         if (mood == PetMood.ANGRY) {
             petMotionAnimator = ValueAnimator.ofFloat(-7f, 7f).apply {
@@ -488,21 +506,21 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 repeatCount = 9
                 interpolator = AccelerateDecelerateInterpolator()
                 addUpdateListener { animator ->
-                    petImageView?.rotation = animator.animatedValue as Float
+                    petOverlayView?.rotation = animator.animatedValue as Float
                 }
                 start()
             }
         } else {
-            image.scaleX = 0.82f
-            image.scaleY = 0.82f
-            image.animate()
+            target.scaleX = 0.82f
+            target.scaleY = 0.82f
+            target.animate()
                 .scaleX(1.08f)
                 .scaleY(1.08f)
                 .translationY(-8f)
                 .setDuration(220L)
                 .setInterpolator(AccelerateDecelerateInterpolator())
                 .withEndAction {
-                    petImageView?.animate()
+                    petOverlayView?.animate()
                         ?.scaleX(1f)
                         ?.scaleY(1f)
                         ?.translationY(0f)
@@ -518,6 +536,8 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         hidePetRunnable = null
         petMotionAnimator?.cancel()
         petMotionAnimator = null
+        petVideoView?.stopPlayback()
+        petVideoView?.animate()?.cancel()
         petImageView?.animate()?.cancel()
         petOverlayView?.let { pet ->
             try {
@@ -527,10 +547,12 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             }
         }
         petOverlayView = null
+        petVideoView = null
         petImageView = null
         petLayoutParams = null
         currentPetMood = null
         currentPetDragonId = null
+        currentPetBackgroundResId = 0
     }
 
     private fun createPetDragListener(params: WindowManager.LayoutParams): View.OnTouchListener {
@@ -546,6 +568,8 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                     initialY = params.y
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
+                    view.animate().cancel()
+                    view.animate().scaleX(0.94f).scaleY(0.94f).setDuration(90L).start()
                     true
                 }
 
@@ -557,6 +581,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 }
 
                 MotionEvent.ACTION_UP -> {
+                    view.animate().scaleX(1f).scaleY(1f).setDuration(130L).start()
                     if (abs(event.rawX - initialTouchX) < dpToPx(8) &&
                         abs(event.rawY - initialTouchY) < dpToPx(8)
                     ) {
@@ -567,9 +592,22 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                     true
                 }
 
+                MotionEvent.ACTION_CANCEL -> {
+                    view.animate().scaleX(1f).scaleY(1f).setDuration(130L).start()
+                    true
+                }
+
                 else -> false
             }
         }
+    }
+
+    private fun petOrbBackground(mood: PetMood, state: HeadUpUiState): Int = when {
+        mood == PetMood.ANGRY -> R.drawable.bg_headup_dragon_orb_danger
+        "sunrise_background" in state.equippedShopItems -> R.drawable.bg_headup_dragon_orb_sunrise
+        "forest_background" in state.equippedShopItems -> R.drawable.bg_headup_dragon_orb_forest
+        "ocean_background" in state.equippedShopItems -> R.drawable.bg_headup_dragon_orb_ocean
+        else -> R.drawable.bg_headup_dragon_orb
     }
 
     private fun canUseApplicationOverlay(): Boolean =

@@ -64,13 +64,28 @@
                 android:textColor="@color/headup_text_secondary"
                 android:textSize="14sp" />
 
-            <FrameLayout
+            <com.google.mediapipe.examples.poselandmarker.CircleClipFrameLayout
                 android:id="@+id/dragon_orb"
                 android:layout_width="188dp"
                 android:layout_height="188dp"
                 android:layout_marginTop="20dp"
                 android:background="@drawable/bg_headup_dragon_orb"
                 android:padding="10dp">
+
+                <com.google.mediapipe.examples.poselandmarker.VisionDragonVideoView
+                    android:id="@+id/dragon_video_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/vision_dragon_animation"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/dragon_image_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/vision_dragon_animation"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/vision_dragon_little_blue" />
 
                 <ImageView
                     android:id="@+id/dragon_cape_overlay"
@@ -81,15 +96,6 @@
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_dragon_cape"
                     android:visibility="gone" />
-
-                <ImageView
-                    android:id="@+id/dragon_image_view"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:adjustViewBounds="true"
-                    android:contentDescription="@string/vision_dragon_animation"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/vision_dragon_little_blue" />
 
                 <ImageView
                     android:id="@+id/dragon_goggles_overlay"
@@ -151,7 +157,7 @@
                     android:textColor="@color/headup_text_primary"
                     android:textSize="12sp"
                     android:textStyle="bold" />
-            </FrameLayout>
+            </com.google.mediapipe.examples.poselandmarker.CircleClipFrameLayout>
 
             <TextView
                 android:id="@+id/dragon_name_text"
