@@ -73,11 +73,11 @@ object VisionDragonCatalog {
     const val DEFAULT_DRAGON_ID = "little_blue"
 
     val all: List<VisionDragonType> = listOf(
-        VisionDragonType(DEFAULT_DRAGON_ID, R.string.dragon_little_blue, R.string.dragon_trait_little_blue, "B", R.color.headup_primary, R.drawable.vision_dragon_little_blue),
-        VisionDragonType("ember_red", R.string.dragon_ember_red, R.string.dragon_trait_ember_red, "R", R.color.headup_danger, R.drawable.vision_dragon_ember_red),
-        VisionDragonType("mint_leaf", R.string.dragon_mint_leaf, R.string.dragon_trait_mint_leaf, "M", R.color.headup_safe, R.drawable.vision_dragon_mint_leaf),
-        VisionDragonType("violet_star", R.string.dragon_violet_star, R.string.dragon_trait_violet_star, "V", R.color.headup_purple, R.drawable.vision_dragon_violet_star),
-        VisionDragonType("sunny_gold", R.string.dragon_sunny_gold, R.string.dragon_trait_sunny_gold, "G", R.color.headup_warning, R.drawable.vision_dragon_sunny_gold),
+        VisionDragonType(DEFAULT_DRAGON_ID, R.string.dragon_little_blue, R.string.dragon_trait_little_blue, "B", R.color.headup_primary, R.drawable.vision_dragon_little_blue_cutout),
+        VisionDragonType("ember_red", R.string.dragon_ember_red, R.string.dragon_trait_ember_red, "R", R.color.headup_danger, R.drawable.vision_dragon_ember_red_cutout),
+        VisionDragonType("mint_leaf", R.string.dragon_mint_leaf, R.string.dragon_trait_mint_leaf, "M", R.color.headup_safe, R.drawable.vision_dragon_mint_leaf_cutout),
+        VisionDragonType("violet_star", R.string.dragon_violet_star, R.string.dragon_trait_violet_star, "V", R.color.headup_purple, R.drawable.vision_dragon_violet_star_cutout),
+        VisionDragonType("sunny_gold", R.string.dragon_sunny_gold, R.string.dragon_trait_sunny_gold, "G", R.color.headup_warning, R.drawable.vision_dragon_sunny_gold_cutout),
     )
 
     fun byId(id: String): VisionDragonType =

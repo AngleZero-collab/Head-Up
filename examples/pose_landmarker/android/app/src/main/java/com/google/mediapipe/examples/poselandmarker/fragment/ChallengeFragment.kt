@@ -1,9 +1,7 @@
 package com.google.mediapipe.examples.poselandmarker.fragment
 
 import android.animation.ValueAnimator
-import android.os.Handler
 import android.os.Bundle
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -12,7 +10,6 @@ import android.view.animation.OvershootInterpolator
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.annotation.RawRes
 import androidx.appcompat.app.AlertDialog
 import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
@@ -31,13 +28,9 @@ class ChallengeFragment : Fragment() {
     private val binding get() = _binding!!
     private var latestState = HeadUpUiState()
     private var currentDragonImageResId = 0
-    private var currentDragonVideoResId = 0
     private var dragonBreathingAnimator: ValueAnimator? = null
     private var dragonBreathingTarget: View? = null
     private var isDragonInDangerPose = false
-    private var returnToIdleVideoRunnable: Runnable? = null
-    private var isShowingTemporaryMoodVideo = false
-    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -69,11 +62,7 @@ class ChallengeFragment : Fragment() {
 
     override fun onPause() {
         stopDragonAnimation()
-        returnToIdleVideoRunnable?.let { mainHandler.removeCallbacks(it) }
-        returnToIdleVideoRunnable = null
-        isShowingTemporaryMoodVideo = false
         binding.dragonVideoView.stopPlayback()
-        currentDragonVideoResId = 0
         super.onPause()
     }
 
@@ -113,13 +102,6 @@ class ChallengeFragment : Fragment() {
         binding.dragonLevelBadge.text = "Lv.${state.dragonLevel}"
         binding.dragonNameText.text = getString(selectedDragon.nameRes)
         binding.dragonTraitText.text = getString(selectedDragon.traitRes)
-        binding.dragonTypeBadge.text = selectedDragon.icon
-        binding.dragonTypeBadge.setTextColor(ContextCompat.getColor(requireContext(), selectedDragon.accentColorRes))
-        binding.dragonGearBadge.text = if (state.equippedShopItems.isEmpty()) {
-            getString(R.string.no_gear_short)
-        } else {
-            getString(R.string.gear_count_short, state.equippedShopItems.size)
-        }
         binding.dragonEnergyProgress.progress = state.dragonEnergy
         binding.dragonEnergyText.text = getString(
             if (state.metrics.isGoodPosture) R.string.dragon_energy_good else R.string.dragon_energy_rest,
@@ -237,13 +219,7 @@ class ChallengeFragment : Fragment() {
     }
 
     private fun renderDragonVisuals(state: HeadUpUiState) {
-        if (!isShowingTemporaryMoodVideo) {
-            when {
-                state.metrics.zone == PostureZone.DANGER -> playDragonVideo(R.raw.angry_dragon, loop = true)
-                state.selectedDragon.id == VisionDragonCatalog.DEFAULT_DRAGON_ID -> playDragonVideo(R.raw.blue_dragon, loop = true)
-                else -> showStaticDragon(state.selectedDragon.imageRes)
-            }
-        }
+        showStaticDragon(state.selectedDragon.imageRes)
 
         binding.dragonCapeOverlay.visibility =
             if ("moon_cape" in state.equippedShopItems) View.VISIBLE else View.GONE
@@ -267,7 +243,8 @@ class ChallengeFragment : Fragment() {
     }
 
     private fun showStaticDragon(imageRes: Int) {
-        stopDragonVideo()
+        binding.dragonVideoView.stopPlayback()
+        binding.dragonVideoView.visibility = View.GONE
         binding.dragonImageView.visibility = View.VISIBLE
         if (currentDragonImageResId != imageRes) {
             currentDragonImageResId = imageRes
@@ -276,39 +253,8 @@ class ChallengeFragment : Fragment() {
         }
     }
 
-    private fun playDragonVideo(@RawRes videoResId: Int, loop: Boolean) {
-        binding.dragonImageView.visibility = View.GONE
-        binding.dragonVideoView.visibility = View.VISIBLE
-        currentDragonImageResId = 0
-        if (currentDragonVideoResId != videoResId) {
-            currentDragonVideoResId = videoResId
-            binding.dragonVideoView.play(videoResId, loop)
-            animateDragonSwap()
-        } else {
-            binding.dragonVideoView.play(videoResId, loop)
-        }
-    }
-
-    private fun playTemporaryDragonVideo(@RawRes videoResId: Int, durationMs: Long) {
-        returnToIdleVideoRunnable?.let { mainHandler.removeCallbacks(it) }
-        isShowingTemporaryMoodVideo = true
-        playDragonVideo(videoResId, loop = true)
-        returnToIdleVideoRunnable = Runnable {
-            returnToIdleVideoRunnable = null
-            isShowingTemporaryMoodVideo = false
-            if (_binding != null) renderDragonVisuals(latestState)
-        }
-        mainHandler.postDelayed(returnToIdleVideoRunnable!!, durationMs)
-    }
-
-    private fun stopDragonVideo() {
-        if (currentDragonVideoResId != 0) binding.dragonVideoView.stopPlayback()
-        currentDragonVideoResId = 0
-        binding.dragonVideoView.visibility = View.GONE
-    }
-
     private fun dragonVisualTarget(): View =
-        if (binding.dragonVideoView.visibility == View.VISIBLE) binding.dragonVideoView else binding.dragonImageView
+        binding.dragonImageView
 
     private fun animateDragonSwap() {
         val target = dragonVisualTarget()
@@ -335,7 +281,6 @@ class ChallengeFragment : Fragment() {
         target.alpha = 1f
         when (interaction) {
             DragonInteraction.FEED -> {
-                playTemporaryDragonVideo(R.raw.happy_dragon, 1_700L)
                 dragonVisualTarget().animate()
                 .scaleX(1.12f)
                 .scaleY(1.12f)
@@ -347,7 +292,6 @@ class ChallengeFragment : Fragment() {
             }
 
             DragonInteraction.PLAY -> {
-                playTemporaryDragonVideo(R.raw.happy_dragon, 1_700L)
                 val playingTarget = dragonVisualTarget()
                 ValueAnimator.ofFloat(0f, -10f, 10f, -7f, 7f, 0f).apply {
                     duration = 520L
@@ -471,8 +415,6 @@ class ChallengeFragment : Fragment() {
 
     override fun onDestroyView() {
         stopDragonAnimation()
-        returnToIdleVideoRunnable?.let { mainHandler.removeCallbacks(it) }
-        returnToIdleVideoRunnable = null
         binding.dragonVideoView.stopPlayback()
         _binding = null
         super.onDestroyView()
