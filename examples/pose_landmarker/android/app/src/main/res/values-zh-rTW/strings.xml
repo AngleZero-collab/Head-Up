@@ -60,7 +60,9 @@
     <string name="settings_account">帳號：%1$s</string>
     <string name="settings_sync_now">立即同步紀錄</string>
     <string name="settings_language">應用程式語言</string>
-    <string name="settings_overlay">紅色警告框權限</string>
+    <string name="settings_warning_overlay_on">紅色警戒框：開啟</string>
+    <string name="settings_warning_overlay_off">紅色警戒框：關閉</string>
+    <string name="settings_overlay_permission">顯示在其他 App 上層的權限</string>
     <string name="settings_calibration">3 秒個人姿勢校準</string>
     <string name="settings_data_management">資料管理</string>
     <string name="settings_logout">登出</string>
@@ -114,6 +116,9 @@
     <string name="overlay_permission_open">前往設定</string>
     <string name="overlay_permission_later">稍後</string>
     <string name="overlay_permission_enabled">紅色警告框已啟用</string>
+    <string name="overlay_permission_required">這項提醒需要允許顯示在其他 App 上層。</string>
+    <string name="warning_overlay_enabled">紅色警戒框已開啟，將短暫顯示測試框。</string>
+    <string name="warning_overlay_disabled">紅色警戒框已關閉，視力龍彈窗不受影響。</string>
 
     <string name="splash_ai_processing">AI 姿勢運算載入中...</string>
     <string name="scan_view">姿勢掃描</string>

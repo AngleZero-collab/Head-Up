@@ -58,9 +58,11 @@
     <string name="settings_account">Account: %1$s</string>
     <string name="settings_sync_now">Sync records now</string>
     <string name="settings_language">App language</string>
-    <string name="settings_overlay">Red border permission</string>
+    <string name="settings_warning_overlay_on">Red warning frame: On</string>
+    <string name="settings_warning_overlay_off">Red warning frame: Off</string>
     <string name="settings_pet_overlay_on">Vision Dragon popup: On</string>
     <string name="settings_pet_overlay_off">Vision Dragon popup: Off</string>
+    <string name="settings_overlay_permission">Display-over-apps permission</string>
     <string name="settings_calibration">3-second posture calibration</string>
     <string name="settings_data_management">Data management</string>
     <string name="settings_logout">Log out</string>
@@ -114,6 +116,9 @@
     <string name="overlay_permission_open">Open settings</string>
     <string name="overlay_permission_later">Later</string>
     <string name="overlay_permission_enabled">Red warning border is enabled</string>
+    <string name="overlay_permission_required">Display-over-apps permission is required for this reminder.</string>
+    <string name="warning_overlay_enabled">Red warning frame is on. A test frame will appear briefly.</string>
+    <string name="warning_overlay_disabled">Red warning frame is off. Vision Dragon popup is unchanged.</string>
 
     <string name="splash_ai_processing">AI posture engine loading...</string>
     <string name="scan_view">Scan View</string>

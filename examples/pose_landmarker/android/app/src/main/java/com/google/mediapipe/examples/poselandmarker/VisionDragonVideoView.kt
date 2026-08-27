@@ -1,66 +1,50 @@
 package com.google.mediapipe.examples.poselandmarker
 
 import android.content.Context
-import android.graphics.SurfaceTexture
-import android.media.MediaPlayer
+import android.graphics.ImageDecoder
+import android.graphics.drawable.AnimatedImageDrawable
+import android.os.Build
 import android.util.AttributeSet
-import android.view.Surface
-import android.view.TextureView
 import android.view.View
 import androidx.annotation.RawRes
+import androidx.appcompat.widget.AppCompatImageView
 
 class VisionDragonVideoView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
-) : TextureView(context, attrs, defStyleAttr), TextureView.SurfaceTextureListener {
-    private var mediaPlayer: MediaPlayer? = null
-    private var mediaSurface: Surface? = null
-    private var currentVideoResId = 0
+) : AppCompatImageView(context, attrs, defStyleAttr) {
+    private var currentAnimationResId = 0
     private var currentLoop = true
     private var shouldPlay = false
 
     init {
-        surfaceTextureListener = this
-        isOpaque = false
+        scaleType = ScaleType.FIT_CENTER
+        setLayerType(View.LAYER_TYPE_HARDWARE, null)
     }
 
-    fun play(@RawRes videoResId: Int, loop: Boolean = true) {
-        if (currentVideoResId == videoResId && currentLoop == loop && mediaPlayer?.isPlaying == true) return
-        currentVideoResId = videoResId
+    fun play(@RawRes animationResId: Int, loop: Boolean = true): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+        if (currentAnimationResId == animationResId && currentLoop == loop) {
+            shouldPlay = true
+            resumeIfNeeded()
+            return drawable is AnimatedImageDrawable
+        }
+        currentAnimationResId = animationResId
         currentLoop = loop
         shouldPlay = true
-        if (isAvailable) preparePlayer(surfaceTexture)
+        return decodeAnimation(animationResId)
     }
 
     fun stopPlayback() {
         shouldPlay = false
-        currentVideoResId = 0
+        currentAnimationResId = 0
         releasePlayer()
     }
 
     fun releasePlayer() {
-        mediaPlayer?.runCatching {
-            stop()
-            reset()
-            release()
-        }
-        mediaPlayer = null
-        mediaSurface?.release()
-        mediaSurface = null
-    }
-
-    override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-        if (shouldPlay && currentVideoResId != 0) preparePlayer(surface)
-    }
-
-    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
-
-    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
-
-    override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-        releasePlayer()
-        return true
+        (drawable as? AnimatedImageDrawable)?.stop()
+        setImageDrawable(null)
     }
 
     override fun onAttachedToWindow() {
@@ -74,44 +58,41 @@ class VisionDragonVideoView @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        stopPlayback()
+        (drawable as? AnimatedImageDrawable)?.stop()
         super.onDetachedFromWindow()
     }
 
     private fun resumeIfNeeded() {
-        if (shouldPlay && currentVideoResId != 0 && isAvailable && mediaPlayer?.isPlaying != true) {
-            preparePlayer(surfaceTexture)
+        if (!shouldPlay || visibility != VISIBLE || !isAttachedToWindow) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            (drawable as? AnimatedImageDrawable)?.start()
         }
     }
 
-    private fun preparePlayer(surfaceTexture: SurfaceTexture?) {
-        if (surfaceTexture == null || currentVideoResId == 0) return
+    private fun decodeAnimation(@RawRes animationResId: Int): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
         releasePlayer()
-        val surface = Surface(surfaceTexture)
-        mediaSurface = surface
-        val asset = resources.openRawResourceFd(currentVideoResId) ?: return
-        try {
-            val player = MediaPlayer()
-            mediaPlayer = player
-            player.setDataSource(asset.fileDescriptor, asset.startOffset, asset.length)
-            player.setSurface(surface)
-            player.isLooping = currentLoop
-            player.setVolume(0f, 0f)
-            player.setOnPreparedListener { prepared ->
-                if (mediaPlayer === prepared && shouldPlay) prepared.start()
+        return runCatching {
+            val source = ImageDecoder.createSource(resources, animationResId)
+            val decoded = ImageDecoder.decodeDrawable(source) { decoder, _, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
             }
-            player.setOnCompletionListener { completed ->
-                if (!currentLoop && mediaPlayer === completed) completed.seekTo(0)
+            val animated = decoded as? AnimatedImageDrawable ?: run {
+                currentAnimationResId = 0
+                return@runCatching false
             }
-            player.setOnErrorListener { _, _, _ ->
-                releasePlayer()
-                true
+            animated.repeatCount = if (currentLoop) {
+                AnimatedImageDrawable.REPEAT_INFINITE
+            } else {
+                0
             }
-            player.prepareAsync()
-        } catch (_: Exception) {
-            releasePlayer()
-        } finally {
-            asset.close()
+            setImageDrawable(animated)
+            resumeIfNeeded()
+            true
+        }.getOrElse {
+            currentAnimationResId = 0
+            setImageDrawable(null)
+            false
         }
     }
 }

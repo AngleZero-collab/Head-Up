@@ -40,18 +40,21 @@ object HeadUpRepository {
     private const val KEY_CLAIMED_TASKS = "claimed_tasks"
     private const val KEY_ALARM_ENABLED = "alarm_enabled"
     private const val KEY_BACKGROUND_GUARD_ENABLED = "background_guard_enabled"
+    private const val KEY_WARNING_OVERLAY_ENABLED = "warning_overlay_enabled"
     private const val KEY_PET_OVERLAY_ENABLED = "pet_overlay_enabled"
     private const val KEY_CALIBRATION_REQUESTED = "calibration_requested"
     private const val KEY_SELECTED_MODEL = "selected_model"
     private const val KEY_SELECTED_DELEGATE = "selected_delegate"
     private const val RECORD_INTERVAL_MS = 1_000L
     private const val MAX_RECORD_INTERVAL_MS = 2_000L
+    private const val UI_METRICS_INTERVAL_MS = 125L
     private const val HISTORY_RETENTION_DAYS = 90
 
     private val stateLiveData = MutableLiveData(HeadUpUiState())
     private val dashboardLiveData = MutableLiveData(PostureDashboard())
     private val databaseExecutor = Executors.newSingleThreadExecutor()
     private var lastDashboardRefreshMs = 0L
+    private var lastUiMetricsDispatchMs = 0L
     private var sharedPrefs: SharedPreferences? = null
 
     fun observeState(): LiveData<HeadUpUiState> = stateLiveData
@@ -127,7 +130,12 @@ object HeadUpRepository {
         val now = metrics.timestampMs
         val elapsedMs = (now - previous.lastUpdatedMs).coerceIn(0L, MAX_RECORD_INTERVAL_MS)
         if (previous.lastUpdatedMs > 0L && elapsedMs < RECORD_INTERVAL_MS) {
-            return previous.copy(metrics = metrics).also { stateLiveData.postValue(it) }
+            return previous.copy(metrics = metrics).also {
+                if (now - lastUiMetricsDispatchMs >= UI_METRICS_INTERVAL_MS) {
+                    lastUiMetricsDispatchMs = now
+                    stateLiveData.postValue(it)
+                }
+            }
         }
 
         val elapsedSeconds = (elapsedMs / 1_000f).roundToLong()
@@ -145,6 +153,7 @@ object HeadUpRepository {
             lastUpdatedMs = now,
         )
         saveState(appContext, next)
+        lastUiMetricsDispatchMs = now
         stateLiveData.postValue(next)
 
         if (elapsedMs > 0L) {
@@ -336,6 +345,14 @@ object HeadUpRepository {
 
     fun setBackgroundGuardEnabled(context: Context, enabled: Boolean) {
         getPrefs(context).edit { putBoolean(KEY_BACKGROUND_GUARD_ENABLED, enabled) }
+        currentState(context)
+    }
+
+    fun isWarningOverlayEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean(KEY_WARNING_OVERLAY_ENABLED, true)
+
+    fun setWarningOverlayEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_WARNING_OVERLAY_ENABLED, enabled) }
         currentState(context)
     }
 

@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +29,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var navController: NavController
     private var suppressBackgroundGuardResume = false
+    private var pendingOverlayFeature: OverlayFeature? = null
+
+    private enum class OverlayFeature {
+        WARNING_FRAME,
+        VISION_DRAGON,
+    }
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -55,6 +62,7 @@ class MainActivity : AppCompatActivity() {
         binding.notificationButton.setOnClickListener { openNotificationControls() }
         binding.stopGuardButton.setOnClickListener { toggleBackgroundGuard() }
         binding.settingsButton.setOnClickListener { showSettingsDialog() }
+        configurePressFeedback(binding.notificationButton, binding.stopGuardButton, binding.settingsButton)
         updateGuardButton()
         PostureSyncScheduler.schedulePeriodic(this)
         initPermissionFlow()
@@ -104,7 +112,13 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.settings_account, HeadUpAuthStore.userLabel(this)),
             getString(R.string.settings_sync_now),
             getString(R.string.settings_language),
-            getString(R.string.settings_overlay),
+            getString(
+                if (HeadUpRepository.isWarningOverlayEnabled(this)) {
+                    R.string.settings_warning_overlay_on
+                } else {
+                    R.string.settings_warning_overlay_off
+                },
+            ),
             getString(
                 if (HeadUpRepository.isPetOverlayEnabled(this)) {
                     R.string.settings_pet_overlay_on
@@ -112,6 +126,7 @@ class MainActivity : AppCompatActivity() {
                     R.string.settings_pet_overlay_off
                 },
             ),
+            getString(R.string.settings_overlay_permission),
             getString(R.string.settings_calibration),
             getString(R.string.settings_data_management),
             getString(R.string.settings_logout),
@@ -124,12 +139,13 @@ class MainActivity : AppCompatActivity() {
                     0 -> showAccountDialog()
                     1 -> enqueueManualSync()
                     2 -> showLanguagePicker()
-                    3 -> openOverlaySettingsIfNeeded()
+                    3 -> toggleWarningOverlay()
                     4 -> togglePetOverlay()
-                    5 -> navigateToCalibration()
-                    6 -> showDataManagementDialog()
-                    7 -> confirmLogout()
-                    8 -> confirmResetData()
+                    5 -> openOverlaySettingsIfNeeded()
+                    6 -> navigateToCalibration()
+                    7 -> showDataManagementDialog()
+                    8 -> confirmLogout()
+                    9 -> confirmResetData()
                 }
             }
             .show()
@@ -191,7 +207,32 @@ class MainActivity : AppCompatActivity() {
             }
             binding.headupTopBar.visibility = if (showAppChrome) View.VISIBLE else View.GONE
             binding.navigationShell.visibility = if (showAppChrome) View.VISIBLE else View.GONE
+            if (showAppChrome) animateDestinationChange()
             updateGuardButton()
+        }
+    }
+
+    private fun animateDestinationChange() {
+        binding.fragmentContainer.animate().cancel()
+        binding.fragmentContainer.alpha = 0.88f
+        binding.fragmentContainer.translationY = 8f
+        binding.fragmentContainer.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(180L)
+            .start()
+    }
+
+    private fun configurePressFeedback(vararg views: View) {
+        views.forEach { target ->
+            target.setOnTouchListener { view, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> view.animate().scaleX(0.94f).scaleY(0.94f).setDuration(70L).start()
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                        view.animate().scaleX(1f).scaleY(1f).setDuration(120L).start()
+                }
+                false
+            }
         }
     }
 
@@ -220,23 +261,43 @@ class MainActivity : AppCompatActivity() {
         val enabled = HeadUpRepository.isPetOverlayEnabled(this)
         HeadUpRepository.setPetOverlayEnabled(this, !enabled)
         if (enabled) {
+            startHeadUpService(HeadUpService.ACTION_REFRESH_OVERLAYS)
             Toast.makeText(this, R.string.pet_overlay_disabled, Toast.LENGTH_SHORT).show()
         } else {
+            ensureBackgroundGuardRunning()
             if (!Settings.canDrawOverlays(this)) {
+                pendingOverlayFeature = OverlayFeature.VISION_DRAGON
                 openOverlaySettingsIfNeeded()
             } else {
-                val action = if (HeadUpRepository.isForegroundScanActive(this)) {
-                    HeadUpService.ACTION_PAUSE_CAMERA
-                } else {
-                    HeadUpService.ACTION_RESUME_CAMERA
-                }
-                ContextCompat.startForegroundService(
-                    this,
-                    Intent(this, HeadUpService::class.java).setAction(action),
-                )
+                startHeadUpService(HeadUpService.ACTION_REFRESH_OVERLAYS)
+                Toast.makeText(this, R.string.pet_overlay_enabled, Toast.LENGTH_SHORT).show()
             }
-            Toast.makeText(this, R.string.pet_overlay_enabled, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun toggleWarningOverlay() {
+        val enabled = HeadUpRepository.isWarningOverlayEnabled(this)
+        HeadUpRepository.setWarningOverlayEnabled(this, !enabled)
+        if (enabled) {
+            startHeadUpService(HeadUpService.ACTION_REFRESH_OVERLAYS)
+            Toast.makeText(this, R.string.warning_overlay_disabled, Toast.LENGTH_SHORT).show()
+            return
+        }
+        ensureBackgroundGuardRunning()
+        if (!Settings.canDrawOverlays(this)) {
+            pendingOverlayFeature = OverlayFeature.WARNING_FRAME
+            openOverlaySettingsIfNeeded()
+            return
+        }
+        startHeadUpService(HeadUpService.ACTION_TEST_WARNING)
+        Toast.makeText(this, R.string.warning_overlay_enabled, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun ensureBackgroundGuardRunning() {
+        if (HeadUpRepository.isBackgroundGuardEnabled(this)) return
+        HeadUpRepository.setBackgroundGuardEnabled(this, true)
+        suppressBackgroundGuardResume = false
+        updateGuardButton()
     }
 
     private fun updateGuardButton() {
@@ -379,6 +440,30 @@ class MainActivity : AppCompatActivity() {
                 Uri.parse("package:$packageName"),
             ),
         )
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val requestedFeature = pendingOverlayFeature ?: return
+        pendingOverlayFeature = null
+        if (!Settings.canDrawOverlays(this)) {
+            when (requestedFeature) {
+                OverlayFeature.WARNING_FRAME -> HeadUpRepository.setWarningOverlayEnabled(this, false)
+                OverlayFeature.VISION_DRAGON -> HeadUpRepository.setPetOverlayEnabled(this, false)
+            }
+            Toast.makeText(this, R.string.overlay_permission_required, Toast.LENGTH_SHORT).show()
+            return
+        }
+        when (requestedFeature) {
+            OverlayFeature.WARNING_FRAME -> {
+                startHeadUpService(HeadUpService.ACTION_TEST_WARNING)
+                Toast.makeText(this, R.string.warning_overlay_enabled, Toast.LENGTH_SHORT).show()
+            }
+            OverlayFeature.VISION_DRAGON -> {
+                startHeadUpService(HeadUpService.ACTION_REFRESH_OVERLAYS)
+                Toast.makeText(this, R.string.pet_overlay_enabled, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     @Deprecated("Deprecated in Java")

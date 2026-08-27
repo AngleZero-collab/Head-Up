@@ -56,11 +56,15 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     companion object {
         const val ACTION_PAUSE_CAMERA = "com.google.mediapipe.examples.poselandmarker.PAUSE_CAMERA"
         const val ACTION_RESUME_CAMERA = "com.google.mediapipe.examples.poselandmarker.RESUME_CAMERA"
+        const val ACTION_REFRESH_OVERLAYS = "com.google.mediapipe.examples.poselandmarker.REFRESH_OVERLAYS"
+        const val ACTION_TEST_WARNING = "com.google.mediapipe.examples.poselandmarker.TEST_WARNING"
         private const val CHANNEL_ID = "HeadUpServiceChannel"
         private const val NOTIFICATION_ID = 1
         private const val TAG = "HeadUpService"
         private const val WARNING_DELAY_MS = 3_000L
         private const val WARNING_CLEAR_GRACE_MS = 900L
+        private const val WARNING_WATCHDOG_MS = 500L
+        private const val WARNING_TEST_DURATION_MS = 1_800L
         private const val RAPID_FALL_VIBRATION_MS = 100L
         private const val WARNING_VIBRATION_MS = 260L
         private const val VIBRATION_COOLDOWN_MS = 1_500L
@@ -105,6 +109,8 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var badPostureFlag = false
     private var warningDelayRunnable: Runnable? = null
     private var warningClearRunnable: Runnable? = null
+    private var warningWatchdogRunnable: Runnable? = null
+    private var warningTestRunnable: Runnable? = null
     private var wasRapidFall = false
     private var lastVibrationTime = 0L
     private var lastProcessedTimestamp = Long.MIN_VALUE
@@ -136,6 +142,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 wasShowingBadPet = false
                 hidePetOverlay()
             }
+            if (!HeadUpRepository.isWarningOverlayEnabled(this)) resetDangerTimer()
             if (isCameraPaused || HeadUpRepository.isForegroundScanActive(this)) {
                 processPostureMetrics(updatedState.metrics)
             }
@@ -146,6 +153,8 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         when (intent?.action) {
             ACTION_PAUSE_CAMERA -> pauseHiddenCamera()
             ACTION_RESUME_CAMERA -> resumeHiddenCamera()
+            ACTION_REFRESH_OVERLAYS -> refreshOverlayPreferences()
+            ACTION_TEST_WARNING -> testWarningOverlay()
             else -> if (HeadUpRepository.isForegroundScanActive(this)) pauseHiddenCamera() else resumeHiddenCamera()
         }
         return START_STICKY
@@ -267,11 +276,15 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         if (metrics.timestampMs == lastProcessedTimestamp) return
         lastProcessedTimestamp = metrics.timestampMs
         mainHandler.post {
-            if (metrics.zone == PostureZone.DANGER) {
-                cancelWarningClearGrace()
-                armWarningOverlayDebounce()
+            if (HeadUpRepository.isWarningOverlayEnabled(this)) {
+                if (metrics.zone == PostureZone.DANGER) {
+                    cancelWarningClearGrace()
+                    armWarningOverlayDebounce()
+                } else {
+                    clearDangerWithGraceIfNeeded()
+                }
             } else {
-                clearDangerWithGraceIfNeeded()
+                resetDangerTimer()
             }
 
             updatePetOverlay(metrics)
@@ -308,6 +321,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private fun activateWarningOverlay() {
         if (showWarningOverlay()) {
             warningActive = true
+            startWarningWatchdog()
             vibrate(WARNING_VIBRATION_MS)
             playAlarmIfNeeded()
         }
@@ -344,7 +358,63 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         badPostureStartTime = 0L
         warningActive = false
         wasRapidFall = false
+        stopWarningWatchdog()
+        cancelWarningTest()
         hideWarningOverlay()
+    }
+
+    private fun refreshOverlayPreferences() {
+        if (!HeadUpRepository.isWarningOverlayEnabled(this)) resetDangerTimer()
+        if (!HeadUpRepository.isPetOverlayEnabled(this)) {
+            wasShowingBadPet = false
+            hidePetOverlay()
+        }
+        val metrics = HeadUpRepository.currentState(this).metrics
+        processPostureMetrics(metrics.copy(timestampMs = System.currentTimeMillis()))
+    }
+
+    private fun testWarningOverlay() {
+        if (!HeadUpRepository.isWarningOverlayEnabled(this) || !canUseApplicationOverlay()) return
+        cancelWarningTest()
+        if (!showWarningOverlay()) {
+            warningActive = false
+            return
+        }
+        warningActive = true
+        startWarningWatchdog()
+        warningTestRunnable = Runnable {
+            warningTestRunnable = null
+            if (!badPostureFlag) resetDangerTimer()
+        }
+        mainHandler.postDelayed(warningTestRunnable!!, WARNING_TEST_DURATION_MS)
+    }
+
+    private fun cancelWarningTest() {
+        warningTestRunnable?.let { mainHandler.removeCallbacks(it) }
+        warningTestRunnable = null
+    }
+
+    private fun startWarningWatchdog() {
+        if (warningWatchdogRunnable != null) return
+        warningWatchdogRunnable = object : Runnable {
+            override fun run() {
+                if (!warningActive || !HeadUpRepository.isWarningOverlayEnabled(this@HeadUpService)) {
+                    stopWarningWatchdog()
+                    return
+                }
+                val overlay = warningOverlayView
+                if (overlay == null || overlay.parent == null || !overlay.isShown) {
+                    showWarningOverlay()
+                }
+                mainHandler.postDelayed(this, WARNING_WATCHDOG_MS)
+            }
+        }
+        mainHandler.post(warningWatchdogRunnable!!)
+    }
+
+    private fun stopWarningWatchdog() {
+        warningWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
+        warningWatchdogRunnable = null
     }
 
     private fun ensureWarningOverlay(): View? {
@@ -386,6 +456,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     }
 
     private fun showWarningOverlay(): Boolean {
+        if (!HeadUpRepository.isWarningOverlayEnabled(this)) return false
         val overlay = ensureWarningOverlay() ?: return false
         overlay.visibility = View.VISIBLE
         overlay.alpha = overlay.alpha.coerceAtLeast(0.72f)
@@ -497,14 +568,23 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             currentPetBackgroundResId = backgroundRes
             overlay.background = ContextCompat.getDrawable(this, backgroundRes)
             petImageView?.setImageResource(selectedDragon.imageRes)
-            petImageView?.visibility = View.GONE
             petVideoView?.visibility = View.VISIBLE
-            petVideoView?.play(
-                if (mood == PetMood.ANGRY) R.raw.angry_dragon else R.raw.happy_dragon,
+            val animationReady = petVideoView?.play(
+                if (mood == PetMood.ANGRY) R.raw.dragon_angry_red else happyAnimationFor(selectedDragon.id),
                 loop = true,
-            )
+            ) == true
+            petVideoView?.visibility = if (animationReady) View.VISIBLE else View.GONE
+            petImageView?.visibility = if (animationReady) View.GONE else View.VISIBLE
             animatePetOverlay(mood)
         }
+    }
+
+    private fun happyAnimationFor(dragonId: String): Int = when (dragonId) {
+        "ember_red" -> R.raw.dragon_happy_red
+        "mint_leaf" -> R.raw.dragon_happy_mint
+        "violet_star" -> R.raw.dragon_happy_violet
+        "sunny_gold" -> R.raw.dragon_happy_gold
+        else -> R.raw.dragon_happy_blue
     }
 
     private fun createPetOverlayView(): FrameLayout {

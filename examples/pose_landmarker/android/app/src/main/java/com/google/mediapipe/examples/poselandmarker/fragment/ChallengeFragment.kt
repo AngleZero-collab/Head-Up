@@ -30,6 +30,8 @@ class ChallengeFragment : Fragment() {
     private var latestState = HeadUpUiState()
     private var currentDragonImageResId = 0
     private var currentDragonVideoResId = 0
+    private var currentDragonOrbBackgroundResId = 0
+    private var renderedSelectorDragonId: String? = null
     private var dragonBreathingAnimator: ValueAnimator? = null
     private var dragonBreathingTarget: View? = null
     private var isDragonInDangerPose = false
@@ -120,9 +122,16 @@ class ChallengeFragment : Fragment() {
         )
         binding.dragonMoodText.setTextColor(zoneColor)
 
-        binding.dragonOrb.setBackgroundResource(dragonOrbBackground(state))
+        val orbBackground = dragonOrbBackground(state)
+        if (currentDragonOrbBackgroundResId != orbBackground) {
+            currentDragonOrbBackgroundResId = orbBackground
+            binding.dragonOrb.setBackgroundResource(orbBackground)
+        }
         renderDragonVisuals(state)
-        renderDragonSelector(state)
+        if (renderedSelectorDragonId != state.selectedDragonId) {
+            renderedSelectorDragonId = state.selectedDragonId
+            renderDragonSelector(state)
+        }
 
         binding.maintainTaskDetail.text = getString(
             R.string.minutes_progress_format,
@@ -223,9 +232,8 @@ class ChallengeFragment : Fragment() {
     private fun renderDragonVisuals(state: HeadUpUiState) {
         val selectedDragon = state.selectedDragon
         when {
-            state.metrics.zone == PostureZone.DANGER -> showAnimatedDragon(R.raw.angry_dragon, selectedDragon.imageRes)
-            selectedDragon.id == VisionDragonCatalog.DEFAULT_DRAGON_ID -> showAnimatedDragon(R.raw.happy_dragon, selectedDragon.imageRes)
-            else -> showStaticDragon(selectedDragon.imageRes)
+            state.metrics.zone == PostureZone.DANGER -> showAnimatedDragon(R.raw.dragon_angry_red, selectedDragon.imageRes)
+            else -> showAnimatedDragon(happyAnimationFor(selectedDragon.id), selectedDragon.imageRes)
         }
 
         binding.dragonCapeOverlay.visibility =
@@ -266,15 +274,30 @@ class ChallengeFragment : Fragment() {
             currentDragonImageResId = fallbackImageRes
             binding.dragonImageView.setImageResource(fallbackImageRes)
         }
-        binding.dragonImageView.visibility = View.GONE
         binding.dragonVideoView.visibility = View.VISIBLE
+        val animationReady: Boolean
         if (currentDragonVideoResId != videoRes) {
             currentDragonVideoResId = videoRes
-            binding.dragonVideoView.play(videoRes, loop = true)
-            animateDragonSwap()
+            animationReady = binding.dragonVideoView.play(videoRes, loop = true)
+            if (animationReady) animateDragonSwap()
         } else {
-            binding.dragonVideoView.play(videoRes, loop = true)
+            animationReady = binding.dragonVideoView.play(videoRes, loop = true)
         }
+        binding.dragonVideoView.visibility = if (animationReady) View.VISIBLE else View.GONE
+        binding.dragonImageView.visibility = if (animationReady) View.GONE else View.VISIBLE
+        if (!animationReady) {
+            currentDragonVideoResId = 0
+            startDragonBreathing()
+        }
+    }
+
+    @RawRes
+    private fun happyAnimationFor(dragonId: String): Int = when (dragonId) {
+        "ember_red" -> R.raw.dragon_happy_red
+        "mint_leaf" -> R.raw.dragon_happy_mint
+        "violet_star" -> R.raw.dragon_happy_violet
+        "sunny_gold" -> R.raw.dragon_happy_gold
+        else -> R.raw.dragon_happy_blue
     }
 
     private fun dragonVisualTarget(): View =
