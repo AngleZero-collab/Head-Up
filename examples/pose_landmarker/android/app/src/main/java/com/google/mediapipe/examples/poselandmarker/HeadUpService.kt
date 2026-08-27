@@ -60,6 +60,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         private const val NOTIFICATION_ID = 1
         private const val TAG = "HeadUpService"
         private const val WARNING_DELAY_MS = 3_000L
+        private const val WARNING_CLEAR_GRACE_MS = 900L
         private const val RAPID_FALL_VIBRATION_MS = 100L
         private const val WARNING_VIBRATION_MS = 260L
         private const val VIBRATION_COOLDOWN_MS = 1_500L
@@ -103,6 +104,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var warningActive = false
     private var badPostureFlag = false
     private var warningDelayRunnable: Runnable? = null
+    private var warningClearRunnable: Runnable? = null
     private var wasRapidFall = false
     private var lastVibrationTime = 0L
     private var lastProcessedTimestamp = Long.MIN_VALUE
@@ -266,9 +268,10 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         lastProcessedTimestamp = metrics.timestampMs
         mainHandler.post {
             if (metrics.zone == PostureZone.DANGER) {
+                cancelWarningClearGrace()
                 armWarningOverlayDebounce()
             } else {
-                resetDangerTimer()
+                clearDangerWithGraceIfNeeded()
             }
 
             updatePetOverlay(metrics)
@@ -283,35 +286,79 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private fun armWarningOverlayDebounce() {
         badPostureFlag = true
         if (badPostureStartTime == 0L) badPostureStartTime = SystemClock.elapsedRealtime()
-        if (warningActive || warningDelayRunnable != null) return
+        if (warningActive) {
+            showWarningOverlay()
+            return
+        }
+        val elapsed = SystemClock.elapsedRealtime() - badPostureStartTime
+        if (elapsed >= WARNING_DELAY_MS) {
+            activateWarningOverlay()
+            return
+        }
+        if (warningDelayRunnable != null) return
 
         warningDelayRunnable = Runnable {
             warningDelayRunnable = null
             val elapsed = SystemClock.elapsedRealtime() - badPostureStartTime
-            if (badPostureFlag && elapsed >= WARNING_DELAY_MS && !warningActive) {
-                if (showWarningOverlay()) {
-                    warningActive = true
-                    vibrate(WARNING_VIBRATION_MS)
-                    playAlarmIfNeeded()
-                }
-            }
+            if (badPostureFlag && elapsed >= WARNING_DELAY_MS && !warningActive) activateWarningOverlay()
         }
-        mainHandler.postDelayed(warningDelayRunnable!!, WARNING_DELAY_MS)
+        mainHandler.postDelayed(warningDelayRunnable!!, WARNING_DELAY_MS - elapsed)
+    }
+
+    private fun activateWarningOverlay() {
+        if (showWarningOverlay()) {
+            warningActive = true
+            vibrate(WARNING_VIBRATION_MS)
+            playAlarmIfNeeded()
+        }
+    }
+
+    private fun clearDangerWithGraceIfNeeded() {
+        badPostureFlag = false
+        warningDelayRunnable?.let { mainHandler.removeCallbacks(it) }
+        warningDelayRunnable = null
+        badPostureStartTime = 0L
+        if (!warningActive) {
+            wasRapidFall = false
+            hideWarningOverlay()
+            return
+        }
+        if (warningClearRunnable != null) return
+        warningClearRunnable = Runnable {
+            warningClearRunnable = null
+            resetDangerTimer()
+        }
+        mainHandler.postDelayed(warningClearRunnable!!, WARNING_CLEAR_GRACE_MS)
+    }
+
+    private fun cancelWarningClearGrace() {
+        warningClearRunnable?.let { mainHandler.removeCallbacks(it) }
+        warningClearRunnable = null
     }
 
     private fun resetDangerTimer() {
         badPostureFlag = false
         warningDelayRunnable?.let { mainHandler.removeCallbacks(it) }
         warningDelayRunnable = null
+        cancelWarningClearGrace()
         badPostureStartTime = 0L
         warningActive = false
         wasRapidFall = false
         hideWarningOverlay()
     }
 
-    private fun setupWarningOverlay() {
-        if (warningOverlayView != null || !canUseApplicationOverlay()) return
+    private fun ensureWarningOverlay(): View? {
+        if (!canUseApplicationOverlay()) {
+            warningOverlayView = null
+            return null
+        }
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        warningOverlayView?.let { overlay ->
+            if (overlay.parent != null) return overlay
+            warningAnimator?.cancel()
+            warningAnimator = null
+            warningOverlayView = null
+        }
         val overlay = LayoutInflater.from(this).inflate(R.layout.view_warning_frame, null, false)
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -333,12 +380,16 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             warningOverlayView = overlay
         } catch (error: Exception) {
             Log.e(TAG, "Unable to attach warning overlay", error)
+            warningOverlayView = null
         }
+        return warningOverlayView
     }
 
     private fun showWarningOverlay(): Boolean {
-        if (warningOverlayView == null) setupWarningOverlay()
-        val overlay = warningOverlayView ?: return false
+        val overlay = ensureWarningOverlay() ?: return false
+        overlay.visibility = View.VISIBLE
+        overlay.alpha = overlay.alpha.coerceAtLeast(0.72f)
+        overlay.bringToFront()
         if (warningAnimator?.isRunning == true) return true
         warningAnimator = ValueAnimator.ofFloat(0.5f, 1f).apply {
             duration = 700L
@@ -356,7 +407,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         warningAnimator = null
         warningOverlayView?.let { overlay ->
             try {
-                windowManager?.removeView(overlay)
+                if (overlay.parent != null) windowManager?.removeView(overlay)
             } catch (error: Exception) {
                 Log.w(TAG, "Unable to remove warning overlay", error)
             }

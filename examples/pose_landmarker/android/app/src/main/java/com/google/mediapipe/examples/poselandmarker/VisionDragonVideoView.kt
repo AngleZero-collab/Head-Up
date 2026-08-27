@@ -6,6 +6,7 @@ import android.media.MediaPlayer
 import android.util.AttributeSet
 import android.view.Surface
 import android.view.TextureView
+import android.view.View
 import androidx.annotation.RawRes
 
 class VisionDragonVideoView @JvmOverloads constructor(
@@ -62,9 +63,25 @@ class VisionDragonVideoView @JvmOverloads constructor(
         return true
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        resumeIfNeeded()
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (visibility == VISIBLE) resumeIfNeeded()
+    }
+
     override fun onDetachedFromWindow() {
         stopPlayback()
         super.onDetachedFromWindow()
+    }
+
+    private fun resumeIfNeeded() {
+        if (shouldPlay && currentVideoResId != 0 && isAvailable && mediaPlayer?.isPlaying != true) {
+            preparePlayer(surfaceTexture)
+        }
     }
 
     private fun preparePlayer(surfaceTexture: SurfaceTexture?) {

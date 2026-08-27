@@ -10,6 +10,7 @@ import android.view.animation.OvershootInterpolator
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.RawRes
 import androidx.appcompat.app.AlertDialog
 import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
@@ -28,6 +29,7 @@ class ChallengeFragment : Fragment() {
     private val binding get() = _binding!!
     private var latestState = HeadUpUiState()
     private var currentDragonImageResId = 0
+    private var currentDragonVideoResId = 0
     private var dragonBreathingAnimator: ValueAnimator? = null
     private var dragonBreathingTarget: View? = null
     private var isDragonInDangerPose = false
@@ -219,7 +221,12 @@ class ChallengeFragment : Fragment() {
     }
 
     private fun renderDragonVisuals(state: HeadUpUiState) {
-        showStaticDragon(state.selectedDragon.imageRes)
+        val selectedDragon = state.selectedDragon
+        when {
+            state.metrics.zone == PostureZone.DANGER -> showAnimatedDragon(R.raw.angry_dragon, selectedDragon.imageRes)
+            selectedDragon.id == VisionDragonCatalog.DEFAULT_DRAGON_ID -> showAnimatedDragon(R.raw.happy_dragon, selectedDragon.imageRes)
+            else -> showStaticDragon(selectedDragon.imageRes)
+        }
 
         binding.dragonCapeOverlay.visibility =
             if ("moon_cape" in state.equippedShopItems) View.VISIBLE else View.GONE
@@ -243,7 +250,8 @@ class ChallengeFragment : Fragment() {
     }
 
     private fun showStaticDragon(imageRes: Int) {
-        binding.dragonVideoView.stopPlayback()
+        if (currentDragonVideoResId != 0) binding.dragonVideoView.stopPlayback()
+        currentDragonVideoResId = 0
         binding.dragonVideoView.visibility = View.GONE
         binding.dragonImageView.visibility = View.VISIBLE
         if (currentDragonImageResId != imageRes) {
@@ -253,8 +261,24 @@ class ChallengeFragment : Fragment() {
         }
     }
 
+    private fun showAnimatedDragon(@RawRes videoRes: Int, fallbackImageRes: Int) {
+        if (currentDragonImageResId != fallbackImageRes) {
+            currentDragonImageResId = fallbackImageRes
+            binding.dragonImageView.setImageResource(fallbackImageRes)
+        }
+        binding.dragonImageView.visibility = View.GONE
+        binding.dragonVideoView.visibility = View.VISIBLE
+        if (currentDragonVideoResId != videoRes) {
+            currentDragonVideoResId = videoRes
+            binding.dragonVideoView.play(videoRes, loop = true)
+            animateDragonSwap()
+        } else {
+            binding.dragonVideoView.play(videoRes, loop = true)
+        }
+    }
+
     private fun dragonVisualTarget(): View =
-        binding.dragonImageView
+        if (binding.dragonVideoView.visibility == View.VISIBLE) binding.dragonVideoView else binding.dragonImageView
 
     private fun animateDragonSwap() {
         val target = dragonVisualTarget()
