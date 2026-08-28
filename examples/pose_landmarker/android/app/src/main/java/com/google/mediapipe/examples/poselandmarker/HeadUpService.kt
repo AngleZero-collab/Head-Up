@@ -559,6 +559,11 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
 
         val state = HeadUpRepository.currentState(this)
         val selectedDragon = state.selectedDragon
+        val fallbackImageRes = if (mood == PetMood.ANGRY) {
+            R.drawable.vision_dragon_angry_cutout
+        } else {
+            selectedDragon.imageRes
+        }
         val backgroundRes = petOrbBackground(mood, state)
         val dragonChanged = currentPetDragonId != selectedDragon.id
         val backgroundChanged = currentPetBackgroundResId != backgroundRes
@@ -568,7 +573,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             currentPetDragonId = selectedDragon.id
             currentPetBackgroundResId = backgroundRes
             overlay.background = ContextCompat.getDrawable(this, backgroundRes)
-            petImageView?.setImageResource(selectedDragon.imageRes)
+            petImageView?.setImageResource(fallbackImageRes)
         }
 
         val animationRes = if (mood == PetMood.ANGRY) {

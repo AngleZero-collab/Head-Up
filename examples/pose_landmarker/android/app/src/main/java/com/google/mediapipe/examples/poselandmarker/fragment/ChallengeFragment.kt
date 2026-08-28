@@ -232,7 +232,10 @@ class ChallengeFragment : Fragment() {
     private fun renderDragonVisuals(state: HeadUpUiState) {
         val selectedDragon = state.selectedDragon
         when {
-            state.metrics.zone == PostureZone.DANGER -> showAnimatedDragon(R.raw.dragon_angry_red, selectedDragon.imageRes)
+            state.metrics.zone == PostureZone.DANGER -> showAnimatedDragon(
+                R.raw.dragon_angry_red,
+                R.drawable.vision_dragon_angry_cutout,
+            )
             else -> showAnimatedDragon(happyAnimationFor(selectedDragon.id), selectedDragon.imageRes)
         }
 
@@ -365,6 +368,11 @@ class ChallengeFragment : Fragment() {
     private fun animateDragonDanger() {
         stopDragonAnimation()
         val target = dragonVisualTarget()
+        target.alpha = 1f
+        target.scaleX = 1f
+        target.scaleY = 1f
+        target.translationY = 0f
+        target.rotation = 0f
         ValueAnimator.ofFloat(-5f, 5f).apply {
             duration = 90L
             repeatMode = ValueAnimator.REVERSE
