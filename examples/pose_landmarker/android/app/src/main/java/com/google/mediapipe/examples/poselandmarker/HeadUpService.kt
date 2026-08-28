@@ -277,11 +277,21 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         lastProcessedTimestamp = metrics.timestampMs
         mainHandler.post {
             if (HeadUpRepository.isWarningOverlayEnabled(this)) {
-                if (metrics.zone == PostureZone.DANGER) {
-                    cancelWarningClearGrace()
-                    armWarningOverlayDebounce()
-                } else {
-                    clearDangerWithGraceIfNeeded()
+                when (metrics.zone) {
+                    PostureZone.DANGER -> {
+                        cancelWarningClearGrace()
+                        armWarningOverlayDebounce()
+                    }
+                    PostureZone.WARNING -> {
+                        if (warningActive) {
+                            cancelWarningClearGrace()
+                            badPostureFlag = true
+                            showWarningOverlay()
+                        } else {
+                            clearDangerWithGraceIfNeeded()
+                        }
+                    }
+                    PostureZone.SAFE -> clearDangerWithGraceIfNeeded()
                 }
             } else {
                 resetDangerTimer()
@@ -329,18 +339,10 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
 
     private fun clearDangerWithGraceIfNeeded() {
         badPostureFlag = false
-        warningDelayRunnable?.let { mainHandler.removeCallbacks(it) }
-        warningDelayRunnable = null
-        badPostureStartTime = 0L
-        if (!warningActive) {
-            wasRapidFall = false
-            hideWarningOverlay()
-            return
-        }
         if (warningClearRunnable != null) return
         warningClearRunnable = Runnable {
             warningClearRunnable = null
-            resetDangerTimer()
+            if (!badPostureFlag) resetDangerTimer()
         }
         mainHandler.postDelayed(warningClearRunnable!!, WARNING_CLEAR_GRACE_MS)
     }
@@ -402,9 +404,10 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                     stopWarningWatchdog()
                     return
                 }
-                val overlay = warningOverlayView
-                if (overlay == null || overlay.parent == null || !overlay.isShown) {
-                    showWarningOverlay()
+                if (!showWarningOverlay()) {
+                    warningActive = false
+                    stopWarningWatchdog()
+                    return
                 }
                 mainHandler.postDelayed(this, WARNING_WATCHDOG_MS)
             }
