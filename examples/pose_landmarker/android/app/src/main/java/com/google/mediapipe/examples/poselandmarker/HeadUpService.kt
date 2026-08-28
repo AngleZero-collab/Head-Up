@@ -562,21 +562,25 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         val backgroundRes = petOrbBackground(mood, state)
         val dragonChanged = currentPetDragonId != selectedDragon.id
         val backgroundChanged = currentPetBackgroundResId != backgroundRes
-        if (currentPetMood != mood || dragonChanged || backgroundChanged) {
+        val visualChanged = currentPetMood != mood || dragonChanged || backgroundChanged
+        if (visualChanged) {
             currentPetMood = mood
             currentPetDragonId = selectedDragon.id
             currentPetBackgroundResId = backgroundRes
             overlay.background = ContextCompat.getDrawable(this, backgroundRes)
             petImageView?.setImageResource(selectedDragon.imageRes)
-            petVideoView?.visibility = View.VISIBLE
-            val animationReady = petVideoView?.play(
-                if (mood == PetMood.ANGRY) R.raw.dragon_angry_red else happyAnimationFor(selectedDragon.id),
-                loop = true,
-            ) == true
-            petVideoView?.visibility = if (animationReady) View.VISIBLE else View.GONE
-            petImageView?.visibility = if (animationReady) View.GONE else View.VISIBLE
-            animatePetOverlay(mood)
         }
+
+        val animationRes = if (mood == PetMood.ANGRY) {
+            R.raw.dragon_angry_red
+        } else {
+            happyAnimationFor(selectedDragon.id)
+        }
+        petVideoView?.visibility = View.VISIBLE
+        val animationReady = petVideoView?.play(animationRes, loop = true) == true
+        petVideoView?.visibility = if (animationReady) View.VISIBLE else View.GONE
+        petImageView?.visibility = if (animationReady) View.GONE else View.VISIBLE
+        if (visualChanged) animatePetOverlay(mood)
     }
 
     private fun happyAnimationFor(dragonId: String): Int = when (dragonId) {

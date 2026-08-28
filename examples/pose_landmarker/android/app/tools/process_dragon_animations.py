@@ -179,16 +179,20 @@ def process_source(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--happy", type=Path, required=True)
-    parser.add_argument("--angry", type=Path, required=True)
+    parser.add_argument("--happy", type=Path)
+    parser.add_argument("--angry", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--ffmpeg", type=Path, required=True)
     parser.add_argument("--fps", type=int, default=15)
     parser.add_argument("--size", type=int, default=360)
     args = parser.parse_args()
 
-    process_source(args.happy, args.output, args.ffmpeg, "happy", DRAGON_HUES, args.fps, args.size)
-    process_source(args.angry, args.output, args.ffmpeg, "angry", {"red": None}, args.fps, args.size)
+    if args.happy is None and args.angry is None:
+        parser.error("Provide at least one of --happy or --angry.")
+    if args.happy is not None:
+        process_source(args.happy, args.output, args.ffmpeg, "happy", DRAGON_HUES, args.fps, args.size)
+    if args.angry is not None:
+        process_source(args.angry, args.output, args.ffmpeg, "angry", {"red": None}, args.fps, args.size)
 
 
 if __name__ == "__main__":

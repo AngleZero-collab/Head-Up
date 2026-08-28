@@ -31,15 +31,14 @@
             android:orientation="horizontal"
             android:padding="20dp">
 
-            <TextView
+            <ImageView
                 android:layout_width="52dp"
                 android:layout_height="52dp"
                 android:background="@drawable/bg_headup_dragon_orb"
-                android:gravity="center"
-                android:text="★"
-                android:textColor="@color/headup_text_primary"
-                android:textSize="28sp"
-                android:textStyle="bold" />
+                android:contentDescription="@string/health_points"
+                android:padding="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_health_points" />
 
             <LinearLayout
                 android:layout_width="0dp"

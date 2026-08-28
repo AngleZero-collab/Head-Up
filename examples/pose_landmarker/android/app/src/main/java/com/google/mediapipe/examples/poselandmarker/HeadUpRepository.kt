@@ -131,7 +131,8 @@ object HeadUpRepository {
         val elapsedMs = (now - previous.lastUpdatedMs).coerceIn(0L, MAX_RECORD_INTERVAL_MS)
         if (previous.lastUpdatedMs > 0L && elapsedMs < RECORD_INTERVAL_MS) {
             return previous.copy(metrics = metrics).also {
-                if (now - lastUiMetricsDispatchMs >= UI_METRICS_INTERVAL_MS) {
+                val zoneChanged = metrics.zone != previous.metrics.zone
+                if (zoneChanged || now - lastUiMetricsDispatchMs >= UI_METRICS_INTERVAL_MS) {
                     lastUiMetricsDispatchMs = now
                     stateLiveData.postValue(it)
                 }
