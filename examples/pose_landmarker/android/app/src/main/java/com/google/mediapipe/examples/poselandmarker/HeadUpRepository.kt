@@ -2,6 +2,7 @@ package com.google.mediapipe.examples.poselandmarker
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Looper
 import android.util.Log
 import androidx.core.content.edit
 import androidx.lifecycle.LiveData
@@ -56,6 +57,7 @@ object HeadUpRepository {
     private var lastDashboardRefreshMs = 0L
     private var lastUiMetricsDispatchMs = 0L
     private var sharedPrefs: SharedPreferences? = null
+    @Volatile private var postureAlertActive = false
 
     fun observeState(): LiveData<HeadUpUiState> = stateLiveData
 
@@ -64,6 +66,15 @@ object HeadUpRepository {
     @Synchronized
     fun currentState(context: Context): HeadUpUiState =
         loadState(context).also { stateLiveData.postValue(it) }
+
+    @Synchronized
+    fun setPostureAlertActive(context: Context, active: Boolean) {
+        if (postureAlertActive == active && stateLiveData.value?.isPostureAlertActive == active) return
+        postureAlertActive = active
+        val next = (stateLiveData.value ?: loadState(context)).copy(isPostureAlertActive = active)
+        if (Looper.myLooper() == Looper.getMainLooper()) stateLiveData.value = next
+        else stateLiveData.postValue(next)
+    }
 
     fun setCalibration(context: Context, profile: CalibrationProfile) {
         getPrefs(context).edit {
@@ -318,6 +329,7 @@ object HeadUpRepository {
     fun resetAllData(context: Context) {
         val appContext = context.applicationContext
         getPrefs(appContext).edit { clear() }
+        postureAlertActive = false
         stateLiveData.postValue(HeadUpUiState())
         dashboardLiveData.postValue(PostureDashboard())
         executeDatabaseTask {
@@ -618,6 +630,7 @@ object HeadUpRepository {
             equippedShopItems = prefs.getStringSet(KEY_EQUIPPED_ITEMS, emptySet())?.toSet().orEmpty(),
             claimedTasks = if (isToday) prefs.getStringSet(KEY_CLAIMED_TASKS, emptySet())?.toSet().orEmpty() else emptySet(),
             isAlarmEnabled = prefs.getBoolean(KEY_ALARM_ENABLED, false),
+            isPostureAlertActive = postureAlertActive,
         )
     }
 

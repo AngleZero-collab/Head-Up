@@ -105,7 +105,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var isDeviceFlat = false
 
     private var badPostureStartTime = 0L
-    private var warningActive = false
+    private var postureAlertActive = false
     private var badPostureFlag = false
     private var warningDelayRunnable: Runnable? = null
     private var warningClearRunnable: Runnable? = null
@@ -142,7 +142,6 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 wasShowingBadPet = false
                 hidePetOverlay()
             }
-            if (!HeadUpRepository.isWarningOverlayEnabled(this)) resetDangerTimer()
             if (isCameraPaused || HeadUpRepository.isForegroundScanActive(this)) {
                 processPostureMetrics(updatedState.metrics)
             }
@@ -276,28 +275,22 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         if (metrics.timestampMs == lastProcessedTimestamp) return
         lastProcessedTimestamp = metrics.timestampMs
         mainHandler.post {
-            if (HeadUpRepository.isWarningOverlayEnabled(this)) {
-                when (metrics.zone) {
-                    PostureZone.DANGER -> {
-                        cancelWarningClearGrace()
-                        armWarningOverlayDebounce()
-                    }
-                    PostureZone.WARNING -> {
-                        if (warningActive) {
-                            cancelWarningClearGrace()
-                            badPostureFlag = true
-                            showWarningOverlay()
-                        } else {
-                            clearDangerWithGraceIfNeeded()
-                        }
-                    }
-                    PostureZone.SAFE -> clearDangerWithGraceIfNeeded()
+            when (metrics.zone) {
+                PostureZone.DANGER -> {
+                    cancelWarningClearGrace()
+                    armPostureAlertDebounce()
                 }
-            } else {
-                resetDangerTimer()
+                PostureZone.WARNING -> {
+                    if (postureAlertActive) {
+                        cancelWarningClearGrace()
+                        badPostureFlag = true
+                    } else {
+                        clearDangerWithGraceIfNeeded()
+                    }
+                }
+                PostureZone.SAFE -> clearDangerWithGraceIfNeeded()
             }
-
-            updatePetOverlay(metrics)
+            syncPostureFeedbackOutputs()
 
             if (metrics.isRapidFall && !wasRapidFall) {
                 vibrate(RAPID_FALL_VIBRATION_MS)
@@ -306,16 +299,16 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         }
     }
 
-    private fun armWarningOverlayDebounce() {
+    private fun armPostureAlertDebounce() {
         badPostureFlag = true
         if (badPostureStartTime == 0L) badPostureStartTime = SystemClock.elapsedRealtime()
-        if (warningActive) {
-            showWarningOverlay()
+        if (postureAlertActive) {
+            syncPostureFeedbackOutputs()
             return
         }
         val elapsed = SystemClock.elapsedRealtime() - badPostureStartTime
         if (elapsed >= WARNING_DELAY_MS) {
-            activateWarningOverlay()
+            activatePostureAlert()
             return
         }
         if (warningDelayRunnable != null) return
@@ -323,21 +316,21 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         warningDelayRunnable = Runnable {
             warningDelayRunnable = null
             val elapsed = SystemClock.elapsedRealtime() - badPostureStartTime
-            if (badPostureFlag && elapsed >= WARNING_DELAY_MS && !warningActive) activateWarningOverlay()
+            if (badPostureFlag && elapsed >= WARNING_DELAY_MS && !postureAlertActive) activatePostureAlert()
         }
         mainHandler.postDelayed(warningDelayRunnable!!, WARNING_DELAY_MS - elapsed)
     }
 
-    private fun activateWarningOverlay() {
-        if (showWarningOverlay()) {
-            warningActive = true
-            startWarningWatchdog()
-            vibrate(WARNING_VIBRATION_MS)
-            playAlarmIfNeeded()
-        }
+    private fun activatePostureAlert() {
+        if (postureAlertActive) return
+        postureAlertActive = true
+        syncPostureFeedbackOutputs()
+        vibrate(WARNING_VIBRATION_MS)
+        playAlarmIfNeeded()
     }
 
     private fun clearDangerWithGraceIfNeeded() {
+        if (!postureAlertActive && badPostureStartTime == 0L) return
         badPostureFlag = false
         if (warningClearRunnable != null) return
         warningClearRunnable = Runnable {
@@ -358,36 +351,29 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         warningDelayRunnable = null
         cancelWarningClearGrace()
         badPostureStartTime = 0L
-        warningActive = false
+        postureAlertActive = false
         wasRapidFall = false
-        stopWarningWatchdog()
-        cancelWarningTest()
-        hideWarningOverlay()
+        syncPostureFeedbackOutputs()
     }
 
     private fun refreshOverlayPreferences() {
-        if (!HeadUpRepository.isWarningOverlayEnabled(this)) resetDangerTimer()
         if (!HeadUpRepository.isPetOverlayEnabled(this)) {
             wasShowingBadPet = false
             hidePetOverlay()
         }
-        val metrics = HeadUpRepository.currentState(this).metrics
-        processPostureMetrics(metrics.copy(timestampMs = System.currentTimeMillis()))
+        if (!HeadUpRepository.isWarningOverlayEnabled(this)) cancelWarningTest()
+        syncPostureFeedbackOutputs()
     }
 
     private fun testWarningOverlay() {
         if (!HeadUpRepository.isWarningOverlayEnabled(this) || !canUseApplicationOverlay()) return
         cancelWarningTest()
-        if (!showWarningOverlay()) {
-            warningActive = false
-            return
-        }
-        warningActive = true
-        startWarningWatchdog()
+        if (!showWarningOverlay()) return
         warningTestRunnable = Runnable {
             warningTestRunnable = null
-            if (!badPostureFlag) resetDangerTimer()
+            syncWarningOverlayOutput()
         }
+        startWarningWatchdog()
         mainHandler.postDelayed(warningTestRunnable!!, WARNING_TEST_DURATION_MS)
     }
 
@@ -400,12 +386,13 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         if (warningWatchdogRunnable != null) return
         warningWatchdogRunnable = object : Runnable {
             override fun run() {
-                if (!warningActive || !HeadUpRepository.isWarningOverlayEnabled(this@HeadUpService)) {
+                val shouldShow = postureAlertActive || warningTestRunnable != null
+                if (!shouldShow || !HeadUpRepository.isWarningOverlayEnabled(this@HeadUpService)) {
+                    hideWarningOverlay()
                     stopWarningWatchdog()
                     return
                 }
                 if (!showWarningOverlay()) {
-                    warningActive = false
                     stopWarningWatchdog()
                     return
                 }
@@ -418,6 +405,22 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private fun stopWarningWatchdog() {
         warningWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
         warningWatchdogRunnable = null
+    }
+
+    private fun syncPostureFeedbackOutputs() {
+        HeadUpRepository.setPostureAlertActive(this, postureAlertActive)
+        syncWarningOverlayOutput()
+        updatePetOverlay(postureAlertActive)
+    }
+
+    private fun syncWarningOverlayOutput() {
+        val shouldShow = postureAlertActive || warningTestRunnable != null
+        if (shouldShow && HeadUpRepository.isWarningOverlayEnabled(this)) {
+            if (showWarningOverlay()) startWarningWatchdog() else stopWarningWatchdog()
+        } else {
+            stopWarningWatchdog()
+            hideWarningOverlay()
+        }
     }
 
     private fun ensureWarningOverlay(): View? {
@@ -489,31 +492,21 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         warningOverlayView = null
     }
 
-    private fun updatePetOverlay(metrics: PostureMetrics) {
+    private fun updatePetOverlay(alertActive: Boolean) {
         if (!HeadUpRepository.isPetOverlayEnabled(this) || !canUseApplicationOverlay()) {
             wasShowingBadPet = false
             hidePetOverlay()
             return
         }
 
-        when (metrics.zone) {
-            PostureZone.DANGER -> {
-                wasShowingBadPet = true
-                showPetOverlay(PetMood.ANGRY)
-            }
-
-            PostureZone.SAFE -> {
-                if (wasShowingBadPet) {
-                    wasShowingBadPet = false
-                    showHappyPetThenHide()
-                } else if (currentPetMood != PetMood.HAPPY) {
-                    hidePetOverlay()
-                }
-            }
-
-            PostureZone.WARNING -> {
-                if (!wasShowingBadPet) hidePetOverlay()
-            }
+        if (alertActive) {
+            wasShowingBadPet = true
+            showPetOverlay(PetMood.ANGRY)
+        } else if (wasShowingBadPet) {
+            wasShowingBadPet = false
+            showHappyPetThenHide()
+        } else if (currentPetMood != PetMood.HAPPY) {
+            hidePetOverlay()
         }
     }
 

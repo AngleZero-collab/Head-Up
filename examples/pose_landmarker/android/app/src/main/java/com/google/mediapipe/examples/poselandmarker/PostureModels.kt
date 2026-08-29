@@ -129,7 +129,15 @@ data class HeadUpUiState(
     val equippedShopItems: Set<String> = emptySet(),
     val claimedTasks: Set<String> = emptySet(),
     val isAlarmEnabled: Boolean = false,
+    val isPostureAlertActive: Boolean = false,
 ) {
+    val feedbackZone: PostureZone
+        get() = when {
+            isPostureAlertActive -> PostureZone.DANGER
+            metrics.zone == PostureZone.SAFE -> PostureZone.SAFE
+            else -> PostureZone.WARNING
+        }
+
     val goodPostureMinutesToday: Int
         get() = (goodPostureSecondsToday / 60L).toInt()
 

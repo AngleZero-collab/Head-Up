@@ -101,7 +101,8 @@ class ChallengeFragment : Fragment() {
     private fun render(state: HeadUpUiState) {
         if (_binding == null) return
         latestState = state
-        val zoneColor = ContextCompat.getColor(requireContext(), state.metrics.zone.colorRes())
+        val feedbackZone = state.feedbackZone
+        val zoneColor = ContextCompat.getColor(requireContext(), feedbackZone.colorRes())
         val selectedDragon = state.selectedDragon
         binding.dragonLevelBadge.text = "Lv.${state.dragonLevel}"
         binding.dragonNameText.text = getString(selectedDragon.nameRes)
@@ -113,7 +114,7 @@ class ChallengeFragment : Fragment() {
         )
         binding.dragonBondText.text = getString(R.string.dragon_bond_format, state.dragonBond)
         binding.dragonMoodText.text = getString(
-            when (state.metrics.zone) {
+            when (feedbackZone) {
                 PostureZone.SAFE -> R.string.dragon_mood_safe_format
                 PostureZone.WARNING -> R.string.dragon_mood_warning_format
                 PostureZone.DANGER -> R.string.dragon_mood_danger_format
@@ -232,7 +233,7 @@ class ChallengeFragment : Fragment() {
     private fun renderDragonVisuals(state: HeadUpUiState) {
         val selectedDragon = state.selectedDragon
         when {
-            state.metrics.zone == PostureZone.DANGER -> showAnimatedDragon(
+            state.isPostureAlertActive -> showAnimatedDragon(
                 R.raw.dragon_angry_red,
                 R.drawable.vision_dragon_angry_cutout,
             )
@@ -248,7 +249,7 @@ class ChallengeFragment : Fragment() {
         binding.dragonBadgeOverlay.visibility =
             if ("focus_badge" in state.equippedShopItems) View.VISIBLE else View.GONE
 
-        val isDanger = state.metrics.zone == PostureZone.DANGER
+        val isDanger = state.isPostureAlertActive
         if (isDanger && !isDragonInDangerPose) {
             isDragonInDangerPose = true
             animateDragonDanger()
@@ -453,7 +454,7 @@ class ChallengeFragment : Fragment() {
     )
 
     private fun dragonOrbBackground(state: HeadUpUiState): Int = when {
-        state.metrics.zone == PostureZone.DANGER -> R.drawable.bg_headup_dragon_orb_danger
+        state.isPostureAlertActive -> R.drawable.bg_headup_dragon_orb_danger
         "sunrise_background" in state.equippedShopItems -> R.drawable.bg_headup_dragon_orb_sunrise
         "forest_background" in state.equippedShopItems -> R.drawable.bg_headup_dragon_orb_forest
         "ocean_background" in state.equippedShopItems -> R.drawable.bg_headup_dragon_orb_ocean
