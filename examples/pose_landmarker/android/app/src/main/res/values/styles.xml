@@ -14,7 +14,7 @@
     ~ See the License for the specific language governing permissions and
     ~ limitations under the License.
 -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar" >
@@ -30,7 +30,7 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@color/headup_bg_bottom</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
         <item name="android:fontFamily">sans</item>
         <item name="android:windowNoTitle">true</item>
     </style>

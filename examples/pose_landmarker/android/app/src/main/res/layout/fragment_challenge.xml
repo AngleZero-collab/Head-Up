@@ -41,7 +41,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="@string/my_vision_dragon"
+                    android:text="@string/my_virtual_pet"
                     android:textColor="@color/headup_text_primary"
                     android:textSize="22sp" />
 
@@ -76,14 +76,14 @@
                     android:id="@+id/dragon_video_view"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:contentDescription="@string/vision_dragon_animation"
+                    android:contentDescription="@string/virtual_pet_animation"
                     android:visibility="gone" />
 
                 <ImageView
                     android:id="@+id/dragon_image_view"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:contentDescription="@string/vision_dragon_animation"
+                    android:contentDescription="@string/virtual_pet_animation"
                     android:scaleType="fitCenter"
                     android:src="@drawable/vision_dragon_little_blue_cutout" />
 
@@ -179,6 +179,7 @@
                 android:textStyle="bold" />
 
             <HorizontalScrollView
+                android:id="@+id/dragon_selector_scroll"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"

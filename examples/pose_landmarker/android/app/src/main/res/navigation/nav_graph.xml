@@ -63,7 +63,24 @@
     <fragment
         android:id="@+id/stats_fragment"
         android:name="com.google.mediapipe.examples.poselandmarker.fragment.StatsFragment"
-        android:label="StatsFragment" />
+        android:label="StatsFragment">
+        <action
+            android:id="@+id/action_stats_to_guard_effectiveness"
+            app:destination="@id/guard_effectiveness_fragment" />
+        <action
+            android:id="@+id/action_stats_to_campus_challenge"
+            app:destination="@id/campus_challenge_fragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/guard_effectiveness_fragment"
+        android:name="com.google.mediapipe.examples.poselandmarker.fragment.GuardEffectivenessFragment"
+        android:label="GuardEffectivenessFragment" />
+
+    <fragment
+        android:id="@+id/campus_challenge_fragment"
+        android:name="com.google.mediapipe.examples.poselandmarker.fragment.CampusChallengeFragment"
+        android:label="CampusChallengeFragment" />
 
     <fragment
         android:id="@+id/challenge_fragment"

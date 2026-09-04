@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/education_country_tw"
+            android:textColor="@color/headup_text_secondary"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/public_alias_input"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:hint="@string/public_alias_hint"
+            android:importantForAutofill="no"
+            android:inputType="textPersonName"
+            android:maxLength="20"
+            android:maxLines="1" />
+
+        <Spinner
+            android:id="@+id/education_stage_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:contentDescription="@string/education_stage" />
+
+        <EditText
+            android:id="@+id/grade_input"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:hint="@string/grade_hint"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLength="12"
+            android:maxLines="1" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/school_query_input"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:hint="@string/school_search_hint"
+                android:importantForAutofill="no"
+                android:inputType="text"
+                android:maxLines="1" />
+
+            <Button
+                android:id="@+id/school_search_button"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_marginStart="8dp"
+                android:text="@string/search"
+                android:textAllCaps="false" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/school_selection_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/no_school_selected"
+            android:textColor="@color/headup_text_secondary"
+            android:textSize="13sp" />
+
+        <RadioGroup
+            android:id="@+id/school_results_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="vertical" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/leaderboard_opt_in_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:minHeight="48dp"
+            android:text="@string/leaderboard_opt_in" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/parent_consent_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/parent_consent" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:lineSpacingExtra="2dp"
+            android:text="@string/leaderboard_privacy_detail"
+            android:textColor="@color/headup_text_secondary"
+            android:textSize="12sp" />
+    </LinearLayout>
+</ScrollView>

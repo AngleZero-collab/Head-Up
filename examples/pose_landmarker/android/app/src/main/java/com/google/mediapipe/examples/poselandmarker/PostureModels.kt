@@ -60,28 +60,106 @@ data class HeadUpTask(
         get() = progress >= max
 }
 
-data class VisionDragonType(
+data class VirtualPetType(
     val id: String,
     val nameRes: Int,
     val traitRes: Int,
     val icon: String,
     val accentColorRes: Int,
-    val imageRes: Int,
+    val happyImageRes: Int,
+    val happyAnimationRes: Int,
+    val alertImageRes: Int,
+    val alertAnimationRes: Int,
 )
 
-object VisionDragonCatalog {
-    const val DEFAULT_DRAGON_ID = "little_blue"
+object VirtualPetCatalog {
+    const val DEFAULT_PET_ID = "little_blue"
 
-    val all: List<VisionDragonType> = listOf(
-        VisionDragonType(DEFAULT_DRAGON_ID, R.string.dragon_little_blue, R.string.dragon_trait_little_blue, "B", R.color.headup_primary, R.drawable.vision_dragon_little_blue_cutout),
-        VisionDragonType("ember_red", R.string.dragon_ember_red, R.string.dragon_trait_ember_red, "R", R.color.headup_danger, R.drawable.vision_dragon_ember_red_cutout),
-        VisionDragonType("mint_leaf", R.string.dragon_mint_leaf, R.string.dragon_trait_mint_leaf, "M", R.color.headup_safe, R.drawable.vision_dragon_mint_leaf_cutout),
-        VisionDragonType("violet_star", R.string.dragon_violet_star, R.string.dragon_trait_violet_star, "V", R.color.headup_purple, R.drawable.vision_dragon_violet_star_cutout),
-        VisionDragonType("sunny_gold", R.string.dragon_sunny_gold, R.string.dragon_trait_sunny_gold, "G", R.color.headup_warning, R.drawable.vision_dragon_sunny_gold_cutout),
+    val all: List<VirtualPetType> = listOf(
+        dragon(DEFAULT_PET_ID, R.string.dragon_little_blue, R.string.dragon_trait_little_blue, "B", R.color.headup_primary, R.drawable.vision_dragon_little_blue_cutout, R.raw.dragon_happy_blue),
+        dragon("ember_red", R.string.dragon_ember_red, R.string.dragon_trait_ember_red, "R", R.color.headup_danger, R.drawable.vision_dragon_ember_red_cutout, R.raw.dragon_happy_red),
+        dragon("mint_leaf", R.string.dragon_mint_leaf, R.string.dragon_trait_mint_leaf, "M", R.color.headup_safe, R.drawable.vision_dragon_mint_leaf_cutout, R.raw.dragon_happy_mint),
+        dragon("violet_star", R.string.dragon_violet_star, R.string.dragon_trait_violet_star, "V", R.color.headup_purple, R.drawable.vision_dragon_violet_star_cutout, R.raw.dragon_happy_violet),
+        dragon("sunny_gold", R.string.dragon_sunny_gold, R.string.dragon_trait_sunny_gold, "G", R.color.headup_warning, R.drawable.vision_dragon_sunny_gold_cutout, R.raw.dragon_happy_gold),
+        VirtualPetType(
+            id = "uplift_fox",
+            nameRes = R.string.pet_uplift_fox,
+            traitRes = R.string.pet_trait_uplift_fox,
+            icon = "F",
+            accentColorRes = R.color.headup_warning,
+            happyImageRes = R.drawable.virtual_pet_fox_happy,
+            happyAnimationRes = R.raw.pet_fox_happy,
+            alertImageRes = R.drawable.virtual_pet_fox_alert,
+            alertAnimationRes = R.raw.pet_fox_alert,
+        ),
+        VirtualPetType(
+            id = "focus_lizard",
+            nameRes = R.string.pet_focus_lizard,
+            traitRes = R.string.pet_trait_focus_lizard,
+            icon = "L",
+            accentColorRes = R.color.headup_safe,
+            happyImageRes = R.drawable.virtual_pet_lizard_happy,
+            happyAnimationRes = R.raw.pet_lizard_happy,
+            alertImageRes = R.drawable.virtual_pet_lizard_alert,
+            alertAnimationRes = R.raw.pet_lizard_alert,
+        ),
+        VirtualPetType(
+            id = "cozy_bunny",
+            nameRes = R.string.pet_cozy_bunny,
+            traitRes = R.string.pet_trait_cozy_bunny,
+            icon = "C",
+            accentColorRes = R.color.headup_primary,
+            happyImageRes = R.drawable.virtual_pet_bunny_happy,
+            happyAnimationRes = R.raw.pet_bunny_happy,
+            alertImageRes = R.drawable.virtual_pet_bunny_alert,
+            alertAnimationRes = R.raw.pet_bunny_alert,
+        ),
+        VirtualPetType(
+            id = "playful_husky",
+            nameRes = R.string.pet_playful_husky,
+            traitRes = R.string.pet_trait_playful_husky,
+            icon = "H",
+            accentColorRes = R.color.headup_primary,
+            happyImageRes = R.drawable.virtual_pet_husky_happy,
+            happyAnimationRes = R.raw.pet_husky_happy,
+            alertImageRes = R.drawable.virtual_pet_husky_alert,
+            alertAnimationRes = R.raw.pet_husky_alert,
+        ),
+        VirtualPetType(
+            id = "gentle_ragdoll",
+            nameRes = R.string.pet_gentle_ragdoll,
+            traitRes = R.string.pet_trait_gentle_ragdoll,
+            icon = "K",
+            accentColorRes = R.color.headup_purple,
+            happyImageRes = R.drawable.virtual_pet_ragdoll_happy,
+            happyAnimationRes = R.raw.pet_ragdoll_happy,
+            alertImageRes = R.drawable.virtual_pet_ragdoll_alert,
+            alertAnimationRes = R.raw.pet_ragdoll_alert,
+        ),
     )
 
-    fun byId(id: String): VisionDragonType =
+    fun byId(id: String): VirtualPetType =
         all.firstOrNull { it.id == id } ?: all.first()
+
+    private fun dragon(
+        id: String,
+        nameRes: Int,
+        traitRes: Int,
+        icon: String,
+        accentColorRes: Int,
+        happyImageRes: Int,
+        happyAnimationRes: Int,
+    ) = VirtualPetType(
+        id = id,
+        nameRes = nameRes,
+        traitRes = traitRes,
+        icon = icon,
+        accentColorRes = accentColorRes,
+        happyImageRes = happyImageRes,
+        happyAnimationRes = happyAnimationRes,
+        alertImageRes = R.drawable.vision_dragon_angry_cutout,
+        alertAnimationRes = R.raw.dragon_angry_red,
+    )
 }
 
 enum class ShopItemCategory {
@@ -105,7 +183,7 @@ data class ShopItem(
             category == ShopItemCategory.BADGE
 }
 
-enum class DragonInteraction {
+enum class PetInteraction {
     FEED,
     PLAY,
     REST,
@@ -121,7 +199,7 @@ data class HeadUpUiState(
     val dragonEnergy: Int = 50,
     val dragonLevel: Int = 1,
     val dragonBond: Int = 0,
-    val selectedDragonId: String = VisionDragonCatalog.DEFAULT_DRAGON_ID,
+    val selectedPetId: String = VirtualPetCatalog.DEFAULT_PET_ID,
     val coins: Int = 0,
     val lastUpdatedMs: Long = 0L,
     val calibrationProfile: CalibrationProfile? = null,
@@ -130,6 +208,8 @@ data class HeadUpUiState(
     val claimedTasks: Set<String> = emptySet(),
     val isAlarmEnabled: Boolean = false,
     val isPostureAlertActive: Boolean = false,
+    val monitoringMode: MonitoringMode = MonitoringMode.OFF,
+    val targetInferenceFps: Int = 5,
 ) {
     val feedbackZone: PostureZone
         get() = when {
@@ -155,8 +235,8 @@ data class HeadUpUiState(
             HeadUpTask("posture_challenge", 100, if (protectEyesPercent >= 80 && totalTrackedSecondsToday >= 600L) 1 else 0, 1, "posture_challenge" in claimedTasks),
         )
 
-    val selectedDragon: VisionDragonType
-        get() = VisionDragonCatalog.byId(selectedDragonId)
+    val selectedPet: VirtualPetType
+        get() = VirtualPetCatalog.byId(selectedPetId)
 
     val shopItems: List<ShopItem>
         get() = listOf(

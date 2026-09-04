@@ -9,6 +9,8 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.MotionEvent
 import android.view.View
+import android.widget.RadioGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -21,6 +23,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.mediapipe.examples.poselandmarker.databinding.ActivityMainBinding
 import com.google.mediapipe.examples.poselandmarker.fragment.PermissionsFragment
 import java.io.File
@@ -64,12 +67,13 @@ class MainActivity : AppCompatActivity() {
         binding.settingsButton.setOnClickListener { showSettingsDialog() }
         configurePressFeedback(binding.notificationButton, binding.stopGuardButton, binding.settingsButton)
         updateGuardButton()
+        HeadUpRepository.observeState().observe(this) { updateGuardButton() }
         PostureSyncScheduler.schedulePeriodic(this)
         initPermissionFlow()
     }
 
     fun startHeadUpService(action: String = HeadUpService.ACTION_PAUSE_CAMERA) {
-        if (!HeadUpRepository.isBackgroundGuardEnabled(this)) return
+        if (HeadUpRepository.getMonitoringMode(this) == MonitoringMode.OFF) return
         if (!PermissionsFragment.hasPermissions(this)) return
         ContextCompat.startForegroundService(
             this,
@@ -78,7 +82,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun shouldResumeBackgroundGuard(): Boolean =
-        !suppressBackgroundGuardResume && HeadUpRepository.isBackgroundGuardEnabled(this)
+        !suppressBackgroundGuardResume && HeadUpRepository.getMonitoringMode(this) != MonitoringMode.OFF
 
     private fun playLaunchAnimation() {
         binding.splashLogo.apply {
@@ -112,6 +116,7 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.settings_account, HeadUpAuthStore.userLabel(this)),
             getString(R.string.settings_sync_now),
             getString(R.string.settings_language),
+            getString(R.string.settings_monitoring_controls),
             getString(
                 if (HeadUpRepository.isWarningOverlayEnabled(this)) {
                     R.string.settings_warning_overlay_on
@@ -139,13 +144,14 @@ class MainActivity : AppCompatActivity() {
                     0 -> showAccountDialog()
                     1 -> enqueueManualSync()
                     2 -> showLanguagePicker()
-                    3 -> toggleWarningOverlay()
-                    4 -> togglePetOverlay()
-                    5 -> openOverlaySettingsIfNeeded()
-                    6 -> navigateToCalibration()
-                    7 -> showDataManagementDialog()
-                    8 -> confirmLogout()
-                    9 -> confirmResetData()
+                    3 -> showMonitoringControlsDialog()
+                    4 -> toggleWarningOverlay()
+                    5 -> togglePetOverlay()
+                    6 -> openOverlaySettingsIfNeeded()
+                    7 -> navigateToCalibration()
+                    8 -> showDataManagementDialog()
+                    9 -> confirmLogout()
+                    10 -> confirmResetData()
                 }
             }
             .show()
@@ -179,6 +185,8 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.logout_title)
             .setMessage(R.string.logout_message)
             .setPositiveButton(R.string.logout_confirm) { _, _ ->
+                MonitoringSessionRecorder.stop(MonitoringMode.OFF)
+                HeadUpRepository.stopMonitoring(this)
                 HeadUpAuthStore.clearSession(this)
                 suppressBackgroundGuardResume = true
                 HeadUpRepository.setForegroundScanActive(this, false)
@@ -237,22 +245,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toggleBackgroundGuard() {
-        val enabled = HeadUpRepository.isBackgroundGuardEnabled(this)
+        val enabled = HeadUpRepository.getMonitoringMode(this) != MonitoringMode.OFF
         if (enabled) {
-            HeadUpRepository.setBackgroundGuardEnabled(this, false)
             suppressBackgroundGuardResume = true
-            stopService(Intent(this, HeadUpService::class.java))
+            startService(Intent(this, HeadUpService::class.java).setAction(HeadUpService.ACTION_STOP_MONITORING))
             Toast.makeText(this, R.string.guard_stopped, Toast.LENGTH_SHORT).show()
         } else {
-            HeadUpRepository.setBackgroundGuardEnabled(this, true)
+            if (!PermissionsFragment.hasPermissions(this)) {
+                navController.navigate(R.id.permissions_fragment)
+                return
+            }
+            val mode = HeadUpRepository.getRequestedMonitoringMode(this)
+            HeadUpRepository.startMonitoring(this, mode)
             suppressBackgroundGuardResume = false
-            val action = if (HeadUpRepository.isForegroundScanActive(this)) {
-                HeadUpService.ACTION_PAUSE_CAMERA
+            val action = if (mode == MonitoringMode.GUARDING) {
+                HeadUpService.ACTION_START_GUARDING
             } else {
-                HeadUpService.ACTION_RESUME_CAMERA
+                HeadUpService.ACTION_START_OBSERVATION
             }
             startHeadUpService(action)
-            Toast.makeText(this, R.string.guard_started, Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                if (mode == MonitoringMode.GUARDING) R.string.guard_started else R.string.observation_started,
+                Toast.LENGTH_SHORT,
+            ).show()
         }
         updateGuardButton()
     }
@@ -264,7 +280,6 @@ class MainActivity : AppCompatActivity() {
             startHeadUpService(HeadUpService.ACTION_REFRESH_OVERLAYS)
             Toast.makeText(this, R.string.pet_overlay_disabled, Toast.LENGTH_SHORT).show()
         } else {
-            ensureBackgroundGuardRunning()
             if (!Settings.canDrawOverlays(this)) {
                 pendingOverlayFeature = OverlayFeature.VISION_DRAGON
                 openOverlaySettingsIfNeeded()
@@ -283,7 +298,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.warning_overlay_disabled, Toast.LENGTH_SHORT).show()
             return
         }
-        ensureBackgroundGuardRunning()
         if (!Settings.canDrawOverlays(this)) {
             pendingOverlayFeature = OverlayFeature.WARNING_FRAME
             openOverlaySettingsIfNeeded()
@@ -293,22 +307,90 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, R.string.warning_overlay_enabled, Toast.LENGTH_SHORT).show()
     }
 
-    private fun ensureBackgroundGuardRunning() {
-        if (HeadUpRepository.isBackgroundGuardEnabled(this)) return
-        HeadUpRepository.setBackgroundGuardEnabled(this, true)
-        suppressBackgroundGuardResume = false
-        updateGuardButton()
-    }
-
     private fun updateGuardButton() {
         if (!::binding.isInitialized) return
-        val enabled = HeadUpRepository.isBackgroundGuardEnabled(this)
+        val mode = HeadUpRepository.getMonitoringMode(this)
+        val enabled = mode != MonitoringMode.OFF
         binding.stopGuardButton.setImageResource(
             if (enabled) R.drawable.ic_stop_headup else R.drawable.ic_play_headup,
         )
         binding.stopGuardButton.contentDescription = getString(
             if (enabled) R.string.guard_stop else R.string.guard_start,
         )
+        binding.monitoringModeStatus.setText(monitoringModeLabel(mode))
+    }
+
+    private fun monitoringModeLabel(mode: MonitoringMode): Int = when (mode) {
+        MonitoringMode.OFF -> R.string.monitoring_status_off
+        MonitoringMode.OBSERVATION -> R.string.monitoring_status_observation
+        MonitoringMode.GUARDING -> R.string.monitoring_status_guarding
+        MonitoringMode.PAUSED -> R.string.monitoring_status_paused
+        MonitoringMode.CAMERA_UNAVAILABLE -> R.string.monitoring_status_camera_unavailable
+        MonitoringMode.PERMISSION_REQUIRED -> R.string.monitoring_status_permission_required
+        MonitoringMode.ERROR -> R.string.monitoring_status_error
+    }
+
+    private fun showMonitoringControlsDialog() {
+        val content = layoutInflater.inflate(R.layout.dialog_monitoring_controls, null)
+        val status = content.findViewById<TextView>(R.id.monitoring_status_text)
+        val enabled = content.findViewById<MaterialSwitch>(R.id.monitoring_enabled_switch)
+        val guarding = content.findViewById<MaterialSwitch>(R.id.guarding_mode_switch)
+        val sound = content.findViewById<MaterialSwitch>(R.id.reminder_sound_switch)
+        val vibration = content.findViewById<MaterialSwitch>(R.id.reminder_vibration_switch)
+        val notification = content.findViewById<MaterialSwitch>(R.id.reminder_notification_switch)
+        val frequency = content.findViewById<RadioGroup>(R.id.inference_frequency_group)
+        val currentMode = HeadUpRepository.getMonitoringMode(this)
+        val requestedMode = HeadUpRepository.getRequestedMonitoringMode(this)
+        status.setText(monitoringModeLabel(currentMode))
+        enabled.isChecked = currentMode != MonitoringMode.OFF
+        guarding.isChecked = requestedMode == MonitoringMode.GUARDING
+        sound.isChecked = HeadUpRepository.isAlarmEnabled(this)
+        vibration.isChecked = HeadUpRepository.isReminderVibrationEnabled(this)
+        notification.isChecked = HeadUpRepository.isReminderNotificationEnabled(this)
+        frequency.check(
+            when (HeadUpRepository.getTargetInferenceFps(this)) {
+                in 1..3 -> R.id.inference_3_fps
+                in 4..7 -> R.id.inference_5_fps
+                else -> R.id.inference_10_fps
+            },
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings_monitoring_controls)
+            .setView(content)
+            .setPositiveButton(R.string.apply) { _, _ ->
+                HeadUpRepository.setAlarmEnabled(this, sound.isChecked)
+                HeadUpRepository.setReminderVibrationEnabled(this, vibration.isChecked)
+                HeadUpRepository.setReminderNotificationEnabled(this, notification.isChecked)
+                HeadUpRepository.setTargetInferenceFps(
+                    this,
+                    when (frequency.checkedRadioButtonId) {
+                        R.id.inference_3_fps -> 3
+                        R.id.inference_10_fps -> 10
+                        else -> 5
+                    },
+                )
+                if (!enabled.isChecked) {
+                    if (currentMode != MonitoringMode.OFF) {
+                        startService(
+                            Intent(this, HeadUpService::class.java)
+                                .setAction(HeadUpService.ACTION_STOP_MONITORING),
+                        )
+                    }
+                } else {
+                    val nextMode = if (guarding.isChecked) MonitoringMode.GUARDING else MonitoringMode.OBSERVATION
+                    HeadUpRepository.startMonitoring(this, nextMode)
+                    startHeadUpService(
+                        if (nextMode == MonitoringMode.GUARDING) {
+                            HeadUpService.ACTION_START_GUARDING
+                        } else {
+                            HeadUpService.ACTION_START_OBSERVATION
+                        },
+                    )
+                }
+                updateGuardButton()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun showDataManagementDialog() {
@@ -356,6 +438,8 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.reset_data_title)
             .setMessage(R.string.reset_data_message)
             .setPositiveButton(R.string.reset_data_confirm) { _, _ ->
+                MonitoringSessionRecorder.stop(MonitoringMode.OFF)
+                stopService(Intent(this, HeadUpService::class.java))
                 HeadUpRepository.resetAllData(this)
                 updateGuardButton()
                 Toast.makeText(this, R.string.reset_data_complete, Toast.LENGTH_SHORT).show()
@@ -466,8 +550,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        finish()
-    }
 }

@@ -35,6 +35,7 @@ import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
 import com.google.mediapipe.examples.poselandmarker.HeadUpService
 import com.google.mediapipe.examples.poselandmarker.MainActivity
 import com.google.mediapipe.examples.poselandmarker.MainViewModel
+import com.google.mediapipe.examples.poselandmarker.MonitoringSessionRecorder
 import com.google.mediapipe.examples.poselandmarker.PoseLandmarkerHelper
 import com.google.mediapipe.examples.poselandmarker.PostureAnalyzer
 import com.google.mediapipe.examples.poselandmarker.PostureMetrics
@@ -380,11 +381,21 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
         if (metrics != null) {
             latestMetrics = metrics
             if (isCalibrating) calibrationSamples += metrics
-            HeadUpRepository.recordMetrics(requireContext(), metrics, source = "foreground")
+            val monitoringMode = HeadUpRepository.getMonitoringMode(requireContext())
+            if (monitoringMode.recordsPosture) {
+                HeadUpRepository.recordMetrics(requireContext(), metrics, source = "foreground")
+                MonitoringSessionRecorder.onInference()
+                MonitoringSessionRecorder.recordMetrics(metrics)
+            } else {
+                HeadUpRepository.updateLiveMetrics(requireContext(), metrics)
+            }
             if (pendingCalibrationRequest && !isCalibrating) {
                 pendingCalibrationRequest = false
                 activity?.runOnUiThread { startCalibration() }
             }
+        }
+        if (metrics == null && HeadUpRepository.getMonitoringMode(requireContext()).recordsPosture) {
+            MonitoringSessionRecorder.recordUnknown()
         }
 
         activity?.runOnUiThread {

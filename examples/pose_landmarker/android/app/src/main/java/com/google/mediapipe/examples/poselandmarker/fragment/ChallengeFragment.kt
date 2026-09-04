@@ -15,13 +15,13 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import com.google.mediapipe.examples.poselandmarker.DragonInteraction
 import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
 import com.google.mediapipe.examples.poselandmarker.HeadUpUiState
+import com.google.mediapipe.examples.poselandmarker.PetInteraction
 import com.google.mediapipe.examples.poselandmarker.PostureZone
 import com.google.mediapipe.examples.poselandmarker.R
 import com.google.mediapipe.examples.poselandmarker.ShopItem
-import com.google.mediapipe.examples.poselandmarker.VisionDragonCatalog
+import com.google.mediapipe.examples.poselandmarker.VirtualPetCatalog
 import com.google.mediapipe.examples.poselandmarker.databinding.FragmentChallengeBinding
 
 class ChallengeFragment : Fragment() {
@@ -50,9 +50,9 @@ class ChallengeFragment : Fragment() {
         setupDragonOrb()
         binding.claimMaintainButton.setOnClickListener { claimGoodPostureReward() }
         binding.recordEyeRestButton.setOnClickListener { showEyeRestDialog() }
-        binding.feedDragonButton.setOnClickListener { handleDragonInteraction(DragonInteraction.FEED) }
-        binding.playDragonButton.setOnClickListener { handleDragonInteraction(DragonInteraction.PLAY) }
-        binding.restDragonButton.setOnClickListener { handleDragonInteraction(DragonInteraction.REST) }
+        binding.feedDragonButton.setOnClickListener { handlePetInteraction(PetInteraction.FEED) }
+        binding.playDragonButton.setOnClickListener { handlePetInteraction(PetInteraction.PLAY) }
+        binding.restDragonButton.setOnClickListener { handlePetInteraction(PetInteraction.REST) }
         binding.equipDragonButton.setOnClickListener { showEquipmentDialog() }
 
         render(HeadUpRepository.currentState(requireContext()))
@@ -95,7 +95,7 @@ class ChallengeFragment : Fragment() {
                 else -> false
             }
         }
-        binding.dragonOrb.setOnClickListener { handleDragonInteraction(DragonInteraction.PLAY) }
+        binding.dragonOrb.setOnClickListener { handlePetInteraction(PetInteraction.PLAY) }
     }
 
     private fun render(state: HeadUpUiState) {
@@ -103,10 +103,10 @@ class ChallengeFragment : Fragment() {
         latestState = state
         val feedbackZone = state.feedbackZone
         val zoneColor = ContextCompat.getColor(requireContext(), feedbackZone.colorRes())
-        val selectedDragon = state.selectedDragon
+        val selectedPet = state.selectedPet
         binding.dragonLevelBadge.text = "Lv.${state.dragonLevel}"
-        binding.dragonNameText.text = getString(selectedDragon.nameRes)
-        binding.dragonTraitText.text = getString(selectedDragon.traitRes)
+        binding.dragonNameText.text = getString(selectedPet.nameRes)
+        binding.dragonTraitText.text = getString(selectedPet.traitRes)
         binding.dragonEnergyProgress.progress = state.dragonEnergy
         binding.dragonEnergyText.text = getString(
             if (state.metrics.isGoodPosture) R.string.dragon_energy_good else R.string.dragon_energy_rest,
@@ -119,7 +119,7 @@ class ChallengeFragment : Fragment() {
                 PostureZone.WARNING -> R.string.dragon_mood_warning_format
                 PostureZone.DANGER -> R.string.dragon_mood_danger_format
             },
-            getString(selectedDragon.nameRes),
+            getString(selectedPet.nameRes),
         )
         binding.dragonMoodText.setTextColor(zoneColor)
 
@@ -129,8 +129,8 @@ class ChallengeFragment : Fragment() {
             binding.dragonOrb.setBackgroundResource(orbBackground)
         }
         renderDragonVisuals(state)
-        if (renderedSelectorDragonId != state.selectedDragonId) {
-            renderedSelectorDragonId = state.selectedDragonId
+        if (renderedSelectorDragonId != state.selectedPetId) {
+            renderedSelectorDragonId = state.selectedPetId
             renderDragonSelector(state)
         }
 
@@ -150,13 +150,14 @@ class ChallengeFragment : Fragment() {
     private fun renderDragonSelector(state: HeadUpUiState) {
         val container = binding.dragonSelectorContainer
         container.removeAllViews()
-        VisionDragonCatalog.all.forEach { dragon ->
+        var selectedChip: View? = null
+        VirtualPetCatalog.all.forEach { pet ->
             val chip = TextView(requireContext()).apply {
-                text = getString(R.string.dragon_selector_format, dragon.icon, getString(dragon.nameRes))
+                text = getString(R.string.dragon_selector_format, pet.icon, getString(pet.nameRes))
                 setTextColor(
                     ContextCompat.getColor(
                         requireContext(),
-                        if (dragon.id == state.selectedDragonId) R.color.headup_text_primary else R.color.headup_text_secondary,
+                        if (pet.id == state.selectedPetId) R.color.headup_text_primary else R.color.headup_text_secondary,
                     ),
                 )
                 textSize = 13f
@@ -164,26 +165,32 @@ class ChallengeFragment : Fragment() {
                 gravity = android.view.Gravity.CENTER
                 minWidth = 112.dp()
                 setPadding(12.dp(), 0, 12.dp(), 0)
-                setBackgroundResource(if (dragon.id == state.selectedDragonId) R.drawable.bg_headup_nav_item_selected else R.drawable.bg_headup_icon_button)
+                setBackgroundResource(if (pet.id == state.selectedPetId) R.drawable.bg_headup_nav_item_selected else R.drawable.bg_headup_icon_button)
                 setOnClickListener {
-                    HeadUpRepository.selectDragon(requireContext(), dragon.id)
-                    Toast.makeText(requireContext(), getString(R.string.dragon_selected, getString(dragon.nameRes)), Toast.LENGTH_SHORT).show()
+                    HeadUpRepository.selectPet(requireContext(), pet.id)
+                    Toast.makeText(requireContext(), getString(R.string.pet_selected, getString(pet.nameRes)), Toast.LENGTH_SHORT).show()
                 }
             }
             val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 44.dp()).apply {
                 marginEnd = 8.dp()
             }
             container.addView(chip, params)
+            if (pet.id == state.selectedPetId) selectedChip = chip
+        }
+        binding.dragonSelectorScroll.post {
+            val target = selectedChip ?: return@post
+            binding.dragonSelectorScroll.smoothScrollTo((target.left - 12.dp()).coerceAtLeast(0), 0)
         }
     }
 
-    private fun handleDragonInteraction(interaction: DragonInteraction) {
-        HeadUpRepository.interactWithDragon(requireContext(), interaction)
-        animateDragonInteraction(interaction)
+    private fun handlePetInteraction(interaction: PetInteraction) {
+        HeadUpRepository.interactWithPet(requireContext(), interaction)
+        animatePetInteraction(interaction)
+        val petName = getString(latestState.selectedPet.nameRes)
         val message = when (interaction) {
-            DragonInteraction.FEED -> R.string.dragon_fed
-            DragonInteraction.PLAY -> R.string.dragon_played
-            DragonInteraction.REST -> R.string.dragon_rested
+            PetInteraction.FEED -> getString(R.string.pet_fed_format, petName)
+            PetInteraction.PLAY -> getString(R.string.pet_played_format, petName)
+            PetInteraction.REST -> getString(R.string.pet_rested_format, petName)
         }
         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
     }
@@ -231,13 +238,13 @@ class ChallengeFragment : Fragment() {
     }
 
     private fun renderDragonVisuals(state: HeadUpUiState) {
-        val selectedDragon = state.selectedDragon
+        val selectedPet = state.selectedPet
         when {
             state.isPostureAlertActive -> showAnimatedDragon(
-                R.raw.dragon_angry_red,
-                R.drawable.vision_dragon_angry_cutout,
+                selectedPet.alertAnimationRes,
+                selectedPet.alertImageRes,
             )
-            else -> showAnimatedDragon(happyAnimationFor(selectedDragon.id), selectedDragon.imageRes)
+            else -> showAnimatedDragon(selectedPet.happyAnimationRes, selectedPet.happyImageRes)
         }
 
         binding.dragonCapeOverlay.visibility =
@@ -295,15 +302,6 @@ class ChallengeFragment : Fragment() {
         }
     }
 
-    @RawRes
-    private fun happyAnimationFor(dragonId: String): Int = when (dragonId) {
-        "ember_red" -> R.raw.dragon_happy_red
-        "mint_leaf" -> R.raw.dragon_happy_mint
-        "violet_star" -> R.raw.dragon_happy_violet
-        "sunny_gold" -> R.raw.dragon_happy_gold
-        else -> R.raw.dragon_happy_blue
-    }
-
     private fun dragonVisualTarget(): View =
         if (binding.dragonVideoView.visibility == View.VISIBLE) binding.dragonVideoView else binding.dragonImageView
 
@@ -324,14 +322,14 @@ class ChallengeFragment : Fragment() {
             .start()
     }
 
-    private fun animateDragonInteraction(interaction: DragonInteraction) {
+    private fun animatePetInteraction(interaction: PetInteraction) {
         stopDragonAnimation()
         val target = dragonVisualTarget()
         target.animate().cancel()
         target.rotation = 0f
         target.alpha = 1f
         when (interaction) {
-            DragonInteraction.FEED -> {
+            PetInteraction.FEED -> {
                 dragonVisualTarget().animate()
                 .scaleX(1.12f)
                 .scaleY(1.12f)
@@ -342,7 +340,7 @@ class ChallengeFragment : Fragment() {
                 .start()
             }
 
-            DragonInteraction.PLAY -> {
+            PetInteraction.PLAY -> {
                 val playingTarget = dragonVisualTarget()
                 ValueAnimator.ofFloat(0f, -10f, 10f, -7f, 7f, 0f).apply {
                     duration = 520L
@@ -355,7 +353,7 @@ class ChallengeFragment : Fragment() {
                 }
             }
 
-            DragonInteraction.REST -> target.animate()
+            PetInteraction.REST -> target.animate()
                 .alpha(0.72f)
                 .translationY(12f)
                 .scaleX(0.94f)

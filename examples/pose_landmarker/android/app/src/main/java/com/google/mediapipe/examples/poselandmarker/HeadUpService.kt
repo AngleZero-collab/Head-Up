@@ -1,13 +1,17 @@
 package com.google.mediapipe.examples.poselandmarker
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.animation.ValueAnimator
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
@@ -45,6 +49,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
+import com.google.mediapipe.examples.poselandmarker.fragment.PermissionsFragment
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -56,10 +61,15 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     companion object {
         const val ACTION_PAUSE_CAMERA = "com.google.mediapipe.examples.poselandmarker.PAUSE_CAMERA"
         const val ACTION_RESUME_CAMERA = "com.google.mediapipe.examples.poselandmarker.RESUME_CAMERA"
+        const val ACTION_START_OBSERVATION = "com.google.mediapipe.examples.poselandmarker.START_OBSERVATION"
+        const val ACTION_START_GUARDING = "com.google.mediapipe.examples.poselandmarker.START_GUARDING"
+        const val ACTION_STOP_MONITORING = "com.google.mediapipe.examples.poselandmarker.STOP_MONITORING"
         const val ACTION_REFRESH_OVERLAYS = "com.google.mediapipe.examples.poselandmarker.REFRESH_OVERLAYS"
         const val ACTION_TEST_WARNING = "com.google.mediapipe.examples.poselandmarker.TEST_WARNING"
         private const val CHANNEL_ID = "HeadUpServiceChannel"
+        private const val REMINDER_CHANNEL_ID = "HeadUpPostureReminderChannel"
         private const val NOTIFICATION_ID = 1
+        private const val REMINDER_NOTIFICATION_ID = 2
         private const val TAG = "HeadUpService"
         private const val WARNING_DELAY_MS = 3_000L
         private const val WARNING_CLEAR_GRACE_MS = 900L
@@ -69,6 +79,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         private const val WARNING_VIBRATION_MS = 260L
         private const val VIBRATION_COOLDOWN_MS = 1_500L
         private const val ALARM_COOLDOWN_MS = 3_000L
+        private const val REMINDER_COOLDOWN_MS = 60_000L
         private const val PET_SIZE_DP = 112
         private const val HAPPY_PET_HIDE_DELAY_MS = 1_800L
     }
@@ -95,7 +106,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var petMotionAnimator: ValueAnimator? = null
     private var petLayoutParams: WindowManager.LayoutParams? = null
     private var currentPetMood: PetMood? = null
-    private var currentPetDragonId: String? = null
+    private var currentPetId: String? = null
     private var currentPetBackgroundResId = 0
     private var wasShowingBadPet = false
     private var hidePetRunnable: Runnable? = null
@@ -116,6 +127,18 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var lastProcessedTimestamp = Long.MIN_VALUE
     private var toneGenerator: ToneGenerator? = null
     private var lastAlarmTime = 0L
+    private var lastReminderTime = Long.MIN_VALUE
+    private var lastInferenceDispatchTime = 0L
+    private var screenReceiverRegistered = false
+
+    private val screenStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> pauseForScreenOff()
+                Intent.ACTION_SCREEN_ON -> resumeAfterScreenOn()
+            }
+        }
+    }
 
     private enum class PetMood {
         ANGRY,
@@ -132,6 +155,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         backgroundExecutor = Executors.newSingleThreadExecutor()
         toneGenerator = ToneGenerator(AudioManager.STREAM_ALARM, 80)
         createNotificationChannel()
+        registerScreenStateReceiver()
         val state = HeadUpRepository.currentState(this)
         startForegroundCompat(buildNotification(state))
         setupSensors()
@@ -142,7 +166,9 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 wasShowingBadPet = false
                 hidePetOverlay()
             }
-            if (isCameraPaused || HeadUpRepository.isForegroundScanActive(this)) {
+            if ((isCameraPaused || HeadUpRepository.isForegroundScanActive(this)) &&
+                HeadUpRepository.getMonitoringMode(this) == MonitoringMode.GUARDING
+            ) {
                 processPostureMetrics(updatedState.metrics)
             }
         }
@@ -150,13 +176,74 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
+            ACTION_START_OBSERVATION -> beginMonitoring(MonitoringMode.OBSERVATION)
+            ACTION_START_GUARDING -> beginMonitoring(MonitoringMode.GUARDING)
+            ACTION_STOP_MONITORING -> {
+                stopMonitoringAndSelf()
+                return START_NOT_STICKY
+            }
             ACTION_PAUSE_CAMERA -> pauseHiddenCamera()
-            ACTION_RESUME_CAMERA -> resumeHiddenCamera()
+            ACTION_RESUME_CAMERA -> resumeRequestedMonitoring()
             ACTION_REFRESH_OVERLAYS -> refreshOverlayPreferences()
             ACTION_TEST_WARNING -> testWarningOverlay()
-            else -> if (HeadUpRepository.isForegroundScanActive(this)) pauseHiddenCamera() else resumeHiddenCamera()
+            else -> {
+                if (HeadUpRepository.getMonitoringMode(this) == MonitoringMode.OFF) {
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                resumeRequestedMonitoring()
+            }
         }
         return START_STICKY
+    }
+
+    private fun beginMonitoring(mode: MonitoringMode) {
+        if (!PermissionsFragment.hasPermissions(this)) {
+            HeadUpRepository.setMonitoringRuntimeMode(this, MonitoringMode.PERMISSION_REQUIRED)
+            MonitoringSessionRecorder.stop(MonitoringMode.PERMISSION_REQUIRED)
+            pauseHiddenCamera()
+            return
+        }
+        HeadUpRepository.startMonitoring(this, mode)
+        MonitoringSessionRecorder.start(this, mode, HeadUpRepository.isLeaderboardOptedIn(this))
+        resetDangerTimer()
+        if (HeadUpRepository.isForegroundScanActive(this)) pauseHiddenCamera() else resumeHiddenCamera()
+    }
+
+    private fun resumeRequestedMonitoring() {
+        val requested = HeadUpRepository.getRequestedMonitoringMode(this)
+        if (!requested.recordsPosture) return
+        if (!PermissionsFragment.hasPermissions(this)) {
+            HeadUpRepository.setMonitoringRuntimeMode(this, MonitoringMode.PERMISSION_REQUIRED)
+            MonitoringSessionRecorder.stop(MonitoringMode.PERMISSION_REQUIRED)
+            pauseHiddenCamera()
+            return
+        }
+        HeadUpRepository.setMonitoringRuntimeMode(this, requested)
+        MonitoringSessionRecorder.start(this, requested, HeadUpRepository.isLeaderboardOptedIn(this))
+        if (HeadUpRepository.isForegroundScanActive(this)) pauseHiddenCamera() else resumeHiddenCamera()
+    }
+
+    private fun stopMonitoringAndSelf() {
+        MonitoringSessionRecorder.stop(MonitoringMode.OFF)
+        HeadUpRepository.stopMonitoring(this)
+        resetDangerTimer()
+        pauseHiddenCamera()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE)
+        else @Suppress("DEPRECATION") stopForeground(true)
+        stopSelf()
+    }
+
+    private fun pauseForScreenOff() {
+        if (!HeadUpRepository.getMonitoringMode(this).recordsPosture) return
+        HeadUpRepository.setMonitoringRuntimeMode(this, MonitoringMode.PAUSED)
+        MonitoringSessionRecorder.stop(MonitoringMode.PAUSED)
+        pauseHiddenCamera()
+    }
+
+    private fun resumeAfterScreenOn() {
+        if (HeadUpRepository.getMonitoringMode(this) == MonitoringMode.OFF) return
+        resumeRequestedMonitoring()
     }
 
     private fun pauseHiddenCamera() {
@@ -177,6 +264,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     }
 
     private fun resumeHiddenCamera() {
+        if (!HeadUpRepository.getMonitoringMode(this).recordsPosture) return
         if (HeadUpRepository.isForegroundScanActive(this) ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
         ) return
@@ -224,7 +312,12 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                     .also { analysis ->
                         analysis.setAnalyzer(backgroundExecutor) { imageProxy ->
                             try {
-                                if (canOwnBackgroundCamera(token) && helperReady && !poseLandmarkerHelper.isClose()) {
+                                val now = SystemClock.elapsedRealtime()
+                                val minimumFrameInterval = 1_000L / HeadUpRepository.getTargetInferenceFps(this)
+                                if (canOwnBackgroundCamera(token) && helperReady && !poseLandmarkerHelper.isClose() &&
+                                    now - lastInferenceDispatchTime >= minimumFrameInterval
+                                ) {
+                                    lastInferenceDispatchTime = now
                                     poseLandmarkerHelper.detectLiveStream(imageProxy, true)
                                 }
                             } catch (error: Throwable) {
@@ -245,6 +338,9 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                     Log.e(TAG, "Unable to bind background camera", error)
                     imageAnalyzer?.clearAnalyzer()
                     provider.unbindAll()
+                    HeadUpRepository.setMonitoringRuntimeMode(this, MonitoringMode.CAMERA_UNAVAILABLE)
+                    MonitoringSessionRecorder.recordUnknown()
+                    MonitoringSessionRecorder.stop(MonitoringMode.CAMERA_UNAVAILABLE)
                 }
             },
             ContextCompat.getMainExecutor(this),
@@ -258,7 +354,12 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
 
     override fun onResults(resultBundle: PoseLandmarkerHelper.ResultBundle) {
         if (!canOwnBackgroundCamera(cameraOwnershipToken)) return
-        val landmarks = resultBundle.results.firstOrNull()?.landmarks()?.firstOrNull() ?: return
+        MonitoringSessionRecorder.onInference()
+        val landmarks = resultBundle.results.firstOrNull()?.landmarks()?.firstOrNull()
+        if (landmarks == null) {
+            MonitoringSessionRecorder.recordUnknown()
+            return
+        }
         val metrics = PostureAnalyzer.analyzeMediaPipe(
             landmarks = landmarks,
             deviceTilt = lastDeviceTilt,
@@ -266,12 +367,21 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             calibration = HeadUpRepository.getCalibration(this),
             inputImageWidth = resultBundle.inputImageWidth,
             inputImageHeight = resultBundle.inputImageHeight,
-        ) ?: return
+        )
+        if (metrics == null) {
+            MonitoringSessionRecorder.recordUnknown()
+            return
+        }
         processPostureMetrics(metrics)
         HeadUpRepository.recordMetrics(this, metrics, source = "background")
+        MonitoringSessionRecorder.recordMetrics(metrics)
     }
 
     private fun processPostureMetrics(metrics: PostureMetrics) {
+        if (HeadUpRepository.getMonitoringMode(this) != MonitoringMode.GUARDING) {
+            if (postureAlertActive || badPostureStartTime != 0L) resetDangerTimer()
+            return
+        }
         if (metrics.timestampMs == lastProcessedTimestamp) return
         lastProcessedTimestamp = metrics.timestampMs
         mainHandler.post {
@@ -307,7 +417,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             return
         }
         val elapsed = SystemClock.elapsedRealtime() - badPostureStartTime
-        if (elapsed >= WARNING_DELAY_MS) {
+        if (ReminderPolicy.shouldArm(HeadUpRepository.getMonitoringMode(this), elapsed, WARNING_DELAY_MS)) {
             activatePostureAlert()
             return
         }
@@ -316,7 +426,10 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         warningDelayRunnable = Runnable {
             warningDelayRunnable = null
             val elapsed = SystemClock.elapsedRealtime() - badPostureStartTime
-            if (badPostureFlag && elapsed >= WARNING_DELAY_MS && !postureAlertActive) activatePostureAlert()
+            if (badPostureFlag &&
+                ReminderPolicy.shouldArm(HeadUpRepository.getMonitoringMode(this@HeadUpService), elapsed, WARNING_DELAY_MS) &&
+                !postureAlertActive
+            ) activatePostureAlert()
         }
         mainHandler.postDelayed(warningDelayRunnable!!, WARNING_DELAY_MS - elapsed)
     }
@@ -325,8 +438,26 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         if (postureAlertActive) return
         postureAlertActive = true
         syncPostureFeedbackOutputs()
-        vibrate(WARNING_VIBRATION_MS)
-        playAlarmIfNeeded()
+        emitReminderIfAllowed()
+    }
+
+    private fun emitReminderIfAllowed() {
+        val now = SystemClock.elapsedRealtime()
+        if (!ReminderPolicy.canEmit(
+                HeadUpRepository.getMonitoringMode(this),
+                now,
+                lastReminderTime.takeIf { it != Long.MIN_VALUE },
+                REMINDER_COOLDOWN_MS,
+            )
+        ) return
+        lastReminderTime = now
+        val sound = HeadUpRepository.isAlarmEnabled(this)
+        val vibration = HeadUpRepository.isReminderVibrationEnabled(this)
+        val visual = HeadUpRepository.isWarningOverlayEnabled(this) || HeadUpRepository.isPetOverlayEnabled(this)
+        if (vibration) vibrate(WARNING_VIBRATION_MS)
+        if (sound) playAlarmIfNeeded()
+        if (HeadUpRepository.isReminderNotificationEnabled(this)) showPostureReminderNotification()
+        MonitoringSessionRecorder.reminderTriggered(sound, vibration, visual)
     }
 
     private fun clearDangerWithGraceIfNeeded() {
@@ -335,7 +466,10 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         if (warningClearRunnable != null) return
         warningClearRunnable = Runnable {
             warningClearRunnable = null
-            if (!badPostureFlag) resetDangerTimer()
+            if (!badPostureFlag) {
+                if (postureAlertActive) MonitoringSessionRecorder.postureCorrected()
+                resetDangerTimer()
+            }
         }
         mainHandler.postDelayed(warningClearRunnable!!, WARNING_CLEAR_GRACE_MS)
     }
@@ -548,34 +682,34 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 petOverlayView = overlay
                 petLayoutParams = params
             } catch (error: Exception) {
-                Log.e(TAG, "Unable to attach Vision Dragon overlay", error)
+                Log.e(TAG, "Unable to attach virtual pet overlay", error)
                 return
             }
         }
 
         val state = HeadUpRepository.currentState(this)
-        val selectedDragon = state.selectedDragon
+        val selectedPet = state.selectedPet
         val fallbackImageRes = if (mood == PetMood.ANGRY) {
-            R.drawable.vision_dragon_angry_cutout
+            selectedPet.alertImageRes
         } else {
-            selectedDragon.imageRes
+            selectedPet.happyImageRes
         }
         val backgroundRes = petOrbBackground(mood, state)
-        val dragonChanged = currentPetDragonId != selectedDragon.id
+        val petChanged = currentPetId != selectedPet.id
         val backgroundChanged = currentPetBackgroundResId != backgroundRes
-        val visualChanged = currentPetMood != mood || dragonChanged || backgroundChanged
+        val visualChanged = currentPetMood != mood || petChanged || backgroundChanged
         if (visualChanged) {
             currentPetMood = mood
-            currentPetDragonId = selectedDragon.id
+            currentPetId = selectedPet.id
             currentPetBackgroundResId = backgroundRes
             overlay.background = ContextCompat.getDrawable(this, backgroundRes)
             petImageView?.setImageResource(fallbackImageRes)
         }
 
         val animationRes = if (mood == PetMood.ANGRY) {
-            R.raw.dragon_angry_red
+            selectedPet.alertAnimationRes
         } else {
-            happyAnimationFor(selectedDragon.id)
+            selectedPet.happyAnimationRes
         }
         petVideoView?.visibility = View.VISIBLE
         val animationReady = petVideoView?.play(animationRes, loop = true) == true
@@ -584,18 +718,10 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         if (visualChanged) animatePetOverlay(mood)
     }
 
-    private fun happyAnimationFor(dragonId: String): Int = when (dragonId) {
-        "ember_red" -> R.raw.dragon_happy_red
-        "mint_leaf" -> R.raw.dragon_happy_mint
-        "violet_star" -> R.raw.dragon_happy_violet
-        "sunny_gold" -> R.raw.dragon_happy_gold
-        else -> R.raw.dragon_happy_blue
-    }
-
     private fun createPetOverlayView(): FrameLayout {
         val paddingPx = dpToPx(7)
         return CircleClipFrameLayout(this).apply {
-            contentDescription = getString(R.string.vision_dragon_animation)
+            contentDescription = getString(R.string.virtual_pet_animation)
             setPadding(paddingPx, paddingPx, paddingPx, paddingPx)
             alpha = 0.98f
             elevation = dpToPx(12).toFloat()
@@ -612,8 +738,8 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             petImageView = ImageView(this@HeadUpService).also { image ->
                 image.isClickable = false
                 image.isFocusable = false
-                image.scaleType = ImageView.ScaleType.CENTER_CROP
-                image.setImageResource(HeadUpRepository.currentState(this@HeadUpService).selectedDragon.imageRes)
+                image.scaleType = ImageView.ScaleType.FIT_CENTER
+                image.setImageResource(HeadUpRepository.currentState(this@HeadUpService).selectedPet.happyImageRes)
                 image.layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT,
@@ -679,7 +805,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
             try {
                 windowManager?.removeView(pet)
             } catch (error: Exception) {
-                Log.w(TAG, "Unable to remove Vision Dragon overlay", error)
+                Log.w(TAG, "Unable to remove virtual pet overlay", error)
             }
         }
         petOverlayView = null
@@ -687,7 +813,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         petImageView = null
         petLayoutParams = null
         currentPetMood = null
-        currentPetDragonId = null
+        currentPetId = null
         currentPetBackgroundResId = 0
     }
 
@@ -761,6 +887,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     }
 
     private fun vibrate(durationMs: Long) {
+        if (!HeadUpRepository.isReminderVibrationEnabled(this)) return
         val now = SystemClock.elapsedRealtime()
         if (now - lastVibrationTime < VIBRATION_COOLDOWN_MS) return
         lastVibrationTime = now
@@ -817,14 +944,34 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
-    private fun buildNotification(state: HeadUpUiState): Notification =
-        NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.notification_guard_title))
+    private fun buildNotification(state: HeadUpUiState): Notification {
+        val stopIntent = PendingIntent.getService(
+            this,
+            9,
+            Intent(this, HeadUpService::class.java).setAction(ACTION_STOP_MONITORING),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(getString(R.string.notification_monitoring_title, localizedMode(state.monitoringMode)))
             .setContentText(getString(R.string.notification_guard_text, state.metrics.angleDegrees, localizedStatus(state.metrics.zone)))
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
+            .addAction(android.R.drawable.ic_media_pause, getString(R.string.guard_stop), stopIntent)
             .build()
+    }
+
+    private fun localizedMode(mode: MonitoringMode): String = getString(
+        when (mode) {
+            MonitoringMode.OFF -> R.string.monitoring_status_off
+            MonitoringMode.OBSERVATION -> R.string.monitoring_status_observation
+            MonitoringMode.GUARDING -> R.string.monitoring_status_guarding
+            MonitoringMode.PAUSED -> R.string.monitoring_status_paused
+            MonitoringMode.CAMERA_UNAVAILABLE -> R.string.monitoring_status_camera_unavailable
+            MonitoringMode.PERMISSION_REQUIRED -> R.string.monitoring_status_permission_required
+            MonitoringMode.ERROR -> R.string.monitoring_status_error
+        },
+    )
 
     private fun localizedStatus(zone: PostureZone): String = when (zone) {
         PostureZone.SAFE -> getString(R.string.posture_status_safe)
@@ -840,11 +987,57 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
                 NotificationManager.IMPORTANCE_LOW,
             )
             getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+            val reminderChannel = NotificationChannel(
+                REMINDER_CHANNEL_ID,
+                getString(R.string.notification_reminder_channel_name),
+                NotificationManager.IMPORTANCE_HIGH,
+            )
+            getSystemService(NotificationManager::class.java)?.createNotificationChannel(reminderChannel)
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun showPostureReminderNotification() {
+        if (!canPostNotifications()) return
+        val openIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(this, REMINDER_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle(getString(R.string.posture_reminder_title))
+            .setContentText(getString(R.string.posture_reminder_message))
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+        try {
+            NotificationManagerCompat.from(this).notify(REMINDER_NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            Log.w(TAG, "Posture reminder skipped because notification permission was revoked")
+        }
+    }
+
+    private fun registerScreenStateReceiver() {
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenStateReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(screenStateReceiver, filter)
+        }
+        screenReceiverRegistered = true
     }
 
     override fun onError(error: String, errorCode: Int) {
         Log.e(TAG, "MediaPipe error: $error")
+        MonitoringSessionRecorder.recordUnknown()
     }
 
     override fun onDestroy() {
@@ -852,6 +1045,11 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         toneGenerator?.release()
         toneGenerator = null
         sensorManager?.unregisterListener(this)
+        if (screenReceiverRegistered) {
+            unregisterReceiver(screenStateReceiver)
+            screenReceiverRegistered = false
+        }
+        MonitoringSessionRecorder.stop(HeadUpRepository.getMonitoringMode(this))
         resetDangerTimer()
         imageAnalyzer?.clearAnalyzer()
         imageAnalyzer = null

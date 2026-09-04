@@ -1,12 +1,13 @@
 package com.google.mediapipe.examples.poselandmarker.fragment
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
@@ -14,11 +15,14 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.mediapipe.examples.poselandmarker.FamilyAccountResponse
+import com.google.mediapipe.examples.poselandmarker.FamilyAccessPolicy
 import com.google.mediapipe.examples.poselandmarker.FamilyCreateRequest
 import com.google.mediapipe.examples.poselandmarker.FamilyDashboardResponse
 import com.google.mediapipe.examples.poselandmarker.FamilyJoinRequest
 import com.google.mediapipe.examples.poselandmarker.FamilyLeaderboardEntryResponse
 import com.google.mediapipe.examples.poselandmarker.FamilyLeaderboardResponse
+import com.google.mediapipe.examples.poselandmarker.FamilyMemberDashboardResponse
+import com.google.mediapipe.examples.poselandmarker.FamilyRenameRequest
 import com.google.mediapipe.examples.poselandmarker.HeadUpApiClient
 import com.google.mediapipe.examples.poselandmarker.HeadUpAuthStore
 import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
@@ -31,13 +35,18 @@ import com.google.mediapipe.examples.poselandmarker.PostureZone
 import com.google.mediapipe.examples.poselandmarker.R
 import com.google.mediapipe.examples.poselandmarker.databinding.FragmentStatsBinding
 import com.google.mediapipe.examples.poselandmarker.databinding.ItemDailyTaskBinding
+import com.google.mediapipe.examples.poselandmarker.databinding.ItemFamilyLeaderboardBinding
+import com.google.mediapipe.examples.poselandmarker.databinding.ItemFamilyMemberBinding
+import com.google.mediapipe.examples.poselandmarker.databinding.ItemFamilyMetricBinding
 import com.google.mediapipe.examples.poselandmarker.databinding.ItemStatCardBinding
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class StatsFragment : Fragment() {
     private var _binding: FragmentStatsBinding? = null
     private val binding get() = _binding!!
     private var latestState = HeadUpUiState()
+    private var latestFamilyAccount: FamilyAccountResponse? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,6 +60,12 @@ class StatsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupAccountControls()
+        binding.guardEffectivenessButton.setOnClickListener {
+            findNavController().navigate(R.id.action_stats_to_guard_effectiveness)
+        }
+        binding.campusChallengeButton.setOnClickListener {
+            findNavController().navigate(R.id.action_stats_to_campus_challenge)
+        }
         renderLocalAccount()
         render(HeadUpRepository.currentState(requireContext()))
         HeadUpRepository.observeState().observe(viewLifecycleOwner) { render(it) }
@@ -63,6 +78,9 @@ class StatsFragment : Fragment() {
         binding.familyCreateButton.setOnClickListener { showCreateFamilyDialog() }
         binding.familyJoinButton.setOnClickListener { showJoinFamilyDialog() }
         binding.familyRefreshButton.setOnClickListener { refreshFamilyAccount(showToast = true) }
+        binding.familyCopyInviteButton.setOnClickListener { copyFamilyInviteCode() }
+        binding.familyRenameButton.setOnClickListener { showRenameFamilyDialog() }
+        binding.familyLeaveButton.setOnClickListener { confirmLeaveFamily() }
     }
 
     private fun renderLocalAccount() {
@@ -72,14 +90,19 @@ class StatsFragment : Fragment() {
         val role = HeadUpAuthStore.role(context)
         val signedIn = HeadUpAuthStore.isSignedIn(context)
         binding.accountPlanTitle.text = getString(R.string.account_management)
-        binding.accountPlanDetail.text = if (signedIn) {
-            getString(R.string.account_personal_format, label, planLabel(plan), roleLabel(role))
-        } else {
-            getString(R.string.account_quick_use_format, label)
-        }
+        binding.accountPlanBadge.text = planLabel(plan)
+        binding.accountIdentityTitle.text = label
+        binding.accountPlanDetail.text = getString(R.string.account_plan_role_format, roleLabel(role))
+        binding.accountPermissionText.text = getString(
+            if (signedIn) R.string.account_personal_permission else R.string.account_quick_use_permission,
+        )
         binding.familyCreateButton.visibility = if (signedIn && plan != "family" && role != "guest") View.VISIBLE else View.GONE
         binding.familyJoinButton.visibility = if (signedIn && plan != "family" && role != "guest") View.VISIBLE else View.GONE
+        binding.familyRefreshButton.visibility = if (signedIn) View.VISIBLE else View.GONE
         binding.familyRefreshButton.isEnabled = signedIn
+        binding.familyEntryActions.visibility = if (signedIn) View.VISIBLE else View.GONE
+        binding.familyInviteRow.visibility = View.GONE
+        binding.familyManagementActions.visibility = View.GONE
         binding.familyManagementSection.visibility = View.GONE
     }
 
@@ -89,7 +112,9 @@ class StatsFragment : Fragment() {
             renderLocalAccount()
             return
         }
-        binding.accountPlanDetail.text = getString(R.string.family_loading)
+        if (latestFamilyAccount == null) {
+            binding.accountPlanDetail.text = getString(R.string.family_loading)
+        }
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val service = HeadUpApiClient.authenticatedService(appContext)
@@ -104,12 +129,13 @@ class StatsFragment : Fragment() {
                 )
                 val dashboard = service.familyDashboard()
                 val leaderboard = service.familyLeaderboard()
+                latestFamilyAccount = account
                 renderFamilyAccount(account, dashboard, leaderboard)
                 if (showToast) {
                     Toast.makeText(requireContext(), R.string.family_refreshed, Toast.LENGTH_SHORT).show()
                 }
             } catch (error: Exception) {
-                renderLocalAccount()
+                if (latestFamilyAccount == null) renderLocalAccount()
                 if (showToast) {
                     Toast.makeText(
                         requireContext(),
@@ -129,25 +155,37 @@ class StatsFragment : Fragment() {
         val userName = account.currentUser.displayName?.takeIf { it.isNotBlank() }
             ?: account.currentUser.email
         val family = account.family
+        val policy = FamilyAccessPolicy.from(account.plan, account.role, family?.id)
+        binding.accountPlanBadge.text = planLabel(account.plan)
+        binding.accountIdentityTitle.text = userName
         binding.accountPlanDetail.text = if (family == null) {
-            getString(
-                R.string.account_personal_format,
-                userName,
-                planLabel(account.plan),
-                roleLabel(account.role),
-            )
+            getString(R.string.account_plan_role_format, roleLabel(account.role))
         } else {
-            getString(
-                R.string.account_family_format,
-                userName,
-                roleLabel(account.role),
-                family.name,
-                family.inviteCode,
-            )
+            getString(R.string.account_family_identity_format, roleLabel(account.role), family.name)
         }
+        binding.accountPermissionText.text = getString(
+            when {
+                policy.canViewAllMemberHealth -> R.string.account_manager_permission
+                policy.isFamilyPlan -> R.string.account_member_permission
+                else -> R.string.account_personal_permission
+            },
+        )
         binding.familyCreateButton.visibility = if (family == null && account.role != "guest") View.VISIBLE else View.GONE
         binding.familyJoinButton.visibility = if (family == null && account.role != "guest") View.VISIBLE else View.GONE
+        binding.familyRefreshButton.visibility = View.VISIBLE
         binding.familyRefreshButton.isEnabled = true
+        binding.familyEntryActions.visibility = View.VISIBLE
+        binding.familyInviteRow.visibility = if (policy.isManager && !family?.inviteCode.isNullOrBlank()) {
+            binding.familyInviteCodeText.text = family?.inviteCode
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+        binding.familyManagementActions.visibility = if (policy.isFamilyPlan) View.VISIBLE else View.GONE
+        binding.familyRenameButton.visibility = if (policy.canManageMembers) View.VISIBLE else View.GONE
+        binding.familyLeaveButton.text = getString(
+            if (policy.isManager) R.string.family_disband else R.string.family_leave,
+        )
 
         if (family == null) {
             binding.familyManagementSection.visibility = View.GONE
@@ -155,59 +193,248 @@ class StatsFragment : Fragment() {
         }
 
         binding.familyManagementSection.visibility = View.VISIBLE
-        binding.familyManagementTitle.text = if (account.isFamilyManager) {
+        binding.familyManagementTitle.text = if (policy.isManager) {
             getString(R.string.family_dashboard)
         } else {
             getString(R.string.family_leaderboard)
         }
-        binding.familyOverviewText.text = if (account.isFamilyManager) {
-            getString(
-                R.string.family_overview_format,
-                family.name,
-                dashboard.memberCount,
-                dashboard.totalSlouchCount,
-                (dashboard.averageAiInterceptRate * 100).toInt(),
-                dashboard.totalPetExp,
-                family.inviteCode,
-            )
+        binding.familyManagementSubtitle.text = if (policy.isManager) {
+            getString(R.string.family_manager_dashboard_subtitle, family.name)
         } else {
-            getString(R.string.family_member_privacy_note, family.name)
+            getString(R.string.family_member_dashboard_subtitle, family.name)
         }
-        renderLeaderboard(leaderboard.leaderboard)
+        binding.familyPrivacyNotice.text = getString(
+            if (policy.isManager) R.string.family_manager_privacy_note else R.string.family_member_privacy_note,
+            family.name,
+        )
+        binding.familyManagerOverview.visibility = if (policy.canViewAllMemberHealth) View.VISIBLE else View.GONE
+        binding.familyMembersTitle.visibility = if (policy.canViewAllMemberHealth) View.VISIBLE else View.GONE
+        binding.familyMembersContainer.visibility = if (policy.canViewAllMemberHealth) View.VISIBLE else View.GONE
+        if (policy.canViewAllMemberHealth) {
+            renderFamilyMetrics(dashboard, leaderboard.leaderboard)
+            renderFamilyMembers(account, dashboard.members)
+        } else {
+            binding.familyMembersContainer.removeAllViews()
+        }
+        renderLeaderboard(account, leaderboard.leaderboard, policy)
     }
 
-    private fun renderLeaderboard(entries: List<FamilyLeaderboardEntryResponse>) {
-        binding.familyLeaderboardContainer.removeAllViews()
-        if (entries.isEmpty()) {
-            binding.familyLeaderboardContainer.addView(accountTextRow(getString(R.string.family_no_rank_data)))
+    private fun renderFamilyMetrics(
+        dashboard: FamilyDashboardResponse,
+        leaderboard: List<FamilyLeaderboardEntryResponse>,
+    ) {
+        val averageScore = leaderboard.map { it.goodPostureScore }.takeIf { it.isNotEmpty() }?.average()?.toInt() ?: 0
+        val activeMembers = dashboard.members.count { it.reportDays > 0 }
+        bindFamilyMetric(
+            binding.familyMemberCountMetric,
+            dashboard.memberCount.toString(),
+            getString(R.string.family_metric_members),
+            R.color.headup_primary,
+        )
+        bindFamilyMetric(
+            binding.familyScoreMetric,
+            "$averageScore%",
+            getString(R.string.family_metric_posture_score),
+            if (averageScore >= 80) R.color.headup_safe else R.color.headup_warning,
+        )
+        bindFamilyMetric(
+            binding.familyAlertMetric,
+            dashboard.totalSlouchCount.toString(),
+            getString(R.string.family_metric_alerts),
+            R.color.headup_danger,
+        )
+        bindFamilyMetric(
+            binding.familyActiveMetric,
+            getString(R.string.family_active_members_format, activeMembers, dashboard.memberCount),
+            getString(R.string.family_metric_active_members),
+            R.color.headup_warning,
+        )
+    }
+
+    private fun bindFamilyMetric(
+        metric: ItemFamilyMetricBinding,
+        value: String,
+        label: String,
+        colorRes: Int,
+    ) {
+        metric.familyMetricValue.text = value
+        metric.familyMetricValue.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
+        metric.familyMetricLabel.text = label
+    }
+
+    private fun renderFamilyMembers(
+        account: FamilyAccountResponse,
+        members: List<FamilyMemberDashboardResponse>,
+    ) {
+        binding.familyMembersContainer.removeAllViews()
+        if (members.isEmpty()) {
+            binding.familyMembersContainer.addView(emptyFamilyRow(getString(R.string.family_no_member_data)))
             return
         }
-        entries.forEach { entry ->
-            binding.familyLeaderboardContainer.addView(
-                accountTextRow(
-                    getString(
-                        R.string.family_rank_format,
-                        entry.rank,
-                        entry.displayName,
-                        entry.goodPostureScore,
-                        entry.slouchCount,
-                    ),
-                ),
+        val inflater = LayoutInflater.from(requireContext())
+        members.forEach { member ->
+            val row = ItemFamilyMemberBinding.inflate(inflater, binding.familyMembersContainer, false)
+            row.familyMemberAvatar.text = initials(member.displayName)
+            row.familyMemberName.text = member.displayName
+            row.familyMemberRole.text = getString(
+                R.string.family_member_role_format,
+                roleLabel(member.role),
+                member.email,
             )
+            row.familyMemberSummary.text = getString(
+                R.string.family_member_health_format,
+                member.slouchCount,
+                (member.aiInterceptRate * 100).toInt(),
+                member.reportDays,
+                member.latestRecordDate ?: getString(R.string.family_never_synced),
+            )
+            val canRemove = account.isFamilyManager && member.userId != account.currentUser.id && member.role != "admin"
+            row.familyMemberRemoveButton.visibility = if (canRemove) View.VISIBLE else View.GONE
+            row.familyMemberRemoveButton.setOnClickListener { confirmRemoveMember(member) }
+            binding.familyMembersContainer.addView(row.root)
         }
     }
 
-    private fun accountTextRow(text: String): TextView =
-        TextView(requireContext()).apply {
+    private fun renderLeaderboard(
+        account: FamilyAccountResponse,
+        entries: List<FamilyLeaderboardEntryResponse>,
+        policy: FamilyAccessPolicy,
+    ) {
+        binding.familyLeaderboardContainer.removeAllViews()
+        if (entries.isEmpty()) {
+            binding.familyLeaderboardContainer.addView(emptyFamilyRow(getString(R.string.family_no_rank_data)))
+            return
+        }
+        val inflater = LayoutInflater.from(requireContext())
+        entries.forEach { entry ->
+            val row = ItemFamilyLeaderboardBinding.inflate(inflater, binding.familyLeaderboardContainer, false)
+            val isCurrentUser = entry.userId == account.currentUser.id
+            row.familyRankValue.text = getString(R.string.family_rank_number_format, entry.rank)
+            row.familyRankName.text = if (isCurrentUser) {
+                getString(R.string.family_current_user_format, entry.displayName)
+            } else {
+                entry.displayName
+            }
+            row.familyRankDetail.text = if (policy.isManager && entry.slouchCount != null) {
+                getString(R.string.family_rank_manager_detail, entry.slouchCount, entry.reportDays ?: 0)
+            } else {
+                getString(R.string.family_rank_member_detail)
+            }
+            row.familyRankScore.text = getString(R.string.family_score_format, entry.goodPostureScore)
+            binding.familyLeaderboardContainer.addView(row.root)
+        }
+    }
+
+    private fun emptyFamilyRow(text: String): View =
+        android.widget.TextView(requireContext()).apply {
             this.text = text
             setTextColor(ContextCompat.getColor(requireContext(), R.color.headup_text_primary))
             textSize = 14f
-            setPadding(0, 8, 0, 8)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
+            setPadding(0, 14, 0, 14)
         }
+
+    private fun initials(name: String): String = name
+        .trim()
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() }
+        .let { parts ->
+            if (parts.size > 1) parts.take(2).joinToString("") { it.take(1) }
+            else parts.firstOrNull()?.take(2).orEmpty()
+        }
+        .uppercase(Locale.getDefault())
+
+    private fun copyFamilyInviteCode() {
+        val inviteCode = latestFamilyAccount?.family?.inviteCode?.takeIf { it.isNotBlank() } ?: return
+        val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.family_invite_code_label), inviteCode))
+        Toast.makeText(requireContext(), R.string.family_invite_copied, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showRenameFamilyDialog() {
+        val account = latestFamilyAccount ?: return
+        val family = account.family ?: return
+        if (!account.isFamilyManager) return
+        val input = EditText(requireContext()).apply {
+            setText(family.name)
+            selectAll()
+            setSingleLine(true)
+        }
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(R.string.family_rename)
+            .setView(input)
+            .setPositiveButton(R.string.family_save, null)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val name = input.text.toString().trim()
+                if (name.isBlank()) {
+                    Toast.makeText(requireContext(), R.string.family_name_required, Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                runFamilyAction {
+                    saveFamilyAccountMetadata(
+                        HeadUpApiClient.authenticatedService(requireContext()).renameFamily(FamilyRenameRequest(name)),
+                    )
+                    Toast.makeText(requireContext(), R.string.family_rename_success, Toast.LENGTH_SHORT).show()
+                    refreshFamilyAccount()
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    private fun confirmRemoveMember(member: FamilyMemberDashboardResponse) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.family_remove_member_title, member.displayName))
+            .setMessage(R.string.family_remove_member_message)
+            .setPositiveButton(R.string.family_remove_member) { _, _ ->
+                runFamilyAction {
+                    saveFamilyAccountMetadata(
+                        HeadUpApiClient.authenticatedService(requireContext()).removeFamilyMember(member.userId),
+                    )
+                    Toast.makeText(requireContext(), R.string.family_remove_member_success, Toast.LENGTH_SHORT).show()
+                    refreshFamilyAccount()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun confirmLeaveFamily() {
+        val account = latestFamilyAccount ?: return
+        val manager = account.isFamilyManager
+        AlertDialog.Builder(requireContext())
+            .setTitle(if (manager) R.string.family_disband_title else R.string.family_leave_title)
+            .setMessage(if (manager) R.string.family_disband_message else R.string.family_leave_message)
+            .setPositiveButton(if (manager) R.string.family_disband else R.string.family_leave) { _, _ ->
+                runFamilyAction {
+                    saveFamilyAccountMetadata(HeadUpApiClient.authenticatedService(requireContext()).leaveFamily())
+                    latestFamilyAccount = null
+                    Toast.makeText(
+                        requireContext(),
+                        if (manager) R.string.family_disband_success else R.string.family_leave_success,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    refreshFamilyAccount()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun saveFamilyAccountMetadata(account: FamilyAccountResponse) {
+        HeadUpAuthStore.updateAccountMetadata(
+            requireContext(),
+            account.currentUser.id,
+            account.currentUser.subscriptionTier,
+            account.currentUser.role,
+            account.currentUser.displayName,
+            account.currentUser.familyId,
+        )
+        latestFamilyAccount = account
+    }
 
     private fun showCreateFamilyDialog() {
         if (!HeadUpAuthStore.isSignedIn(requireContext())) {
@@ -233,7 +460,9 @@ class StatsFragment : Fragment() {
                 }
                 dialog.dismiss()
                 runFamilyAction {
-                    HeadUpApiClient.authenticatedService(requireContext()).createFamily(FamilyCreateRequest(name))
+                    saveFamilyAccountMetadata(
+                        HeadUpApiClient.authenticatedService(requireContext()).createFamily(FamilyCreateRequest(name)),
+                    )
                     Toast.makeText(requireContext(), R.string.family_create_success, Toast.LENGTH_SHORT).show()
                     refreshFamilyAccount()
                 }
@@ -266,10 +495,12 @@ class StatsFragment : Fragment() {
                 }
                 dialog.dismiss()
                 runFamilyAction {
-                    HeadUpApiClient.authenticatedService(requireContext()).joinFamily(
-                        FamilyJoinRequest(
-                            inviteCode = inviteCode,
-                            displayName = HeadUpAuthStore.displayName(requireContext()),
+                    saveFamilyAccountMetadata(
+                        HeadUpApiClient.authenticatedService(requireContext()).joinFamily(
+                            FamilyJoinRequest(
+                                inviteCode = inviteCode,
+                                displayName = HeadUpAuthStore.displayName(requireContext()),
+                            ),
                         ),
                     )
                     Toast.makeText(requireContext(), R.string.family_join_success, Toast.LENGTH_SHORT).show()
@@ -301,6 +532,9 @@ class StatsFragment : Fragment() {
         _binding?.familyCreateButton?.isEnabled = enabled
         _binding?.familyJoinButton?.isEnabled = enabled
         _binding?.familyRefreshButton?.isEnabled = enabled
+        _binding?.familyCopyInviteButton?.isEnabled = enabled
+        _binding?.familyRenameButton?.isEnabled = enabled
+        _binding?.familyLeaveButton?.isEnabled = enabled
     }
 
     private fun planLabel(plan: String): String = when (plan) {

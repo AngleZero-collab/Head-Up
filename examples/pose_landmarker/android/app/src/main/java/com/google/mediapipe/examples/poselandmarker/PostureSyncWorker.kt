@@ -25,26 +25,45 @@ class PostureSyncWorker(
 ) : CoroutineWorker(appContext, workerParameters) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            val dao = PostureDatabase.getInstance(applicationContext).postureRecordDao()
+            val database = PostureDatabase.getInstance(applicationContext)
+            val dao = database.postureRecordDao()
+            val monitoringDao = database.monitoringDao()
             val pending = dao.unsyncedRecords(SYNC_BATCH_LIMIT)
-            if (pending.isEmpty()) return@withContext Result.success()
+            val pendingAggregates = monitoringDao.unsyncedAggregates(AGGREGATE_BATCH_LIMIT)
+            if (pending.isEmpty() && pendingAggregates.isEmpty()) return@withContext Result.success()
 
             if (!ensureSyncToken()) {
                 return@withContext Result.retry()
             }
-            val payload = pending.toDailySyncPayload()
-            if (payload.isEmpty()) return@withContext Result.success()
-
-            val response = HeadUpApiClient.authenticatedService(applicationContext)
-                .syncDailyReports(payload)
-            if (response.isSuccessful) {
-                dao.markSynced(pending.map { it.id }, System.currentTimeMillis())
-                Result.success()
-            } else if (response.code() in 500..599 || response.code() == 429) {
-                Result.retry()
-            } else {
-                Result.failure()
+            val service = HeadUpApiClient.authenticatedService(applicationContext)
+            if (pendingAggregates.isNotEmpty()) {
+                val aggregateResponse = service.syncPostureAggregates(
+                    PostureAggregateBatchRequest(pendingAggregates.map { it.toUpload() }),
+                )
+                if (aggregateResponse.isSuccessful) {
+                    monitoringDao.markAggregatesSynced(
+                        pendingAggregates.map { it.aggregateId },
+                        System.currentTimeMillis(),
+                    )
+                } else if (aggregateResponse.code() in 500..599 || aggregateResponse.code() == 429) {
+                    return@withContext Result.retry()
+                } else {
+                    return@withContext Result.failure()
+                }
             }
+
+            val payload = pending.toDailySyncPayload()
+            if (payload.isNotEmpty()) {
+                val response = service.syncDailyReports(payload)
+                if (response.isSuccessful) {
+                    dao.markSynced(pending.map { it.id }, System.currentTimeMillis())
+                } else if (response.code() in 500..599 || response.code() == 429) {
+                    return@withContext Result.retry()
+                } else {
+                    return@withContext Result.failure()
+                }
+            }
+            Result.success()
         } catch (_: Exception) {
             Log.w(TAG, "Posture sync failed; WorkManager will retry later.")
             Result.retry()
@@ -86,6 +105,26 @@ class PostureSyncWorker(
                 )
             }
 
+    private fun DailyPostureAggregateEntity.toUpload() = PostureAggregateUpload(
+        aggregateId = aggregateId,
+        recordDate = recordDate,
+        mode = mode,
+        greenSeconds = greenSeconds,
+        yellowSeconds = yellowSeconds,
+        redSeconds = redSeconds,
+        unknownSeconds = unknownSeconds,
+        rawPoints = rawPoints,
+        challengePoints = challengePoints,
+        longestGreenStreakSeconds = longestGreenStreakSeconds,
+        greenStreakCount = greenStreakCount,
+        greenStreakTotalSeconds = greenStreakTotalSeconds,
+        reminderCount = reminderCount,
+        successfulCorrections = successfulCorrections,
+        recoverySecondsTotal = recoverySecondsTotal,
+        scoringVersion = scoringVersion,
+        idempotencyKey = idempotencyKey,
+    )
+
     private fun List<PostureRecordEntity>.countDangerEvents(): Int {
         var previousDanger = false
         var events = 0
@@ -110,6 +149,7 @@ class PostureSyncWorker(
     companion object {
         private const val TAG = "PostureSyncWorker"
         private const val SYNC_BATCH_LIMIT = 1_000
+        private const val AGGREGATE_BATCH_LIMIT = 100
         private val DATE_FORMAT = object : ThreadLocal<SimpleDateFormat>() {
             override fun initialValue(): SimpleDateFormat =
                 SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {

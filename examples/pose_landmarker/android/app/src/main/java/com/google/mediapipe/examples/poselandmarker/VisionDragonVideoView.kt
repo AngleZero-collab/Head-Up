@@ -43,7 +43,9 @@ class VisionDragonVideoView @JvmOverloads constructor(
     }
 
     fun releasePlayer() {
-        (drawable as? AnimatedImageDrawable)?.stop()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            (drawable as? AnimatedImageDrawable)?.stop()
+        }
         setImageDrawable(null)
     }
 
@@ -58,7 +60,9 @@ class VisionDragonVideoView @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        (drawable as? AnimatedImageDrawable)?.stop()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            (drawable as? AnimatedImageDrawable)?.stop()
+        }
         super.onDetachedFromWindow()
     }
 

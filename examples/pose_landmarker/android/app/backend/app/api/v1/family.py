@@ -21,6 +21,7 @@ from app.schemas import (
     FamilyMemberDashboard,
     FamilyMemberRead,
     FamilyRead,
+    FamilyRename,
     UserRead,
 )
 
@@ -57,6 +58,15 @@ def member_read(user: User) -> FamilyMemberRead:
         role=user.role,
         subscription_tier=normalized_plan(user),
         is_manager=user.role in {"admin", "family_manager"},
+    )
+
+
+def family_read(family: Family, include_management_fields: bool) -> FamilyRead:
+    return FamilyRead(
+        id=family.id,
+        name=family.name,
+        invite_code=family.invite_code if include_management_fields else None,
+        owner_user_id=family.owner_user_id if include_management_fields else None,
     )
 
 
@@ -171,7 +181,7 @@ async def read_family_account(
         role=current_user.role,
         is_family_manager=is_family_manager(current_user),
         can_view_family_dashboard=is_family_manager(current_user) or family is None,
-        family=FamilyRead.model_validate(family) if family else None,
+        family=family_read(family, is_family_manager(current_user)) if family else None,
         members=[member_read(member) for member in members],
     )
 
@@ -240,6 +250,92 @@ async def join_family(
     return await read_family_account(session, current_user)
 
 
+@router.patch("/settings", response_model=FamilyAccountRead)
+async def rename_family(
+    payload: FamilyRename,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> FamilyAccountRead:
+    family = await family_for_user(session, current_user)
+    if family is None or not is_family_manager(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the family manager can change family settings.",
+        )
+    family.name = payload.name.strip()
+    try:
+        await session.commit()
+        await session.refresh(family)
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to rename family") from exc
+    return await read_family_account(session, current_user)
+
+
+@router.delete("/members/{member_id}", response_model=FamilyAccountRead)
+async def remove_family_member(
+    member_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> FamilyAccountRead:
+    family = await family_for_user(session, current_user)
+    if family is None or not is_family_manager(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the family manager can remove a member.",
+        )
+    if member_id == current_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The manager cannot remove their own account.")
+
+    result = await session.execute(
+        select(User).where(User.id == member_id, User.family_id == family.id)
+    )
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family member not found.")
+
+    member.family_id = None
+    member.subscription_tier = "individual"
+    member.role = "user"
+    try:
+        await session.commit()
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to remove family member") from exc
+    return await read_family_account(session, current_user)
+
+
+@router.post("/leave", response_model=FamilyAccountRead)
+async def leave_family(
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> FamilyAccountRead:
+    family = await family_for_user(session, current_user)
+    if family is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User does not belong to a family.")
+
+    if is_family_manager(current_user):
+        members = await family_members(session, family.id)
+        if len(members) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Remove other members before disbanding the family.",
+            )
+
+    current_user.family_id = None
+    current_user.subscription_tier = "individual"
+    current_user.role = "user"
+    if family.owner_user_id == current_user.id:
+        await session.delete(family)
+    try:
+        await session.commit()
+        await session.refresh(current_user)
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to leave family") from exc
+    return await read_family_account(session, current_user)
+
+
 @router.get("/leaderboard", response_model=FamilyLeaderboardResponse)
 async def read_family_leaderboard(
     days: int = Query(default=7, ge=1, le=90),
@@ -249,10 +345,24 @@ async def read_family_leaderboard(
     family = await family_for_user(session, current_user)
     members = await family_members(session, family.id) if family else [current_user]
     summaries = await summarize_members(session, members, days)
+    entries = leaderboard_from_summaries(summaries)
+    if family and not is_family_manager(current_user):
+        entries = [
+            entry.model_copy(
+                update={
+                    "slouch_count": None,
+                    "ai_intercept_rate": None,
+                    "pet_exp": None,
+                    "report_days": None,
+                    "latest_record_date": None,
+                }
+            )
+            for entry in entries
+        ]
     return FamilyLeaderboardResponse(
         plan=normalized_plan(current_user),
-        family=FamilyRead.model_validate(family) if family else None,
-        leaderboard=leaderboard_from_summaries(summaries),
+        family=family_read(family, is_family_manager(current_user)) if family else None,
+        leaderboard=entries,
     )
 
 
@@ -278,7 +388,7 @@ async def read_family_dashboard(
     )
     return FamilyDashboardResponse(
         plan=normalized_plan(current_user),
-        family=FamilyRead.model_validate(family) if family else None,
+        family=family_read(family, is_family_manager(current_user)) if family else None,
         member_count=len(summaries),
         total_slouch_count=total_slouch,
         average_ai_intercept_rate=round(average_ai, 4),

@@ -25,7 +25,8 @@ object HeadUpRepository {
     private const val KEY_DRAGON_ENERGY = "dragon_energy"
     private const val KEY_DRAGON_LEVEL = "dragon_level"
     private const val KEY_DRAGON_BOND = "dragon_bond"
-    private const val KEY_SELECTED_DRAGON = "selected_dragon"
+    // Keep the original preference value so existing installs retain their selected pet.
+    private const val KEY_SELECTED_PET = "selected_dragon"
     private const val KEY_COINS = "coins"
     private const val KEY_LAST_UPDATED = "last_updated"
     private const val KEY_STATE_DAY = "state_day"
@@ -41,6 +42,12 @@ object HeadUpRepository {
     private const val KEY_CLAIMED_TASKS = "claimed_tasks"
     private const val KEY_ALARM_ENABLED = "alarm_enabled"
     private const val KEY_BACKGROUND_GUARD_ENABLED = "background_guard_enabled"
+    private const val KEY_MONITORING_MODE = "monitoring_mode"
+    private const val KEY_REQUESTED_MONITORING_MODE = "requested_monitoring_mode"
+    private const val KEY_REMINDER_VIBRATION_ENABLED = "reminder_vibration_enabled"
+    private const val KEY_REMINDER_NOTIFICATION_ENABLED = "reminder_notification_enabled"
+    private const val KEY_TARGET_INFERENCE_FPS = "target_inference_fps"
+    private const val KEY_LEADERBOARD_OPT_IN = "leaderboard_opt_in"
     private const val KEY_WARNING_OVERLAY_ENABLED = "warning_overlay_enabled"
     private const val KEY_PET_OVERLAY_ENABLED = "pet_overlay_enabled"
     private const val KEY_CALIBRATION_REQUESTED = "calibration_requested"
@@ -290,22 +297,22 @@ object HeadUpRepository {
         return base + item.id
     }
 
-    fun selectDragon(context: Context, dragonId: String): Boolean {
-        if (VisionDragonCatalog.all.none { it.id == dragonId }) return false
+    fun selectPet(context: Context, petId: String): Boolean {
+        if (VirtualPetCatalog.all.none { it.id == petId }) return false
         val state = loadState(context)
-        val next = state.copy(selectedDragonId = dragonId)
+        val next = state.copy(selectedPetId = petId)
         saveState(context, next)
         stateLiveData.postValue(next)
         return true
     }
 
-    fun interactWithDragon(context: Context, interaction: DragonInteraction): HeadUpUiState {
+    fun interactWithPet(context: Context, interaction: PetInteraction): HeadUpUiState {
         val state = loadState(context)
         val previousBondLevel = state.dragonBond / 100
         val (energyDelta, bondDelta, coinDelta) = when (interaction) {
-            DragonInteraction.FEED -> Triple(16, 5, 0)
-            DragonInteraction.PLAY -> Triple(-6, 14, 2)
-            DragonInteraction.REST -> Triple(12, 7, 0)
+            PetInteraction.FEED -> Triple(16, 5, 0)
+            PetInteraction.PLAY -> Triple(-6, 14, 2)
+            PetInteraction.REST -> Triple(12, 7, 0)
         }
         val nextBond = (state.dragonBond + bondDelta).coerceIn(0, 999)
         val next = state.copy(
@@ -317,6 +324,12 @@ object HeadUpRepository {
         saveState(context, next)
         stateLiveData.postValue(next)
         return next
+    }
+
+    @Synchronized
+    fun updateLiveMetrics(context: Context, metrics: PostureMetrics): HeadUpUiState {
+        val previous = loadState(context.applicationContext)
+        return previous.copy(metrics = metrics).also { stateLiveData.postValue(it) }
     }
 
     fun refreshDashboard(context: Context) {
@@ -333,7 +346,18 @@ object HeadUpRepository {
         stateLiveData.postValue(HeadUpUiState())
         dashboardLiveData.postValue(PostureDashboard())
         executeDatabaseTask {
-            PostureDatabase.getInstance(appContext).postureRecordDao().deleteAll()
+            val database = PostureDatabase.getInstance(appContext)
+            database.postureRecordDao().deleteAll()
+            database.monitoringDao().run {
+                deleteSessions()
+                deleteWindows()
+                deleteAggregates()
+                deleteReminders()
+                deleteEducationProfiles()
+                deleteEnrollments()
+                deleteLeaderboardCache()
+                deleteSyncQueue()
+            }
         }
         PostureAnalyzer.resetSmoothing()
     }
@@ -358,7 +382,80 @@ object HeadUpRepository {
 
     fun setBackgroundGuardEnabled(context: Context, enabled: Boolean) {
         getPrefs(context).edit { putBoolean(KEY_BACKGROUND_GUARD_ENABLED, enabled) }
+        if (getMonitoringMode(context).recordsPosture) {
+            startMonitoring(context, if (enabled) MonitoringMode.GUARDING else MonitoringMode.OBSERVATION)
+        }
         currentState(context)
+    }
+
+    fun getMonitoringMode(context: Context): MonitoringMode =
+        getPrefs(context).getString(KEY_MONITORING_MODE, MonitoringMode.OFF.name)
+            ?.let { runCatching { MonitoringMode.valueOf(it) }.getOrNull() }
+            ?: MonitoringMode.OFF
+
+    fun getRequestedMonitoringMode(context: Context): MonitoringMode =
+        getPrefs(context).getString(KEY_REQUESTED_MONITORING_MODE, null)
+            ?.let { runCatching { MonitoringMode.valueOf(it) }.getOrNull() }
+            ?.takeIf { it.recordsPosture }
+            ?: if (isBackgroundGuardEnabled(context)) MonitoringMode.GUARDING else MonitoringMode.OBSERVATION
+
+    fun isMonitoringEnabled(context: Context): Boolean =
+        getMonitoringMode(context) != MonitoringMode.OFF
+
+    @Synchronized
+    fun startMonitoring(context: Context, mode: MonitoringMode) {
+        require(mode.recordsPosture)
+        getPrefs(context).edit {
+            putString(KEY_REQUESTED_MONITORING_MODE, mode.name)
+            putString(KEY_MONITORING_MODE, mode.name)
+            putBoolean(KEY_BACKGROUND_GUARD_ENABLED, mode == MonitoringMode.GUARDING)
+        }
+        currentState(context)
+    }
+
+    @Synchronized
+    fun setMonitoringRuntimeMode(context: Context, mode: MonitoringMode) {
+        getPrefs(context).edit { putString(KEY_MONITORING_MODE, mode.name) }
+        currentState(context)
+    }
+
+    @Synchronized
+    fun stopMonitoring(context: Context) {
+        getPrefs(context).edit {
+            putString(KEY_MONITORING_MODE, MonitoringMode.OFF.name)
+            remove(KEY_REQUESTED_MONITORING_MODE)
+        }
+        setPostureAlertActive(context, false)
+        currentState(context)
+    }
+
+    fun isReminderVibrationEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean(KEY_REMINDER_VIBRATION_ENABLED, true)
+
+    fun setReminderVibrationEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_REMINDER_VIBRATION_ENABLED, enabled) }
+    }
+
+    fun isReminderNotificationEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean(KEY_REMINDER_NOTIFICATION_ENABLED, true)
+
+    fun setReminderNotificationEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_REMINDER_NOTIFICATION_ENABLED, enabled) }
+    }
+
+    fun getTargetInferenceFps(context: Context): Int =
+        getPrefs(context).getInt(KEY_TARGET_INFERENCE_FPS, 5).coerceIn(1, 15)
+
+    fun setTargetInferenceFps(context: Context, fps: Int) {
+        getPrefs(context).edit { putInt(KEY_TARGET_INFERENCE_FPS, fps.coerceIn(1, 15)) }
+        currentState(context)
+    }
+
+    fun isLeaderboardOptedIn(context: Context): Boolean =
+        getPrefs(context).getBoolean(KEY_LEADERBOARD_OPT_IN, false)
+
+    fun setLeaderboardOptIn(context: Context, optedIn: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_LEADERBOARD_OPT_IN, optedIn) }
     }
 
     fun isWarningOverlayEnabled(context: Context): Boolean =
@@ -620,9 +717,9 @@ object HeadUpRepository {
             dragonEnergy = prefs.getInt(KEY_DRAGON_ENERGY, 50),
             dragonLevel = prefs.getInt(KEY_DRAGON_LEVEL, 1),
             dragonBond = prefs.getInt(KEY_DRAGON_BOND, 0),
-            selectedDragonId = prefs.getString(KEY_SELECTED_DRAGON, VisionDragonCatalog.DEFAULT_DRAGON_ID)
-                ?.takeIf { id -> VisionDragonCatalog.all.any { it.id == id } }
-                ?: VisionDragonCatalog.DEFAULT_DRAGON_ID,
+            selectedPetId = prefs.getString(KEY_SELECTED_PET, VirtualPetCatalog.DEFAULT_PET_ID)
+                ?.takeIf { id -> VirtualPetCatalog.all.any { it.id == id } }
+                ?: VirtualPetCatalog.DEFAULT_PET_ID,
             coins = prefs.getInt(KEY_COINS, 0),
             lastUpdatedMs = if (isToday) prefs.getLong(KEY_LAST_UPDATED, 0L) else 0L,
             calibrationProfile = getCalibration(context),
@@ -631,6 +728,8 @@ object HeadUpRepository {
             claimedTasks = if (isToday) prefs.getStringSet(KEY_CLAIMED_TASKS, emptySet())?.toSet().orEmpty() else emptySet(),
             isAlarmEnabled = prefs.getBoolean(KEY_ALARM_ENABLED, false),
             isPostureAlertActive = postureAlertActive,
+            monitoringMode = getMonitoringMode(context),
+            targetInferenceFps = getTargetInferenceFps(context),
         )
     }
 
@@ -645,7 +744,7 @@ object HeadUpRepository {
             putInt(KEY_DRAGON_ENERGY, state.dragonEnergy)
             putInt(KEY_DRAGON_LEVEL, state.dragonLevel)
             putInt(KEY_DRAGON_BOND, state.dragonBond)
-            putString(KEY_SELECTED_DRAGON, state.selectedDragonId)
+            putString(KEY_SELECTED_PET, state.selectedPetId)
             putInt(KEY_COINS, state.coins)
             putLong(KEY_LAST_UPDATED, state.lastUpdatedMs)
             putStringSet(KEY_OWNED_ITEMS, state.ownedShopItems)
