@@ -95,18 +95,24 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     private fun applyZoneColor() {
         val color = when (postureZone) {
             PostureZone.SAFE -> ContextCompat.getColor(context, R.color.headup_safe)
-            PostureZone.WARNING -> ContextCompat.getColor(context, R.color.headup_warning)
+            // Every non-safe state uses the same red warning color as the result panel.
+            PostureZone.WARNING -> ContextCompat.getColor(context, R.color.headup_danger)
             PostureZone.DANGER -> ContextCompat.getColor(context, R.color.headup_danger)
         }
         linePaint.color = color
         pointPaint.color = color
     }
 
-    private fun landmarkColor(index: Int): Int = when (index) {
+    private fun landmarkColor(index: Int): Int {
+        if (postureZone != PostureZone.SAFE) {
+            return ContextCompat.getColor(context, R.color.headup_danger)
+        }
+        return when (index) {
         1, 2, 3, 4, 5, 6 -> ContextCompat.getColor(context, R.color.headup_primary)
         7, 8 -> ContextCompat.getColor(context, R.color.headup_purple)
         9, 10 -> ContextCompat.getColor(context, R.color.headup_orange)
         else -> linePaint.color
+        }
     }
 
     private fun mapX(normalizedX: Float): Float = normalizedX * imageWidth * scaleFactor + offsetX

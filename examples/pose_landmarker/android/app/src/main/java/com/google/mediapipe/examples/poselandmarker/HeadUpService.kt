@@ -82,6 +82,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         private const val REMINDER_COOLDOWN_MS = 60_000L
         private const val PET_SIZE_DP = 112
         private const val HAPPY_PET_HIDE_DELAY_MS = 1_800L
+        private const val NO_FACE_CONFIRM_FRAMES = 5
     }
 
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -112,8 +113,11 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var hidePetRunnable: Runnable? = null
     private var sensorManager: SensorManager? = null
     private var gravitySensor: Sensor? = null
+    private var gyroscopeSensor: Sensor? = null
     private var lastDeviceTilt = 0
     private var isDeviceFlat = false
+    private var gravityZ = 0f
+    private var gyroMagnitude = 0f
 
     private var badPostureStartTime = 0L
     private var postureAlertActive = false
@@ -125,6 +129,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     private var wasRapidFall = false
     private var lastVibrationTime = 0L
     private var lastProcessedTimestamp = Long.MIN_VALUE
+    private var noFaceFrames = 0
     private var toneGenerator: ToneGenerator? = null
     private var lastAlarmTime = 0L
     private var lastReminderTime = Long.MIN_VALUE
@@ -355,26 +360,47 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
     override fun onResults(resultBundle: PoseLandmarkerHelper.ResultBundle) {
         if (!canOwnBackgroundCamera(cameraOwnershipToken)) return
         MonitoringSessionRecorder.onInference()
-        val landmarks = resultBundle.results.firstOrNull()?.landmarks()?.firstOrNull()
+        val landmarks = resultBundle.results.firstOrNull()?.landmarks()?.firstOrNull()?.takeUnless { resultBundle.faceChecked && resultBundle.denseFace == null }
         if (landmarks == null) {
+            PostureDiagnostics.record(null, resultBundle.inferenceTime)
+            PostureAnalyzer.resetSmoothing()
             MonitoringSessionRecorder.recordUnknown()
+            processMissingFace()
             return
         }
         val metrics = PostureAnalyzer.analyzeMediaPipe(
             landmarks = landmarks,
             deviceTilt = lastDeviceTilt,
             isFlat = isDeviceFlat,
+            isLikelyLyingDown = isDeviceFlat && gravityZ < -8.0f && gyroMagnitude < 1.0f,
             calibration = HeadUpRepository.getCalibration(this),
             inputImageWidth = resultBundle.inputImageWidth,
             inputImageHeight = resultBundle.inputImageHeight,
+                denseFace = resultBundle.denseFace,
         )
         if (metrics == null) {
+            PostureDiagnostics.record(null, resultBundle.inferenceTime)
             MonitoringSessionRecorder.recordUnknown()
+            processMissingFace()
             return
         }
+        noFaceFrames = 0
+        PostureDiagnostics.record(metrics, resultBundle.inferenceTime)
         processPostureMetrics(metrics)
         HeadUpRepository.recordMetrics(this, metrics, source = "background")
         MonitoringSessionRecorder.recordMetrics(metrics)
+    }
+
+    private fun processMissingFace() {
+        noFaceFrames = (noFaceFrames + 1).coerceAtMost(NO_FACE_CONFIRM_FRAMES)
+        if (noFaceFrames < NO_FACE_CONFIRM_FRAMES ||
+            HeadUpRepository.getMonitoringMode(this) != MonitoringMode.GUARDING
+        ) return
+        mainHandler.post {
+            cancelWarningClearGrace()
+            armPostureAlertDebounce()
+            syncPostureFeedbackOutputs()
+        }
     }
 
     private fun processPostureMetrics(metrics: PostureMetrics) {
@@ -909,15 +935,24 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         gravitySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_GRAVITY)
             ?: sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        gyroscopeSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         gravitySensor?.let { sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        gyroscopeSensor?.let { sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_GRAVITY || event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
             val y = event.values[1]
             val z = event.values[2]
+            gravityZ = z
             lastDeviceTilt = Math.toDegrees(Math.atan2(y.toDouble(), z.toDouble())).toInt()
             isDeviceFlat = kotlin.math.abs(z) > 8.5f
+        } else if (event?.sensor?.type == Sensor.TYPE_GYROSCOPE) {
+            val magnitude = kotlin.math.sqrt(
+                event.values[0] * event.values[0] + event.values[1] * event.values[1] +
+                    event.values[2] * event.values[2],
+            )
+            gyroMagnitude = 0.25f * magnitude + 0.75f * gyroMagnitude
         }
     }
 
@@ -953,7 +988,7 @@ class HeadUpService : Service(), LifecycleOwner, PoseLandmarkerHelper.Landmarker
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.notification_monitoring_title, localizedMode(state.monitoringMode)))
-            .setContentText(getString(R.string.notification_guard_text, state.metrics.angleDegrees, localizedStatus(state.metrics.zone)))
+            .setContentText(getString(R.string.notification_guard_text, state.metrics.angleDegrees, getString(state.metrics.orientationFeedbackRes())))
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)

@@ -13,6 +13,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.google.mediapipe.examples.poselandmarker.orientationFeedbackRes
 import androidx.navigation.fragment.findNavController
 import com.google.mediapipe.examples.poselandmarker.FamilyAccountResponse
 import com.google.mediapipe.examples.poselandmarker.FamilyAccessPolicy
@@ -556,13 +557,7 @@ class StatsFragment : Fragment() {
         val zoneColor = ContextCompat.getColor(requireContext(), state.metrics.zone.colorRes())
         binding.currentAngleValue.text = "${state.metrics.angleDegrees}\u00B0"
         binding.currentAngleValue.setTextColor(zoneColor)
-        binding.currentStatusText.text = getString(
-            when (state.metrics.zone) {
-                PostureZone.SAFE -> R.string.posture_status_safe
-                PostureZone.WARNING -> R.string.posture_status_warning
-                PostureZone.DANGER -> R.string.posture_status_danger
-            },
-        )
+        binding.currentStatusText.text = getString(state.metrics.orientationFeedbackRes())
         binding.currentStatusText.setTextColor(zoneColor)
 
         val rows = listOf(binding.taskRowOne, binding.taskRowTwo, binding.taskRowThree)

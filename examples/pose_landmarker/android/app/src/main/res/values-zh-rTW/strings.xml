@@ -168,11 +168,11 @@
     <string name="posture_reading">正在讀取姿勢...</string>
     <string name="set_baseline">設為基準</string>
     <string name="calibrate_three_seconds">3 秒校準</string>
-    <string name="calibration_countdown">請坐正 - %1$d</string>
-    <string name="calibration_prepare">請坐正並面向螢幕，偵測到完整姿勢後會自動開始校準。</string>
+    <string name="calibration_countdown">請保持正確平視姿勢 - %1$d</string>
+    <string name="calibration_prepare">請採用正確姿勢：坐直、臉正對鏡頭並自然平視，再開始校準。</string>
     <string name="calibration_wait_for_pose">請先讓鏡頭清楚偵測臉部與雙肩。</string>
-    <string name="calibration_complete">個人姿勢基準已儲存。</string>
-    <string name="calibration_failed">校準失敗，請保持臉部與雙肩清楚可見後重試。</string>
+    <string name="calibration_complete">正確姿勢基準已儲存，現在開始偵測偏差。</string>
+    <string name="calibration_failed">校準失敗，請正視前方、保持不動，並讓眼睛、嘴部與雙肩清楚可見後重試。</string>
     <string name="baseline_set">基準已設定：%1$d 度</string>
     <string name="switch_camera">切換鏡頭</string>
     <string name="camera_front">前置鏡頭</string>
@@ -191,7 +191,7 @@
     <string name="reading">讀取中</string>
     <string name="posture_safe_format">目前 %1$d 度，姿勢安全。</string>
     <string name="posture_warning_format">目前 %1$d 度，進入警戒區。</string>
-    <string name="posture_danger_format">目前 %1$d 度，請抬頭休息。</string>
+    <string name="posture_danger_format">目前 %1$d 度，請輕輕調整姿勢。</string>
     <string name="posture_normal">正常</string>
     <string name="posture_mild_tilt">輕微前傾</string>
     <string name="posture_large_tilt">前傾過大</string>
@@ -295,11 +295,12 @@
     <string name="pet_trait_gentle_ragdoll">藍眼睛的溫柔毛絨夥伴，提醒你保持舒適姿勢、適時休息。</string>
     <string name="dragon_energy_good">能量 %1$d%% - 今天表現很好</string>
     <string name="dragon_energy_rest">能量 %1$d%% - 需要一點休息</string>
+    <string name="dragon_energy_penalty">能量 %1$d%% - 姿勢不良每秒扣 2 分</string>
     <string name="dragon_mood_safe">小藍龍正在充電</string>
-    <string name="dragon_mood_warning">小藍龍提醒你抬頭</string>
+    <string name="dragon_mood_warning">小藍龍提醒你調整姿勢</string>
     <string name="dragon_mood_danger">小藍龍需要休息</string>
     <string name="dragon_mood_safe_format">%1$s 正在充電</string>
-    <string name="dragon_mood_warning_format">%1$s 提醒你抬頭</string>
+    <string name="dragon_mood_warning_format">%1$s 提醒你調整姿勢</string>
     <string name="dragon_mood_danger_format">%1$s 需要休息</string>
     <string name="dragon_bond_format">親密度 %1$d / 999</string>
     <string name="dragon_selector_format">%1$s  %2$s</string>
@@ -382,7 +383,7 @@
     <string name="notification_guard_text">%1$d 度 - %2$s</string>
     <string name="notification_channel_name">Head Up 姿勢偵測服務</string>
     <string name="notification_reminder_channel_name">姿勢提醒</string>
-    <string name="posture_reminder_title">該抬頭囉</string>
+    <string name="posture_reminder_title">該調整姿勢囉</string>
     <string name="posture_reminder_message">姿勢不良已持續 3 秒，請調整螢幕距離與頸部角度。</string>
     <string name="settings_monitoring_controls">監控與提醒設定</string>
     <string name="monitoring_enabled">啟用姿勢監控</string>
@@ -481,8 +482,8 @@
     </string-array>
     <string-array name="leaderboard_periods"><item>本週</item><item>上週</item><item>本月</item></string-array>
     <string name="posture_status_safe">姿勢很好，保持 Head Up！</string>
-    <string name="posture_status_warning">接近警戒區，慢慢抬頭。</string>
-    <string name="posture_status_danger">偵測到姿勢不良，請抬頭休息。</string>
+    <string name="posture_status_warning">接近警戒區，請回到自然端正姿勢。</string>
+    <string name="posture_status_danger">偵測到姿勢不良，請回到自然端正姿勢。</string>
 
     <string name="alt_bottom_sheet_chevron">展開或收合設定面板</string>
     <string name="alt_bottom_sheet_max_results_button_minus">減少最大結果數</string>
@@ -498,4 +499,17 @@
     <string name="label_num_poses">姿勢數量</string>
     <string name="label_delegate">運算裝置</string>
     <string name="label_models">模型</string>
+    <string name="head_lateral">頭部左右偏移</string>
+    <string name="head_yaw">左右轉頭</string>
+    <string name="head_pitch">低頭／仰頭</string>
+    <string name="head_pitch_calibrate">請重新校準</string>
+    <string name="head_looking_up">仰頭</string>
+    <string name="head_looking_down">低頭</string>
+    <string name="head_look_up_feedback">仰頭角度偏大，請輕輕回到平視。</string>
+    <string name="head_look_down_feedback">低頭角度偏大，請慢慢回到平視。</string>
+    <string name="phone_too_low_feedback">手機位置過低，請抬高到接近視線高度。</string>
+    <string name="no_face_detected_warning">未偵測到人臉，請讓臉部保持在鏡頭範圍內。</string>
+    <string name="head_turn_feedback">轉頭角度偏大，請慢慢轉回正前方。</string>
+    <string name="head_lateral_feedback">頭部向側邊偏移，請回到雙肩中央。</string>
+    <string name="head_roll">頭部歪斜</string>
 </resources>

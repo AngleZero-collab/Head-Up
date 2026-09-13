@@ -109,7 +109,11 @@ class ChallengeFragment : Fragment() {
         binding.dragonTraitText.text = getString(selectedPet.traitRes)
         binding.dragonEnergyProgress.progress = state.dragonEnergy
         binding.dragonEnergyText.text = getString(
-            if (state.metrics.isGoodPosture) R.string.dragon_energy_good else R.string.dragon_energy_rest,
+            when (state.metrics.zone) {
+                PostureZone.SAFE -> R.string.dragon_energy_good
+                PostureZone.WARNING -> R.string.dragon_energy_rest
+                PostureZone.DANGER -> R.string.dragon_energy_penalty
+            },
             state.dragonEnergy,
         )
         binding.dragonBondText.text = getString(R.string.dragon_bond_format, state.dragonBond)

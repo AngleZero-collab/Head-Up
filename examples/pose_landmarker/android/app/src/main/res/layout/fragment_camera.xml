@@ -168,6 +168,22 @@
                 <include
                     android:id="@+id/screen_distance_row"
                     layout="@layout/item_posture_result" />
+                <include
+                    android:id="@+id/head_lateral_row"
+                    layout="@layout/item_posture_result" />
+
+                <include
+                    android:id="@+id/head_yaw_row"
+                    layout="@layout/item_posture_result" />
+
+                <include
+                    android:id="@+id/head_pitch_row"
+                    layout="@layout/item_posture_result" />
+                <include
+                    android:id="@+id/head_roll_row"
+                    layout="@layout/item_posture_result" />
+
+
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

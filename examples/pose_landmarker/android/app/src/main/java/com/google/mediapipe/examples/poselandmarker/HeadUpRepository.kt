@@ -15,6 +15,8 @@ import java.util.concurrent.Executors
 import kotlin.math.roundToLong
 
 object HeadUpRepository {
+    private const val HEAD_ORIENTATION_CALIBRATION_VERSION = 6
+    private const val POSTURE_CALIBRATION_VERSION = 2
     private const val TAG = "HeadUpRepository"
     private const val PREFS_NAME = "headup_secure_prefs"
     private const val KEY_GOOD_SECONDS = "good_seconds"
@@ -92,6 +94,19 @@ object HeadUpRepository {
                 ?: remove(KEY_CALIBRATION_EYE_DISTANCE)
             profile.distanceConstantK?.let { putFloat(KEY_CALIBRATION_DISTANCE_K, it) }
                 ?: remove(KEY_CALIBRATION_DISTANCE_K)
+            profile.headLateralDegrees?.let { putFloat("calibration_head_lateral", it) }
+                ?: remove("calibration_head_lateral")
+            profile.headYawDegrees?.let { putFloat("calibration_head_yaw", it) }
+                ?: remove("calibration_head_yaw")
+            profile.headPitchDegrees?.let { putFloat("calibration_head_pitch", it) }
+                ?: remove("calibration_head_pitch")
+            profile.deviceTiltDegrees?.let { putFloat("calibration_device_tilt", it) }
+                ?: remove("calibration_device_tilt")
+            profile.headRollDegrees?.let { putFloat("calibration_head_roll", it) } ?: remove("calibration_head_roll")
+            profile.lowerFaceRatio?.let { putFloat("calibration_face_ratio", it) } ?: remove("calibration_face_ratio")
+            putBoolean("calibration_device_flat", profile.deviceWasFlat)
+            putInt("calibration_head_orientation_version", HEAD_ORIENTATION_CALIBRATION_VERSION)
+            putInt("calibration_posture_version", POSTURE_CALIBRATION_VERSION)
             putLong(KEY_CALIBRATION_TIME, profile.calibratedAtMs)
         }
         PostureAnalyzer.resetSmoothing()
@@ -101,6 +116,13 @@ object HeadUpRepository {
     fun getCalibration(context: Context): CalibrationProfile? {
         val prefs = getPrefs(context)
         if (!prefs.contains(KEY_CALIBRATION_ANGLE)) return null
+        if (prefs.getInt("calibration_posture_version", 0) != POSTURE_CALIBRATION_VERSION) return null
+        // The original forward-head calibration remains valid when only the optional
+        // orientation algorithm changes. Gate the new fields separately so a version bump
+        // cannot make a correct neutral pose compare against an artificial zero baseline.
+        val hasCurrentOrientationCalibration =
+            prefs.getInt("calibration_head_orientation_version", 0) ==
+                HEAD_ORIENTATION_CALIBRATION_VERSION
         return CalibrationProfile(
             angleDegrees = prefs.getFloat(KEY_CALIBRATION_ANGLE, 0f),
             postureRatio = prefs.getFloat(KEY_CALIBRATION_RATIO, 0f),
@@ -109,6 +131,22 @@ object HeadUpRepository {
                 .takeIf { it > 0f },
             distanceConstantK = prefs.getFloat(KEY_CALIBRATION_DISTANCE_K, 0f)
                 .takeIf { it > 0f },
+            headLateralDegrees = if (hasCurrentOrientationCalibration) {
+                prefs.getFloat("calibration_head_lateral", 0f)
+            } else null,
+            headYawDegrees = if (hasCurrentOrientationCalibration) {
+                prefs.getFloat("calibration_head_yaw", 0f)
+            } else null,
+            headPitchDegrees = if (hasCurrentOrientationCalibration) {
+                prefs.getFloat("calibration_head_pitch", 0f)
+            } else null,
+            deviceTiltDegrees = if (hasCurrentOrientationCalibration && prefs.contains("calibration_device_tilt")) {
+                prefs.getFloat("calibration_device_tilt", 0f)
+            } else null,
+            deviceWasFlat = hasCurrentOrientationCalibration &&
+                prefs.getBoolean("calibration_device_flat", false),
+            headRollDegrees = if (hasCurrentOrientationCalibration && prefs.contains("calibration_head_roll")) prefs.getFloat("calibration_head_roll", 0f) else null,
+            lowerFaceRatio = if (hasCurrentOrientationCalibration && prefs.contains("calibration_face_ratio")) prefs.getFloat("calibration_face_ratio", 0f) else null,
             calibratedAtMs = prefs.getLong(KEY_CALIBRATION_TIME, 0L),
         )
     }
@@ -120,6 +158,11 @@ object HeadUpRepository {
             remove(KEY_CALIBRATION_SHOULDER)
             remove(KEY_CALIBRATION_EYE_DISTANCE)
             remove(KEY_CALIBRATION_DISTANCE_K)
+            remove("calibration_head_lateral")
+            remove("calibration_head_yaw")
+            remove("calibration_head_pitch")
+            remove("calibration_head_orientation_version")
+            remove("calibration_posture_version")
             remove(KEY_CALIBRATION_TIME)
         }
         PostureAnalyzer.resetSmoothing()
@@ -166,9 +209,11 @@ object HeadUpRepository {
                 if (metrics.zone == PostureZone.WARNING) elapsedSeconds else 0L,
             dangerSecondsToday = previous.dangerSecondsToday +
                 if (metrics.zone == PostureZone.DANGER) elapsedSeconds else 0L,
-            dragonEnergy = (previous.dragonEnergy + metrics.energyDelta(elapsedSeconds)).coerceIn(0, 100),
+            dragonEnergy = (previous.dragonEnergy +
+                PetScoringPolicy.energyDelta(metrics.zone, elapsedSeconds)).coerceIn(0, 100),
             dragonLevel = previous.dragonLevel +
-                if (previous.dragonEnergy < 100 && previous.dragonEnergy + metrics.energyDelta(elapsedSeconds) >= 100) 1 else 0,
+                if (previous.dragonEnergy < 100 && previous.dragonEnergy +
+                    PetScoringPolicy.energyDelta(metrics.zone, elapsedSeconds) >= 100) 1 else 0,
             lastUpdatedMs = now,
         )
         saveState(appContext, next)
@@ -694,12 +739,6 @@ object HeadUpRepository {
         val minutes = (seconds % 3_600L) / 60L
         return if (hours > 0L) context.getString(R.string.hours_minutes_format, hours, minutes)
         else context.getString(R.string.minutes_only_format, minutes)
-    }
-
-    private fun PostureMetrics.energyDelta(elapsedSeconds: Long): Int = when (zone) {
-        PostureZone.SAFE -> elapsedSeconds.toInt()
-        PostureZone.WARNING -> 0
-        PostureZone.DANGER -> -elapsedSeconds.toInt()
     }
 
     private fun loadState(context: Context): HeadUpUiState {

@@ -21,6 +21,13 @@ data class CalibrationProfile(
     val eyeDistancePixels: Float? = null,
     val distanceConstantK: Float? = null,
     val calibratedAtMs: Long = System.currentTimeMillis(),
+    val headLateralDegrees: Float? = null,
+    val headYawDegrees: Float? = null,
+    val headPitchDegrees: Float? = null,
+    val deviceTiltDegrees: Float? = null,
+    val deviceWasFlat: Boolean = false,
+    val headRollDegrees: Float? = null,
+    val lowerFaceRatio: Float? = null,
 )
 
 data class PostureMetrics(
@@ -44,7 +51,24 @@ data class PostureMetrics(
     val isDeviceFlat: Boolean = false,
     val isRapidFall: Boolean = false,
     val timestampMs: Long = System.currentTimeMillis(),
+    val rawHeadLateralDegrees: Float? = null,
+    val rawHeadYawDegrees: Float? = null,
+    val rawHeadPitchDegrees: Float? = null,
+    val headLateralDegrees: Int? = null,
+    val headYawDegrees: Int? = null,
+    val headPitchDegrees: Int? = null,
+    val rawHeadRollDegrees: Float? = null,
+    val headRollDegrees: Int? = null,
+    val lowerFaceRatio: Float? = null,
+    val isHeadOrientationConfirmed: Boolean = false,
+    val deviceTiltDeltaDegrees: Int? = null,
+    val isLowPhonePositionConfirmed: Boolean = false,
+    val isLikelyLyingDown: Boolean = false,
 ) {
+    val headOrientationRisk: Int
+        get() = maxOf(kotlin.math.abs(headLateralDegrees ?: 0), kotlin.math.abs(headPitchDegrees ?: 0),
+            kotlin.math.abs(headYawDegrees ?: 0))
+
     val isGoodPosture: Boolean
         get() = zone == PostureZone.SAFE
 }
@@ -58,6 +82,14 @@ data class HeadUpTask(
 ) {
     val isComplete: Boolean
         get() = progress >= max
+}
+
+object PetScoringPolicy {
+    fun energyDelta(zone: PostureZone, elapsedSeconds: Long): Int = when (zone) {
+        PostureZone.SAFE -> elapsedSeconds.toInt()
+        PostureZone.WARNING -> 0
+        PostureZone.DANGER -> -(elapsedSeconds * 2L).toInt()
+    }
 }
 
 data class VirtualPetType(

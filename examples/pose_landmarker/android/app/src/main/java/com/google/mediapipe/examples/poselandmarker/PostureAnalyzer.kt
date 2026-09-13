@@ -29,24 +29,38 @@ object PostureAnalyzer {
     private const val RAPID_FALL_ARM_DEGREES = 22
     private const val RAPID_FALL_VELOCITY = 0.5f
     private const val MIN_TRACKING_CONFIDENCE = 0.20f
-    private const val DEFAULT_UPRIGHT_RATIO = 0.82f
     private const val TOO_CLOSE_WARNING_CM = 30
     private const val TOO_CLOSE_DANGER_CM = 20
     private const val SHOULDER_WARNING_DEGREES = 8
     private const val SHOULDER_DANGER_DEGREES = 14
     private const val NECK_RATIO_TO_DEGREES = 110f
     private const val EMA_ALPHA = 0.15f
+    private const val ORIENTATION_DEAD_ZONE_DEGREES = 2f
+    private const val ORIENTATION_WARNING_DEGREES = 7
+    private const val ORIENTATION_DANGER_DEGREES = 10
+    private const val ORIENTATION_CONFIRM_FRAMES = 3
+    private const val DEVICE_TILT_WARNING_DEGREES = 8
+    private const val DEVICE_TILT_DANGER_DEGREES = 14
+    private const val DEVICE_TILT_CONFIRM_FRAMES = 3
     private const val SHOULDER_DISTANCE_OVERRIDE_MARGIN_CM = 3
 
     private var smoothedAngle: Float? = null
     private var previousSmoothedAngle: Float? = null
     private val distanceCalculator = DistanceCalculator()
+    private val headOrientationAnalyzer = HeadOrientationAnalyzer()
+    private var orientationEvidenceFrames = 0
+    private var deviceTiltEvidenceFrames = 0
+    private var previousDenseFace: DenseFaceReading? = null
 
     @Synchronized
     fun resetSmoothing() {
         smoothedAngle = null
         previousSmoothedAngle = null
         distanceCalculator.reset()
+        headOrientationAnalyzer.reset()
+        orientationEvidenceFrames = 0
+        deviceTiltEvidenceFrames = 0
+        previousDenseFace = null
     }
 
     fun defaultMetrics(): PostureMetrics = PostureMetrics(
@@ -63,9 +77,11 @@ object PostureAnalyzer {
         landmarks: List<NormalizedLandmark>,
         deviceTilt: Int = 0,
         isFlat: Boolean = false,
+        isLikelyLyingDown: Boolean = false,
         calibration: CalibrationProfile? = null,
         inputImageWidth: Int? = null,
         inputImageHeight: Int? = null,
+        denseFace: DenseFaceReading? = null,
     ): PostureMetrics? = analyze(
         points = landmarks.map { landmark ->
             LandmarkPoint(
@@ -78,9 +94,11 @@ object PostureAnalyzer {
         },
         deviceTilt = deviceTilt,
         isFlat = isFlat,
+        isLikelyLyingDown = isLikelyLyingDown,
         calibration = calibration,
         inputImageWidth = inputImageWidth,
         inputImageHeight = inputImageHeight,
+        denseFace = denseFace,
     )
 
     @Synchronized
@@ -88,9 +106,11 @@ object PostureAnalyzer {
         points: List<LandmarkPoint>,
         deviceTilt: Int = 0,
         isFlat: Boolean = false,
+        isLikelyLyingDown: Boolean = false,
         calibration: CalibrationProfile? = null,
         inputImageWidth: Int? = null,
         inputImageHeight: Int? = null,
+        denseFace: DenseFaceReading? = null,
     ): PostureMetrics? {
         val body = BodyLandmarks.from(points) ?: return null
         val shoulderWidth = distance2d(body.leftShoulder, body.rightShoulder)
@@ -112,18 +132,100 @@ object PostureAnalyzer {
         val currentSmoothed = smoothedAngle?.let { previous ->
             EMA_ALPHA * rawAngle + (1f - EMA_ALPHA) * previous
         } ?: rawAngle
-        val angleVelocity = previousSmoothedAngle?.let { currentSmoothed - it } ?: 0f
+        // An upright face has a larger face-to-shoulder depth angle on the front camera;
+        // forward collapse makes that angle smaller. Velocity follows the same risk direction.
+        val angleVelocity = previousSmoothedAngle?.let { it - currentSmoothed } ?: 0f
         previousSmoothedAngle = currentSmoothed
         smoothedAngle = currentSmoothed
 
-        val relativeHeadAngle = (currentSmoothed - (calibration?.angleDegrees ?: 0f))
-            .coerceAtLeast(0f)
-        val ratioBaseline = calibration?.postureRatio
+        // Calibration captures the correct upright angle. A drop from that baseline is
+        // deterioration. Without calibration, the raw depth angle is not a risk angle.
+        val relativeHeadAngle = calibration?.let {
+            (it.angleDegrees - currentSmoothed).coerceAtLeast(0f)
+        } ?: 0f
+        // Body proportions and camera framing vary too much for a universal neck ratio.
+        // Only compare compression after a personal correct-posture baseline exists.
+        val neckFlexion = calibration?.postureRatio
             ?.takeIf { it > 0.05f }
-            ?: DEFAULT_UPRIGHT_RATIO
-        val neckCompression = ((ratioBaseline - postureRatio) / ratioBaseline).coerceAtLeast(0f)
-        val neckFlexion = (neckCompression * NECK_RATIO_TO_DEGREES).coerceIn(0f, 60f)
+            ?.let { ratioBaseline ->
+                val neckCompression = ((ratioBaseline - postureRatio) / ratioBaseline)
+                    .coerceAtLeast(0f)
+                (neckCompression * NECK_RATIO_TO_DEGREES).coerceIn(0f, 60f)
+            } ?: 0f
         val compositeAngle = max(relativeHeadAngle, neckFlexion)
+        val sparse = headOrientationAnalyzer.analyze(points, inputImageWidth, inputImageHeight)
+        val filteredFace = denseFace?.let { current ->
+            fun smooth(value: Float, old: Float?): Float {
+                if (old == null) return value
+                val delta = ((value - old + 540f) % 360f) - 180f
+                return old + 0.35f * delta
+            }
+            current.copy(
+                pitch = smooth(current.pitch, previousDenseFace?.pitch),
+                yaw = smooth(current.yaw, previousDenseFace?.yaw),
+                roll = smooth(current.roll, previousDenseFace?.roll),
+            )
+        }
+        previousDenseFace = filteredFace
+        val orientation = if (filteredFace == null) sparse else sparse.copy(
+            yaw = filteredFace.yaw, pitch = filteredFace.pitch,
+        )
+        fun relativeOrientation(value: Float?, baseline: Float?): Int? {
+            if (value == null || baseline == null) return null
+            val difference = value - baseline
+            return when {
+                abs(difference) <= ORIENTATION_DEAD_ZONE_DEGREES -> 0
+                difference > 0f -> (difference - ORIENTATION_DEAD_ZONE_DEGREES).roundToInt()
+                else -> (difference + ORIENTATION_DEAD_ZONE_DEGREES).roundToInt()
+            }
+        }
+        val lateral = relativeOrientation(orientation.lateral, calibration?.headLateralDegrees)
+        val yaw = relativeOrientation(orientation.yaw, calibration?.headYawDegrees)
+        // Pitch needs a personal baseline: the eye/mouth depth offset differs between faces.
+        val pitch = relativeOrientation(orientation.pitch, calibration?.headPitchDegrees)
+        val roll = relativeOrientation(filteredFace?.roll, calibration?.headRollDegrees)
+        val corroboratedDown = denseFace != null && denseFace.downwardGaze &&
+            (pitch ?: 0) >= 7 && calibration?.lowerFaceRatio != null &&
+            denseFace.lowerFaceRatio < calibration.lowerFaceRatio - 0.06f
+        val orientationRisk = maxOf(
+            abs(roll ?: 0),
+            if (corroboratedDown) 10 else 0,
+            abs(lateral ?: 0),
+            abs(yaw ?: 0),
+            abs(pitch ?: 0),
+        )
+        orientationEvidenceFrames = if (orientationRisk >= ORIENTATION_WARNING_DEGREES) {
+            (orientationEvidenceFrames + 1).coerceAtMost(ORIENTATION_CONFIRM_FRAMES)
+        } else {
+            (orientationEvidenceFrames - 2).coerceAtLeast(0)
+        }
+        // New orientation signals are additive. They may change the original posture zone only
+        // after several consecutive frames agree, so one noisy face landmark cannot take over.
+        val confirmedOrientationRisk = if (orientationEvidenceFrames >= ORIENTATION_CONFIRM_FRAMES) {
+            orientationRisk
+        } else 0
+
+        fun circularAngleDistance(a: Float, b: Float): Float {
+            val difference = ((a - b + 180f) % 360f + 360f) % 360f - 180f
+            return abs(difference)
+        }
+        val deviceTiltDelta = calibration?.deviceTiltDegrees?.let { baseline ->
+            circularAngleDistance(deviceTilt.toFloat(), baseline).roundToInt()
+        }
+        // A nearly horizontal phone encourages looking down or reclining use. Treat either
+        // screen direction as risk; the gyro remains available as diagnostic context.
+        val lowPhoneEvidence = isFlat ||
+            deviceTiltDelta?.let { it >= DEVICE_TILT_WARNING_DEGREES } == true
+        deviceTiltEvidenceFrames = if (lowPhoneEvidence) {
+            (deviceTiltEvidenceFrames + 1).coerceAtMost(DEVICE_TILT_CONFIRM_FRAMES)
+        } else {
+            (deviceTiltEvidenceFrames - 2).coerceAtLeast(0)
+        }
+        val isLowPhoneConfirmed = deviceTiltEvidenceFrames >= DEVICE_TILT_CONFIRM_FRAMES
+        val confirmedDeviceRisk = if (!isLowPhoneConfirmed) 0 else when {
+            isFlat -> DEVICE_TILT_DANGER_DEGREES
+            else -> deviceTiltDelta ?: 0
+        }
 
         val shoulderBalanceAngle = pairAngleDegrees(body.leftShoulder, body.rightShoulder)
         val distanceEstimate = estimateScreenDistance(body, calibration, inputImageWidth, inputImageHeight)
@@ -133,9 +235,13 @@ object PostureAnalyzer {
         val isRapidFall = angle >= RAPID_FALL_ARM_DEGREES && angleVelocity > RAPID_FALL_VELOCITY
 
         val zone = when {
+            confirmedDeviceRisk >= DEVICE_TILT_DANGER_DEGREES -> PostureZone.DANGER
+            confirmedOrientationRisk >= ORIENTATION_DANGER_DEGREES -> PostureZone.DANGER
             angle >= BAD_POSTURE_LIMIT_DEGREES -> PostureZone.DANGER
             screenDistanceCm != null && screenDistanceCm < TOO_CLOSE_DANGER_CM -> PostureZone.DANGER
             shoulderBalanceAngle >= SHOULDER_DANGER_DEGREES -> PostureZone.DANGER
+            confirmedDeviceRisk >= DEVICE_TILT_WARNING_DEGREES -> PostureZone.WARNING
+            confirmedOrientationRisk >= ORIENTATION_WARNING_DEGREES -> PostureZone.WARNING
             angle >= SAFE_LIMIT_DEGREES -> PostureZone.WARNING
             isTooClose -> PostureZone.WARNING
             shoulderBalanceAngle >= SHOULDER_WARNING_DEGREES -> PostureZone.WARNING
@@ -170,6 +276,19 @@ object PostureAnalyzer {
             deviceTiltDegrees = deviceTilt,
             isDeviceFlat = isFlat,
             isRapidFall = isRapidFall,
+            rawHeadLateralDegrees = orientation.lateral,
+            rawHeadYawDegrees = orientation.yaw,
+            rawHeadPitchDegrees = orientation.pitch,
+            headLateralDegrees = lateral,
+            headYawDegrees = yaw,
+            headPitchDegrees = pitch,
+            rawHeadRollDegrees = filteredFace?.roll,
+            headRollDegrees = roll,
+            lowerFaceRatio = denseFace?.lowerFaceRatio,
+            isHeadOrientationConfirmed = confirmedOrientationRisk >= ORIENTATION_WARNING_DEGREES,
+            deviceTiltDeltaDegrees = deviceTiltDelta,
+            isLowPhonePositionConfirmed = isLowPhoneConfirmed,
+            isLikelyLyingDown = isLikelyLyingDown,
         )
     }
 
@@ -289,6 +408,12 @@ object PostureAnalyzer {
         }
     }
 
+    fun zoneForOrientation(angleDegrees: Int): PostureZone = when {
+        angleDegrees < ORIENTATION_WARNING_DEGREES -> PostureZone.SAFE
+        angleDegrees < ORIENTATION_DANGER_DEGREES -> PostureZone.WARNING
+        else -> PostureZone.DANGER
+    }
+
     private fun estimateShoulderDistanceCm(
         body: BodyLandmarks,
         calibration: CalibrationProfile?,
@@ -303,7 +428,8 @@ object PostureAnalyzer {
     private fun List<LandmarkPoint>.tracked(index: Int): LandmarkPoint? {
         val point = getOrNull(index) ?: return null
         return point.takeIf {
-            it.visibility >= MIN_TRACKING_CONFIDENCE && it.presence >= MIN_TRACKING_CONFIDENCE
+            it.visibility >= MIN_TRACKING_CONFIDENCE && it.presence >= MIN_TRACKING_CONFIDENCE &&
+                it.x.isFinite() && it.y.isFinite() && it.z.isFinite()
         }
     }
 

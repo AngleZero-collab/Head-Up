@@ -168,10 +168,10 @@
     <string name="posture_reading">Reading posture...</string>
     <string name="set_baseline">Set baseline</string>
     <string name="calibrate_three_seconds">Calibrate</string>
-    <string name="calibration_countdown">Sit upright - %1$d</string>
-    <string name="calibration_prepare">Sit upright and face the screen. Calibration will start when your pose is detected.</string>
+    <string name="calibration_countdown">Hold your correct level posture - %1$d</string>
+    <string name="calibration_prepare">Sit upright, face the camera, and look level before calibration.</string>
     <string name="calibration_wait_for_pose">Wait until your face and shoulders are detected.</string>
-    <string name="calibration_complete">Personal posture baseline saved.</string>
+    <string name="calibration_complete">Your correct-posture baseline is saved. Deviations are now monitored.</string>
     <string name="calibration_failed">Calibration failed. Keep your face and shoulders visible and try again.</string>
     <string name="baseline_set">Baseline set: %1$d degrees</string>
     <string name="switch_camera">Switch camera</string>
@@ -191,7 +191,7 @@
     <string name="reading">Reading</string>
     <string name="posture_safe_format">Current %1$d degrees, posture is safe.</string>
     <string name="posture_warning_format">Current %1$d degrees, warning range.</string>
-    <string name="posture_danger_format">Current %1$d degrees, please raise your head.</string>
+    <string name="posture_danger_format">Current %1$d degrees; adjust your posture gently.</string>
     <string name="posture_normal">Normal</string>
     <string name="posture_mild_tilt">Mild forward tilt</string>
     <string name="posture_large_tilt">Excessive forward tilt</string>
@@ -295,11 +295,12 @@
     <string name="pet_trait_gentle_ragdoll">A gentle, blue-eyed companion for comfortable posture and regular breaks.</string>
     <string name="dragon_energy_good">Energy %1$d%% - Great performance today</string>
     <string name="dragon_energy_rest">Energy %1$d%% - Needs a little rest</string>
+    <string name="dragon_energy_penalty">Energy %1$d%% - Poor posture costs 2 points per second</string>
     <string name="dragon_mood_safe">Little Blue is charging</string>
-    <string name="dragon_mood_warning">Little Blue reminds you to look up</string>
+    <string name="dragon_mood_warning">Little Blue reminds you to adjust your posture</string>
     <string name="dragon_mood_danger">Little Blue needs a rest</string>
     <string name="dragon_mood_safe_format">%1$s is charging</string>
-    <string name="dragon_mood_warning_format">%1$s reminds you to look up</string>
+    <string name="dragon_mood_warning_format">%1$s reminds you to adjust your posture</string>
     <string name="dragon_mood_danger_format">%1$s needs a rest</string>
     <string name="dragon_bond_format">Bond %1$d / 999</string>
     <string name="dragon_selector_format">%1$s  %2$s</string>
@@ -382,7 +383,7 @@
     <string name="notification_guard_text">%1$d degrees - %2$s</string>
     <string name="notification_channel_name">Head Up posture detection</string>
     <string name="notification_reminder_channel_name">Posture reminders</string>
-    <string name="posture_reminder_title">Time to look up</string>
+    <string name="posture_reminder_title">Time to adjust your posture</string>
     <string name="posture_reminder_message">Poor posture continued for 3 seconds. Adjust your screen distance and neck angle.</string>
     <string name="settings_monitoring_controls">Monitoring and reminders</string>
     <string name="monitoring_enabled">Monitoring enabled</string>
@@ -481,8 +482,8 @@
     </string-array>
     <string-array name="leaderboard_periods"><item>This week</item><item>Last week</item><item>This month</item></string-array>
     <string name="posture_status_safe">Good posture. Keep your Head Up!</string>
-    <string name="posture_status_warning">Approaching the warning range.</string>
-    <string name="posture_status_danger">Poor posture detected. Please look up.</string>
+    <string name="posture_status_warning">Approaching the warning range. Return to a neutral posture.</string>
+    <string name="posture_status_danger">Poor posture detected. Return to a neutral posture.</string>
 
     <string name="alt_bottom_sheet_chevron">Bottom sheet expandable indicator</string>
     <string name="alt_bottom_sheet_max_results_button_minus">Decrease maximum results</string>
@@ -507,4 +508,17 @@
         <item>Pose Landmarker Lite</item>
         <item>Pose Landmarker Heavy</item>
     </string-array>
+    <string name="head_lateral">Head lateral offset</string>
+    <string name="head_yaw">Head rotation</string>
+    <string name="head_pitch">Looking down / up</string>
+    <string name="head_pitch_calibrate">Recalibrate</string>
+    <string name="head_looking_up">Looking up</string>
+    <string name="head_looking_down">Looking down</string>
+    <string name="head_look_up_feedback">Head tilted too far back. Return gently to a level gaze.</string>
+    <string name="head_look_down_feedback">Head tilted down. Return gently to a level gaze.</string>
+    <string name="phone_too_low_feedback">Phone position is too low. Raise it closer to eye level.</string>
+    <string name="no_face_detected_warning">Face not detected. Keep your face visible to the camera.</string>
+    <string name="head_turn_feedback">Head turned to the side. Face forward gently.</string>
+    <string name="head_lateral_feedback">Head shifted sideways. Center your head above your shoulders.</string>
+    <string name="head_roll">Head roll</string>
 </resources>
