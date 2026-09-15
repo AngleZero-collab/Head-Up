@@ -1,123 +1,83 @@
-/*
- * Copyright 2023 The TensorFlow Authors. All Rights Reserved.
- * Licensed under the Apache License, Version 2.0.
- */
 package com.google.mediapipe.examples.poselandmarker
 
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Path
+import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
 import androidx.core.content.ContextCompat
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
-import kotlin.math.min
 
+/** A quiet status surround; raw face and body landmarks are intentionally hidden. */
 class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs) {
-    private var results: PoseLandmarkerResult? = null
-    private val pointPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private var scaleFactor = 1f
-    private var offsetX = 0f
-    private var offsetY = 0f
-    private var imageWidth = 1
-    private var imageHeight = 1
-    private var postureZone = PostureZone.SAFE
-    private val facePath = Path()
-    private val facePathIndices = listOf(3, 2, 1, 0, 4, 5, 6)
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var zone: PostureZone? = null
+    private var pulse = 0f
+    private val breathing = android.animation.ValueAnimator.ofFloat(0.35f, 1f).apply {
+        duration = 1800L
+        repeatMode = android.animation.ValueAnimator.REVERSE
+        repeatCount = android.animation.ValueAnimator.INFINITE
+        addUpdateListener { pulse = it.animatedValue as Float; invalidate() }
+    }
 
-    init {
-        if (!isInEditMode) {
-            linePaint.strokeWidth = LANDMARK_STROKE_WIDTH
-            linePaint.style = Paint.Style.STROKE
-            linePaint.strokeCap = Paint.Cap.ROUND
-            pointPaint.style = Paint.Style.FILL
-            applyZoneColor()
-        }
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (windowVisibility == VISIBLE) breathing.start()
+    }
+
+    override fun onDetachedFromWindow() {
+        breathing.cancel()
+        super.onDetachedFromWindow()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        // The View constructor can invoke this before property initialization.
+        if (!isAttachedToWindow) return
+        if (visibility == VISIBLE) breathing.start() else breathing.cancel()
     }
 
     fun clear() {
-        results = null
+        zone = null
+        contentDescription = context.getString(R.string.no_face_detected_warning)
         invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (isInEditMode) return
-        val landmarks = results?.landmarks()?.firstOrNull() ?: return
-        applyZoneColor()
-
-        // MediaPipe Pose indices: face 0..10, shoulders 11..12, hips 23..24.
-        (0..12).forEach { index ->
-            landmarks.getOrNull(index)?.let { point ->
-                pointPaint.color = landmarkColor(index)
-                canvas.drawCircle(mapX(point.x()), mapY(point.y()), POINT_RADIUS, pointPaint)
-            }
+        val d = resources.displayMetrics.density
+        val color = ContextCompat.getColor(context, when (zone) {
+            PostureZone.SAFE -> R.color.headup_safe
+            PostureZone.WARNING -> R.color.headup_warning
+            PostureZone.DANGER -> R.color.headup_danger
+            null -> R.color.headup_text_secondary
+        })
+        val rect = RectF(7*d, 7*d, width-7*d, height-7*d)
+        paint.style = Paint.Style.STROKE
+        paint.color = color
+        // Layered translucent strokes provide a soft halo without blurring the camera.
+        for (layer in 6 downTo 1) {
+            paint.strokeWidth = layer * 2*d
+            paint.alpha = if (zone == null) 5 else 8
+            canvas.drawRoundRect(rect, 23*d, 23*d, paint)
         }
-        listOf(23, 24).forEach { index ->
-            landmarks.getOrNull(index)?.let { point ->
-                pointPaint.color = landmarkColor(index)
-                canvas.drawCircle(mapX(point.x()), mapY(point.y()), POINT_RADIUS, pointPaint)
-            }
-        }
-
-        drawConnection(canvas, landmarks, 11, 12)
-        drawConnection(canvas, landmarks, 11, 23)
-        drawConnection(canvas, landmarks, 12, 24)
-        drawConnection(canvas, landmarks, 23, 24)
-        drawConnection(canvas, landmarks, 7, 3)
-        drawConnection(canvas, landmarks, 6, 8)
-        drawConnection(canvas, landmarks, 9, 10)
-
-        facePath.reset()
-        facePathIndices.forEachIndexed { pathIndex, landmarkIndex ->
-            landmarks.getOrNull(landmarkIndex)?.let { point ->
-                if (pathIndex == 0) facePath.moveTo(mapX(point.x()), mapY(point.y()))
-                else facePath.lineTo(mapX(point.x()), mapY(point.y()))
-            }
-        }
-        canvas.drawPath(facePath, linePaint)
+        paint.strokeWidth = 1.2f*d
+        paint.alpha = 190
+        canvas.drawRoundRect(rect, 23*d, 23*d, paint)
+        paint.style = Paint.Style.FILL
+        paint.alpha = 210
+        paint.color = android.graphics.Color.rgb(15, 23, 42)
+        canvas.drawRoundRect(RectF(18*d,18*d,116*d,46*d),14*d,14*d,paint)
+        paint.color = color
+        paint.alpha = if (zone == null) 100 else (100+155*pulse).toInt()
+        canvas.drawCircle(31*d,32*d,3*d,paint)
+        paint.alpha = 255
+        paint.textSize = 11*d
+        canvas.drawText(context.getString(if (zone == null) R.string.scan_ai_waiting else R.string.scan_ai_active),
+            41*d,36*d,paint)
     }
-
-    private fun drawConnection(
-        canvas: Canvas,
-        landmarks: List<com.google.mediapipe.tasks.components.containers.NormalizedLandmark>,
-        startIndex: Int,
-        endIndex: Int,
-    ) {
-        val start = landmarks.getOrNull(startIndex) ?: return
-        val end = landmarks.getOrNull(endIndex) ?: return
-        canvas.drawLine(mapX(start.x()), mapY(start.y()), mapX(end.x()), mapY(end.y()), linePaint)
-    }
-
-    private fun applyZoneColor() {
-        val color = when (postureZone) {
-            PostureZone.SAFE -> ContextCompat.getColor(context, R.color.headup_safe)
-            // Every non-safe state uses the same red warning color as the result panel.
-            PostureZone.WARNING -> ContextCompat.getColor(context, R.color.headup_danger)
-            PostureZone.DANGER -> ContextCompat.getColor(context, R.color.headup_danger)
-        }
-        linePaint.color = color
-        pointPaint.color = color
-    }
-
-    private fun landmarkColor(index: Int): Int {
-        if (postureZone != PostureZone.SAFE) {
-            return ContextCompat.getColor(context, R.color.headup_danger)
-        }
-        return when (index) {
-        1, 2, 3, 4, 5, 6 -> ContextCompat.getColor(context, R.color.headup_primary)
-        7, 8 -> ContextCompat.getColor(context, R.color.headup_purple)
-        9, 10 -> ContextCompat.getColor(context, R.color.headup_orange)
-        else -> linePaint.color
-        }
-    }
-
-    private fun mapX(normalizedX: Float): Float = normalizedX * imageWidth * scaleFactor + offsetX
-
-    private fun mapY(normalizedY: Float): Float = normalizedY * imageHeight * scaleFactor + offsetY
 
     fun setResults(
         poseLandmarkerResults: PoseLandmarkerResult,
@@ -126,20 +86,13 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         runningMode: RunningMode = RunningMode.IMAGE,
         zone: PostureZone = PostureZone.SAFE,
     ) {
-        results = poseLandmarkerResults
-        this.imageHeight = imageHeight
-        this.imageWidth = imageWidth
-        postureZone = zone
-
-        // PreviewView uses FIT_CENTER, so the overlay must use the same letterbox transform.
-        scaleFactor = min(width.toFloat() / imageWidth, height.toFloat() / imageHeight)
-        offsetX = (width - imageWidth * scaleFactor) / 2f
-        offsetY = (height - imageHeight * scaleFactor) / 2f
+        this.zone = zone.takeIf { poseLandmarkerResults.landmarks().isNotEmpty() }
+        contentDescription = context.getString(when (this.zone) {
+            PostureZone.SAFE -> R.string.posture_status_safe
+            PostureZone.WARNING -> R.string.posture_status_warning
+            PostureZone.DANGER -> R.string.posture_status_danger
+            null -> R.string.no_face_detected_warning
+        })
         invalidate()
-    }
-
-    companion object {
-        private const val LANDMARK_STROKE_WIDTH = 7f
-        private const val POINT_RADIUS = 7f
     }
 }

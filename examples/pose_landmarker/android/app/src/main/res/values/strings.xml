@@ -521,4 +521,7 @@
     <string name="head_turn_feedback">Head turned to the side. Face forward gently.</string>
     <string name="head_lateral_feedback">Head shifted sideways. Center your head above your shoulders.</string>
     <string name="head_roll">Head roll</string>
+<string name="scan_companion">Your little dragon is here. Relax your shoulders and look ahead.</string>
+<string name="scan_ai_active">AI · LIVE</string>
+<string name="scan_ai_waiting">AI · —</string>
 </resources>

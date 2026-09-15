@@ -512,4 +512,7 @@
     <string name="head_turn_feedback">轉頭角度偏大，請慢慢轉回正前方。</string>
     <string name="head_lateral_feedback">頭部向側邊偏移，請回到雙肩中央。</string>
     <string name="head_roll">頭部歪斜</string>
+<string name="scan_companion">小藍龍陪你一起，放鬆肩膀、自然平視。</string>
+<string name="scan_ai_active">AI · LIVE</string>
+<string name="scan_ai_waiting">AI · —</string>
 </resources>

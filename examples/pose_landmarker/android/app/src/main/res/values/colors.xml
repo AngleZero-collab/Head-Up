@@ -29,10 +29,10 @@
     <color name="icFocused">#DDFFFFFF</color>
     <color name="icPressed">#AAFFFFFF</color>
 
-    <color name="headup_bg_top">#071426</color>
-    <color name="headup_bg_bottom">#101633</color>
-    <color name="headup_card">#A51A2545</color>
-    <color name="headup_card_strong">#CC1B2848</color>
+    <color name="headup_bg_top">#0F172A</color>
+    <color name="headup_bg_bottom">#172638</color>
+    <color name="headup_card">#99334155</color>
+    <color name="headup_card_strong">#C028394B</color>
     <color name="headup_card_stroke">#334E6A91</color>
     <color name="headup_primary">#38C8F4</color>
     <color name="headup_primary_dark">#1E9BD3</color>
@@ -41,7 +41,7 @@
     <color name="headup_safe">#90E8A0</color>
     <color name="headup_warning">#FFD166</color>
     <color name="headup_danger">#FF6B6B</color>
-    <color name="headup_nav">#E617203A</color>
+    <color name="headup_nav">#E6223043</color>
     <color name="headup_nav_inactive">#9AA6BC</color>
     <color name="headup_orange">#FF9364</color>
     <color name="headup_purple">#A988FF</color>

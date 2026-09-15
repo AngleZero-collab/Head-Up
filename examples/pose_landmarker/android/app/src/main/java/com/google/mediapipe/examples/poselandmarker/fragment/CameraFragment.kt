@@ -458,6 +458,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
 
     private fun renderMetrics(metrics: PostureMetrics) {
         val currentBinding = _binding ?: return
+        currentBinding.scanStatusText.textSize = 25f
         bindOrientationRows(metrics)
         val colorRes = metrics.zone.colorRes()
         currentBinding.scanProgress.progress = (100 - metrics.angleDegrees * 2).coerceIn(0, 100)
@@ -516,6 +517,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
             currentBinding.scanProgress.progress = 0
             initializeResultRows()
             currentBinding.scanStatusText.setText(R.string.no_face_detected_warning)
+            currentBinding.scanStatusText.textSize = 17f
             currentBinding.scanStatusText.setTextColor(
                 ContextCompat.getColor(requireContext(), R.color.headup_danger),
             )
