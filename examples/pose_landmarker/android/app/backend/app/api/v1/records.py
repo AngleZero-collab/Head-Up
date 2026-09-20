@@ -5,14 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db_session
 from app.dependencies import get_current_user
 from app.models import DailyReport, User
-from app.schemas import PostureRecordCreate, RecordsSyncResponse
+from app.schemas import LegacyPostureRecordCreate, RecordsSyncResponse
 
 router = APIRouter(prefix="/records", tags=["records"])
 
 
 @router.post("/sync", response_model=RecordsSyncResponse, status_code=status.HTTP_200_OK)
 async def sync_records(
-    records: list[PostureRecordCreate],
+    records: list[LegacyPostureRecordCreate],
     session: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ) -> RecordsSyncResponse:

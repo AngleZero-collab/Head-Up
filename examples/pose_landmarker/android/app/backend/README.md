@@ -32,11 +32,7 @@ For example, if `ipconfig` shows your Wi-Fi IPv4 address is `172.20.10.5`, use:
 headupApiBaseUrl=http://172.20.10.5:8000/
 ```
 
-For a production PostgreSQL deployment, install the PostgreSQL driver as well:
-
-```powershell
-pip install -r requirements-postgres.txt
-```
+The main `requirements.txt` includes both the local SQLite driver and the production PostgreSQL `asyncpg` driver.
 
 ## API
 

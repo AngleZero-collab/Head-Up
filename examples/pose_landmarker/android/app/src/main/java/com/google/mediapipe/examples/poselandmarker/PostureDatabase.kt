@@ -19,6 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     indices = [
         Index(value = ["timestampMs"]),
         Index(value = ["isSynced", "timestampMs"]),
+        Index(value = ["isFeatureSynced", "timestampMs"]),
     ],
 )
 data class PostureRecordEntity(
@@ -28,6 +29,9 @@ data class PostureRecordEntity(
     val durationMs: Long,
     val angleDegrees: Int,
     val rawAngleDegrees: Float,
+    val parallaxCosineRatio: Float,
+    val angularVelocity: Float,
+    val isStable: Boolean,
     val neckFlexionDegrees: Int,
     val shoulderBalanceDegrees: Int,
     val screenDistanceCm: Int?,
@@ -37,6 +41,8 @@ data class PostureRecordEntity(
     val isRapidFall: Boolean = false,
     val isSynced: Boolean = false,
     val syncedAtMs: Long? = null,
+    val isFeatureSynced: Boolean = false,
+    val featureSyncedAtMs: Long? = null,
 )
 
 @Dao
@@ -55,6 +61,12 @@ interface PostureRecordDao {
 
     @Query("UPDATE posture_records SET isSynced = 1, syncedAtMs = :syncedAtMs WHERE id IN (:ids)")
     fun markSynced(ids: List<Long>, syncedAtMs: Long)
+
+    @Query("SELECT * FROM posture_records WHERE isFeatureSynced = 0 ORDER BY timestampMs ASC LIMIT :limit")
+    fun unsyncedFeatureRecords(limit: Int): List<PostureRecordEntity>
+
+    @Query("UPDATE posture_records SET isFeatureSynced = 1, featureSyncedAtMs = :syncedAtMs WHERE id IN (:ids)")
+    fun markFeaturesSynced(ids: List<Long>, syncedAtMs: Long)
 
     @Query("DELETE FROM posture_records")
     fun deleteAll()
@@ -76,7 +88,7 @@ interface PostureRecordDao {
         LeaderboardCacheEntity::class,
         SyncQueueEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class PostureDatabase : RoomDatabase() {
@@ -137,6 +149,19 @@ abstract class PostureDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE posture_records ADD COLUMN parallaxCosineRatio REAL NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE posture_records ADD COLUMN angularVelocity REAL NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE posture_records ADD COLUMN isStable INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE posture_records ADD COLUMN isFeatureSynced INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE posture_records ADD COLUMN featureSyncedAtMs INTEGER")
+                // 舊資料沒有這三個真實量測值，不以預設 0 冒充特徵補傳；升級後的新資料才進入同步佇列。
+                db.execSQL("UPDATE posture_records SET isFeatureSynced = 1")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_posture_records_isFeatureSynced_timestampMs ON posture_records(isFeatureSynced, timestampMs)")
+            }
+        }
+
         fun getInstance(context: Context): PostureDatabase = instance ?: synchronized(this) {
             instance ?: buildDatabase(context.applicationContext).also { instance = it }
         }
@@ -146,7 +171,7 @@ abstract class PostureDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): PostureDatabase =
             Room.databaseBuilder(context, PostureDatabase::class.java, DATABASE_NAME)
                 .openHelperFactory(HeadUpDatabasePassphrase.createSupportFactory(context, DATABASE_NAME))
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
 }

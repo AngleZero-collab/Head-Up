@@ -29,8 +29,11 @@ class PostureSyncWorker(
             val dao = database.postureRecordDao()
             val monitoringDao = database.monitoringDao()
             val pending = dao.unsyncedRecords(SYNC_BATCH_LIMIT)
+            val pendingFeatures = dao.unsyncedFeatureRecords(SYNC_BATCH_LIMIT)
             val pendingAggregates = monitoringDao.unsyncedAggregates(AGGREGATE_BATCH_LIMIT)
-            if (pending.isEmpty() && pendingAggregates.isEmpty()) return@withContext Result.success()
+            if (pending.isEmpty() && pendingFeatures.isEmpty() && pendingAggregates.isEmpty()) {
+                return@withContext Result.success()
+            }
 
             if (!ensureSyncToken()) {
                 return@withContext Result.retry()
@@ -46,6 +49,23 @@ class PostureSyncWorker(
                         System.currentTimeMillis(),
                     )
                 } else if (aggregateResponse.code() in 500..599 || aggregateResponse.code() == 429) {
+                    return@withContext Result.retry()
+                } else {
+                    return@withContext Result.failure()
+                }
+            }
+
+            if (pendingFeatures.isNotEmpty()) {
+                val featureResponse = service.syncPostureRecords(
+                    PostureBatchUploadRequest(pendingFeatures.map { it.toFeatureUpload() }),
+                )
+                if (featureResponse.isSuccessful) {
+                    // 後端以 timestamp 冪等 UPSERT；成功後可安全標記整批本機列，包含同時刻重複資料。
+                    dao.markFeaturesSynced(
+                        pendingFeatures.map { it.id },
+                        System.currentTimeMillis(),
+                    )
+                } else if (featureResponse.code() in 500..599 || featureResponse.code() == 429) {
                     return@withContext Result.retry()
                 } else {
                     return@withContext Result.failure()
@@ -125,6 +145,13 @@ class PostureSyncWorker(
         idempotencyKey = idempotencyKey,
     )
 
+    private fun PostureRecordEntity.toFeatureUpload() = PostureRecordUpload(
+        timestamp = UTC_TIMESTAMP_FORMAT.get()!!.format(Date(timestampMs)),
+        parallaxCosineRatio = parallaxCosineRatio,
+        angularVelocity = angularVelocity,
+        isStable = isStable,
+    )
+
     private fun List<PostureRecordEntity>.countDangerEvents(): Int {
         var previousDanger = false
         var events = 0
@@ -154,6 +181,12 @@ class PostureSyncWorker(
             override fun initialValue(): SimpleDateFormat =
                 SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
                     timeZone = TimeZone.getDefault()
+                }
+        }
+        private val UTC_TIMESTAMP_FORMAT = object : ThreadLocal<SimpleDateFormat>() {
+            override fun initialValue(): SimpleDateFormat =
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
                 }
         }
     }

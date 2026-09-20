@@ -27,8 +27,15 @@ def appLocalPropertiesFile = project.file("local.properties")
 if (appLocalPropertiesFile.exists()) {
     appLocalPropertiesFile.withInputStream { appLocalProperties.load(it) }
 }
-def headupApiBaseUrl = appLocalProperties.getProperty("headupApiBaseUrl", "http://10.0.2.2:8000/")
-def escapedHeadupApiBaseUrl = headupApiBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")
+// 優先順序：-PAPI_URL > 系統環境變數 API_URL > local.properties > Android Emulator 本機預設值。
+// CI/CD 可注入正式 HTTPS 網址，不需要把正式網域或任何機密寫進版本控制。
+def apiUrl = project.findProperty("API_URL") ?:
+    System.getenv("API_URL") ?:
+    appLocalProperties.getProperty("headupApiBaseUrl", "http://10.0.2.2:8000/")
+if (!apiUrl.endsWith("/")) {
+    throw new GradleException("API_URL must end with '/': ${apiUrl}")
+}
+def escapedApiUrl = apiUrl.replace("\\", "\\\\").replace("\"", "\\\"")
 
 android {
     namespace 'com.google.mediapipe.examples.poselandmarker'
@@ -40,7 +47,7 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
-        buildConfigField "String", "HEADUP_API_BASE_URL", "\"${escapedHeadupApiBaseUrl}\""
+        buildConfigField "String", "API_URL", "\"${escapedApiUrl}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

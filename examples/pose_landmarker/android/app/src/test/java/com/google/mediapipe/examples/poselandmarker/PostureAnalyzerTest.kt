@@ -7,6 +7,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import kotlin.math.cos
 import kotlin.math.tan
 
 class PostureAnalyzerTest {
@@ -22,6 +23,16 @@ class PostureAnalyzerTest {
         assertEquals(PostureZone.SAFE, metrics?.zone)
         assertEquals(0, metrics?.angleDegrees)
         assertEquals("平衡", metrics?.shoulderBalanceLabel)
+    }
+
+    @Test
+    fun analyze_exposesFiniteParallaxCosineRatioForSync() {
+        val metrics = PostureAnalyzer.analyze(samplePose(rawAngle = 60f))!!
+
+        val expected = cos(Math.toRadians(metrics.rawAngleDegrees.toDouble())).toFloat()
+        assertEquals(expected, metrics.parallaxCosineRatio, 0.001f)
+        assertTrue(metrics.parallaxCosineRatio in 0f..1f)
+        assertTrue(metrics.angularVelocity.isFinite())
     }
 
     @Test

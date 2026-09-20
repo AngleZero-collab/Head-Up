@@ -142,6 +142,21 @@ data class SyncResponse(
     val inserted: Int,
 )
 
+data class PostureRecordUpload(
+    val timestamp: String,
+    @SerializedName("parallax_cosine_ratio") val parallaxCosineRatio: Float,
+    @SerializedName("angular_velocity") val angularVelocity: Float,
+    @SerializedName("is_stable") val isStable: Boolean,
+)
+
+data class PostureBatchUploadRequest(
+    val records: List<PostureRecordUpload>,
+)
+
+data class PostureBatchSyncResponse(
+    @SerializedName("synced_count") val syncedCount: Int,
+)
+
 data class SchoolResponse(
     val id: String,
     @SerializedName("official_school_code") val officialSchoolCode: String,
@@ -278,6 +293,11 @@ interface HeadUpApiService {
         @Body reports: List<DailyReportSyncRequest>,
     ): Response<SyncResponse>
 
+    @POST("api/v1/posture/batch")
+    suspend fun syncPostureRecords(
+        @Body request: PostureBatchUploadRequest,
+    ): Response<PostureBatchSyncResponse>
+
     @GET("api/v1/schools")
     suspend fun schools(
         @Query("country_code") countryCode: String = "TW",
@@ -354,7 +374,7 @@ object HeadUpApiClient {
             .build()
 
         return Retrofit.Builder()
-            .baseUrl(BuildConfig.HEADUP_API_BASE_URL)
+            .baseUrl(BuildConfig.API_URL)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

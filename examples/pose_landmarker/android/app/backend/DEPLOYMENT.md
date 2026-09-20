@@ -53,13 +53,16 @@ For a real public launch, build a signed release APK or Android App Bundle. Keep
 
 ## 4. Point Android To The Public API
 
-Set `headupApiBaseUrl` in `examples/pose_landmarker/android/app/local.properties` before building:
+Inject the public HTTPS URL through a Gradle property or environment variable before building:
 
-```properties
-headupApiBaseUrl=https://YOUR_PUBLIC_DOMAIN/
+```powershell
+$env:API_URL='https://YOUR_PUBLIC_DOMAIN/'
+..\gradlew.bat :app:assembleRelease
 ```
 
-Then rebuild the APK. Users who install that APK will sync to the public backend instead of your local computer.
+You can also pass `-PAPI_URL=https://YOUR_PUBLIC_DOMAIN/`. For local development only,
+`headupApiBaseUrl` in `local.properties` remains supported as a fallback. Users who install
+the resulting APK will sync to the injected public backend instead of your local computer.
 
 ## 5. Public URLs
 

@@ -227,6 +227,9 @@ object HeadUpRepository {
                 durationMs = elapsedMs,
                 angleDegrees = metrics.angleDegrees,
                 rawAngleDegrees = metrics.rawAngleDegrees,
+                parallaxCosineRatio = metrics.parallaxCosineRatio,
+                angularVelocity = metrics.angularVelocity,
+                isStable = metrics.isStable,
                 neckFlexionDegrees = metrics.neckFlexionDegrees,
                 shoulderBalanceDegrees = metrics.shoulderBalanceDegrees,
                 screenDistanceCm = metrics.screenDistanceCm,
@@ -235,6 +238,7 @@ object HeadUpRepository {
                 source = source,
                 isRapidFall = metrics.isRapidFall,
                 isSynced = false,
+                isFeatureSynced = false,
             )
             executeDatabaseTask {
                 val dao = PostureDatabase.getInstance(appContext).postureRecordDao()

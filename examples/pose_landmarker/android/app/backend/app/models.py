@@ -131,3 +131,25 @@ class PostureAggregate(Base):
     scoring_version: Mapped[int] = mapped_column(Integer, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PostureRecord(Base):
+    """由裝置離線累積、恢復連線後同步的原始姿態特徵。"""
+
+    __tablename__ = "posture_records"
+    __table_args__ = (
+        # 同一位使用者在同一瞬間只能有一筆資料，讓客戶端安全地重送批次。
+        UniqueConstraint("patient_id", "timestamp", name="uq_posture_record_patient_timestamp"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
+    parallax_cosine_ratio: Mapped[float] = mapped_column(Float, nullable=False)
+    angular_velocity: Mapped[float] = mapped_column(Float, nullable=False)
+    is_stable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

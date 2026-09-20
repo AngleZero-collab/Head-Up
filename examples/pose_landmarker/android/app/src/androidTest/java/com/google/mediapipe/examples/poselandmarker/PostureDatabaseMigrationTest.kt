@@ -59,5 +59,37 @@ class PostureDatabaseMigrationTest {
             context.deleteDatabase(name)
         }
     }
-}
 
+    @Test
+    fun migrationThreeToFourAddsFeatureColumnsWithoutUploadingLegacyPlaceholders() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "migration-3-4-${System.nanoTime()}.db"
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(name)
+                .callback(object : SupportSQLiteOpenHelper.Callback(3) {
+                    override fun onCreate(db: SupportSQLiteDatabase) = Unit
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+                })
+                .build(),
+        )
+        try {
+            val db = helper.writableDatabase
+            db.execSQL("CREATE TABLE posture_records (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId TEXT NOT NULL, timestampMs INTEGER NOT NULL, durationMs INTEGER NOT NULL, angleDegrees INTEGER NOT NULL, rawAngleDegrees REAL NOT NULL, neckFlexionDegrees INTEGER NOT NULL, shoulderBalanceDegrees INTEGER NOT NULL, screenDistanceCm INTEGER, landmarkConfidence REAL NOT NULL, zone TEXT NOT NULL, source TEXT NOT NULL, isRapidFall INTEGER NOT NULL, isSynced INTEGER NOT NULL, syncedAtMs INTEGER)")
+            db.execSQL("INSERT INTO posture_records (userId,timestampMs,durationMs,angleDegrees,rawAngleDegrees,neckFlexionDegrees,shoulderBalanceDegrees,screenDistanceCm,landmarkConfidence,zone,source,isRapidFall,isSynced,syncedAtMs) VALUES ('legacy-user',1000,1000,8,8.0,4,1,35,0.9,'SAFE','background',0,0,NULL)")
+
+            PostureDatabase.MIGRATION_3_4.migrate(db)
+
+            db.query("SELECT parallaxCosineRatio, angularVelocity, isStable, isFeatureSynced FROM posture_records").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0f, cursor.getFloat(0), 0f)
+                assertEquals(0f, cursor.getFloat(1), 0f)
+                assertEquals(0, cursor.getInt(2))
+                assertEquals(1, cursor.getInt(3))
+            }
+        } finally {
+            helper.close()
+            context.deleteDatabase(name)
+        }
+    }
+}

@@ -43,9 +43,13 @@ object PostureAnalyzer {
     private const val DEVICE_TILT_DANGER_DEGREES = 14
     private const val DEVICE_TILT_CONFIRM_FRAMES = 3
     private const val SHOULDER_DISTANCE_OVERRIDE_MARGIN_CM = 3
+    private const val STABILITY_WINDOW_MS = 3_000L
+    private const val STABLE_ANGULAR_VELOCITY_DEGREES_PER_SECOND = 3f
 
     private var smoothedAngle: Float? = null
     private var previousSmoothedAngle: Float? = null
+    private var previousAnalysisTimestampMs: Long? = null
+    private var stableSinceMs: Long? = null
     private val distanceCalculator = DistanceCalculator()
     private val headOrientationAnalyzer = HeadOrientationAnalyzer()
     private var orientationEvidenceFrames = 0
@@ -56,6 +60,8 @@ object PostureAnalyzer {
     fun resetSmoothing() {
         smoothedAngle = null
         previousSmoothedAngle = null
+        previousAnalysisTimestampMs = null
+        stableSinceMs = null
         distanceCalculator.reset()
         headOrientationAnalyzer.reset()
         orientationEvidenceFrames = 0
@@ -120,11 +126,14 @@ object PostureAnalyzer {
         val faceCenter = body.faceCenter
         val verticalDistance = (shoulderCenter.y - faceCenter.y).coerceAtLeast(0.001f)
         val postureRatio = verticalDistance / shoulderWidth
+        val depthDistance = shoulderCenter.z - faceCenter.z
+        // 以臉部到肩部的 3D 向量計算相對垂直軸 cosine ratio，值域自然落在 0..1。
+        val parallaxCosineRatio = verticalDistance / hypot(verticalDistance, depthDistance)
 
         // Keep the original 15-point 3D vector core: face center to shoulder center in Y/Z space.
         val rawAngle = Math.toDegrees(
             atan2(
-                (shoulderCenter.z - faceCenter.z).toDouble(),
+                depthDistance.toDouble(),
                 verticalDistance.toDouble(),
             ),
         ).toFloat().coerceIn(0f, 90f)
@@ -134,8 +143,19 @@ object PostureAnalyzer {
         } ?: rawAngle
         // An upright face has a larger face-to-shoulder depth angle on the front camera;
         // forward collapse makes that angle smaller. Velocity follows the same risk direction.
-        val angleVelocity = previousSmoothedAngle?.let { it - currentSmoothed } ?: 0f
+        val analyzedAtMs = System.currentTimeMillis()
+        val previousAngle = previousSmoothedAngle
+        val angleVelocity = previousAngle?.let { it - currentSmoothed } ?: 0f
+        // API 儲存實際的角速度（度/秒）；快速倒下既有判斷仍沿用每幀差值，避免改變警示行為。
+        val elapsedSeconds = previousAnalysisTimestampMs
+            ?.let { (analyzedAtMs - it).coerceAtLeast(1L) / 1_000f }
+        val angularVelocity = if (previousAngle != null && elapsedSeconds != null) {
+            (previousAngle - currentSmoothed) / elapsedSeconds
+        } else {
+            0f
+        }
         previousSmoothedAngle = currentSmoothed
+        previousAnalysisTimestampMs = analyzedAtMs
         smoothedAngle = currentSmoothed
 
         // Calibration captures the correct upright angle. A drop from that baseline is
@@ -233,6 +253,16 @@ object PostureAnalyzer {
         val isTooClose = screenDistanceCm?.let { it < TOO_CLOSE_WARNING_CM } ?: false
         val angle = compositeAngle.roundToInt()
         val isRapidFall = angle >= RAPID_FALL_ARM_DEGREES && angleVelocity > RAPID_FALL_VELOCITY
+        val hasStableSignal = abs(angularVelocity) <= STABLE_ANGULAR_VELOCITY_DEGREES_PER_SECOND &&
+            body.confidence >= MIN_TRACKING_CONFIDENCE && !isRapidFall
+        if (hasStableSignal) {
+            if (stableSinceMs == null) stableSinceMs = analyzedAtMs
+        } else {
+            stableSinceMs = null
+        }
+        // 必須連續穩定三秒才標記成功，單一平穩影格不會被誤認為通過防手震視窗。
+        val isStable = hasStableSignal &&
+            (stableSinceMs?.let { analyzedAtMs - it >= STABILITY_WINDOW_MS } == true)
 
         val zone = when {
             confirmedDeviceRisk >= DEVICE_TILT_DANGER_DEGREES -> PostureZone.DANGER
@@ -251,6 +281,9 @@ object PostureAnalyzer {
         return PostureMetrics(
             angleDegrees = angle,
             rawAngleDegrees = currentSmoothed,
+            parallaxCosineRatio = parallaxCosineRatio,
+            angularVelocity = angularVelocity,
+            isStable = isStable,
             relativeAngleDegrees = relativeHeadAngle.roundToInt(),
             neckFlexionDegrees = neckFlexion.roundToInt(),
             zone = zone,
@@ -276,6 +309,7 @@ object PostureAnalyzer {
             deviceTiltDegrees = deviceTilt,
             isDeviceFlat = isFlat,
             isRapidFall = isRapidFall,
+            timestampMs = analyzedAtMs,
             rawHeadLateralDegrees = orientation.lateral,
             rawHeadYawDegrees = orientation.yaw,
             rawHeadPitchDegrees = orientation.pitch,

@@ -1,7 +1,7 @@
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from typing import Literal
 
 
@@ -158,7 +158,9 @@ class ReportsSyncResponse(BaseModel):
     inserted: int
 
 
-class PostureRecordCreate(BaseModel):
+class LegacyPostureRecordCreate(BaseModel):
+    """保留給舊版 /records/sync 使用，避免改變既有客戶端契約。"""
+
     user_id: str = Field(min_length=1, max_length=128)
     daily_slouch_count: int = Field(ge=0)
     ai_intercept_rate: float = Field(ge=0.0, le=1.0)
@@ -167,6 +169,32 @@ class PostureRecordCreate(BaseModel):
 
 class RecordsSyncResponse(ReportsSyncResponse):
     pass
+
+
+class PostureRecordCreate(BaseModel):
+    timestamp: datetime
+    # 不限制尚未定義的業務數值範圍，但拒絕無法安全寫入 JSON/資料庫的 NaN 與 Infinity。
+    parallax_cosine_ratio: float = Field(allow_inf_nan=False)
+    angular_velocity: float = Field(allow_inf_nan=False)
+    is_stable: bool
+
+    @field_validator("timestamp")
+    @classmethod
+    def normalize_timestamp(cls, value: datetime) -> datetime:
+        # 無時區時間無法判斷實際瞬間，直接拒絕以避免錯誤覆蓋其他紀錄。
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("timestamp must include a timezone offset")
+        # 所有時間先正規化為 UTC，讓不同 offset 表示的同一瞬間命中相同唯一鍵。
+        return value.astimezone(timezone.utc)
+
+
+class BatchPostureUpload(BaseModel):
+    # 允許空批次，方便離線同步工作在沒有待傳資料時維持冪等成功。
+    records: list[PostureRecordCreate] = Field(max_length=1000)
+
+
+class BatchPostureUploadResponse(BaseModel):
+    synced_count: int = Field(ge=0)
 
 
 class TokenResponse(BaseModel):
