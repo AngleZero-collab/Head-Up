@@ -196,14 +196,21 @@ object PostureSyncScheduler {
     private const val PERIODIC_WORK_NAME = "headup-posture-sync"
     private const val ONE_TIME_WORK_NAME = "headup-posture-sync-now"
 
-    private val syncConstraints = Constraints.Builder()
+    // 定期背景同步仍只在非計量網路執行，避免長期批次上傳消耗行動數據。
+    private val periodicSyncConstraints = Constraints.Builder()
         .setRequiredNetworkType(NetworkType.UNMETERED)
+        .setRequiresBatteryNotLow(true)
+        .build()
+
+    // 使用者主動要求的立即同步允許 Wi-Fi 熱點與行動網路；仍保留低電量保護。
+    private val oneTimeSyncConstraints = Constraints.Builder()
+        .setRequiredNetworkType(NetworkType.CONNECTED)
         .setRequiresBatteryNotLow(true)
         .build()
 
     fun schedulePeriodic(context: Context) {
         val request = PeriodicWorkRequestBuilder<PostureSyncWorker>(6, TimeUnit.HOURS)
-            .setConstraints(syncConstraints)
+            .setConstraints(periodicSyncConstraints)
             .addTag(PERIODIC_WORK_NAME)
             .build()
         WorkManager.getInstance(context.applicationContext).enqueueUniquePeriodicWork(
@@ -215,7 +222,7 @@ object PostureSyncScheduler {
 
     fun enqueueOneTime(context: Context) {
         val request = OneTimeWorkRequestBuilder<PostureSyncWorker>()
-            .setConstraints(syncConstraints)
+            .setConstraints(oneTimeSyncConstraints)
             .addTag(ONE_TIME_WORK_NAME)
             .build()
         WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(

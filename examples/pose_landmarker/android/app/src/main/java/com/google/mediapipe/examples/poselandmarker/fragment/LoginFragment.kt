@@ -83,6 +83,8 @@ class LoginFragment : Fragment() {
             try {
                 val token = HeadUpApiClient.service.login(email, password)
                 saveToken(token)
+                // 登入成功並保存 JWT 後立即排入同步，避免舊的離線資料必須等到下一次定期工作。
+                PostureSyncScheduler.enqueueOneTime(requireContext().applicationContext)
                 Toast.makeText(requireContext(), R.string.login_success, Toast.LENGTH_SHORT).show()
                 navigateToNext()
             } catch (error: HttpException) {
@@ -272,6 +274,8 @@ class LoginFragment : Fragment() {
                     saveFamilyAccount(account)
                     Toast.makeText(requireContext(), R.string.family_join_success, Toast.LENGTH_SHORT).show()
                 }
+                // 新帳號完成登入（以及可能的家庭加入）後才同步，確保資料寫入正確的使用者。
+                PostureSyncScheduler.enqueueOneTime(appContext)
                 Toast.makeText(requireContext(), R.string.register_success, Toast.LENGTH_SHORT).show()
                 navigateToNext()
             } catch (error: Exception) {
