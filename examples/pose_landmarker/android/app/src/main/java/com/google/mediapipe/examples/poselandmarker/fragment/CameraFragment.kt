@@ -105,10 +105,15 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
         val state = HeadUpRepository.currentState(requireContext())
         renderMetrics(state.metrics)
         updateAlarmUi(state.isAlarmEnabled)
+        binding.connectionsSwitch.isChecked = HeadUpRepository.arePoseConnectionsEnabled(requireContext())
 
         binding.calibrationButton.setOnClickListener { startCalibration() }
         binding.switchCameraButton.setOnClickListener { switchCamera() }
         binding.alarmToggleButton.setOnClickListener { toggleAlarm() }
+        binding.connectionsSwitch.setOnCheckedChangeListener { _, enabled ->
+            HeadUpRepository.setPoseConnectionsEnabled(requireContext(), enabled)
+            binding.overlay.invalidate()
+        }
         binding.viewFinder.doOnLayout {
             viewReady = true
             maybeStartCamera()
@@ -123,6 +128,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
 
     override fun onResume() {
         super.onResume()
+        binding.connectionsSwitch.isChecked = HeadUpRepository.arePoseConnectionsEnabled(requireContext())
         setupSensors()
         if (!PermissionsFragment.hasPermissions(requireContext())) {
             Navigation.findNavController(requireActivity(), R.id.fragment_container)
