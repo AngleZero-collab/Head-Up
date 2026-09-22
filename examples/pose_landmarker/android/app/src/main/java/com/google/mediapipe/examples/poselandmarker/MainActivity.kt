@@ -118,6 +118,13 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.settings_language),
             getString(R.string.settings_monitoring_controls),
             getString(
+                if (HeadUpRepository.arePoseConnectionsEnabled(this)) {
+                    R.string.settings_pose_connections_on
+                } else {
+                    R.string.settings_pose_connections_off
+                },
+            ),
+            getString(
                 if (HeadUpRepository.isWarningOverlayEnabled(this)) {
                     R.string.settings_warning_overlay_on
                 } else {
@@ -145,16 +152,27 @@ class MainActivity : AppCompatActivity() {
                     1 -> enqueueManualSync()
                     2 -> showLanguagePicker()
                     3 -> showMonitoringControlsDialog()
-                    4 -> toggleWarningOverlay()
-                    5 -> togglePetOverlay()
-                    6 -> openOverlaySettingsIfNeeded()
-                    7 -> navigateToCalibration()
-                    8 -> showDataManagementDialog()
-                    9 -> confirmLogout()
-                    10 -> confirmResetData()
+                    4 -> togglePoseConnections()
+                    5 -> toggleWarningOverlay()
+                    6 -> togglePetOverlay()
+                    7 -> openOverlaySettingsIfNeeded()
+                    8 -> navigateToCalibration()
+                    9 -> showDataManagementDialog()
+                    10 -> confirmLogout()
+                    11 -> confirmResetData()
                 }
             }
             .show()
+    }
+
+    private fun togglePoseConnections() {
+        val enabled = !HeadUpRepository.arePoseConnectionsEnabled(this)
+        HeadUpRepository.setPoseConnectionsEnabled(this, enabled)
+        Toast.makeText(
+            this,
+            if (enabled) R.string.pose_connections_enabled else R.string.pose_connections_disabled,
+            Toast.LENGTH_SHORT,
+        ).show()
     }
 
     private fun showAccountDialog() {

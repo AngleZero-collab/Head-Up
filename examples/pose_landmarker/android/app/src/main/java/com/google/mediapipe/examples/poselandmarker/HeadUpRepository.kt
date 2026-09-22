@@ -52,6 +52,7 @@ object HeadUpRepository {
     private const val KEY_LEADERBOARD_OPT_IN = "leaderboard_opt_in"
     private const val KEY_WARNING_OVERLAY_ENABLED = "warning_overlay_enabled"
     private const val KEY_PET_OVERLAY_ENABLED = "pet_overlay_enabled"
+    private const val KEY_POSE_CONNECTIONS_ENABLED = "pose_connections_enabled"
     private const val KEY_CALIBRATION_REQUESTED = "calibration_requested"
     private const val KEY_SELECTED_MODEL = "selected_model"
     private const val KEY_SELECTED_DELEGATE = "selected_delegate"
@@ -517,6 +518,13 @@ object HeadUpRepository {
     fun setPetOverlayEnabled(context: Context, enabled: Boolean) {
         getPrefs(context).edit { putBoolean(KEY_PET_OVERLAY_ENABLED, enabled) }
         currentState(context)
+    }
+
+    fun arePoseConnectionsEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean(KEY_POSE_CONNECTIONS_ENABLED, true)
+
+    fun setPoseConnectionsEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_POSE_CONNECTIONS_ENABLED, enabled) }
     }
 
     fun getSelectedModel(context: Context): Int =

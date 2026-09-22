@@ -58,6 +58,8 @@
     <string name="settings_account">Account: %1$s</string>
     <string name="settings_sync_now">Sync records now</string>
     <string name="settings_language">App language</string>
+    <string name="settings_pose_connections_on">Connections: On</string>
+    <string name="settings_pose_connections_off">Connections: Off</string>
     <string name="settings_warning_overlay_on">Red warning frame: On</string>
     <string name="settings_warning_overlay_off">Red warning frame: Off</string>
     <string name="settings_pet_overlay_on">Virtual pet popup: On</string>
@@ -67,6 +69,8 @@
     <string name="settings_data_management">Data management</string>
     <string name="settings_logout">Log out</string>
     <string name="settings_reset_data">Reset posture records</string>
+    <string name="pose_connections_enabled">Connections are on.</string>
+    <string name="pose_connections_disabled">Connections are off.</string>
     <string name="account_title">Account</string>
     <string name="account_message">Current user id:\n%1$s\n\nRole: %2$s\nPlan: %3$s</string>
     <string name="account_open_management">Open management</string>

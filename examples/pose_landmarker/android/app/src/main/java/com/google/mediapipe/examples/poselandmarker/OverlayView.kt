@@ -6,6 +6,7 @@ package com.google.mediapipe.examples.poselandmarker
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.util.AttributeSet
@@ -19,6 +20,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     private var results: PoseLandmarkerResult? = null
     private val pointPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val lineGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var scaleFactor = 1f
     private var offsetX = 0f
     private var offsetY = 0f
@@ -33,6 +35,11 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
             linePaint.strokeWidth = LANDMARK_STROKE_WIDTH
             linePaint.style = Paint.Style.STROKE
             linePaint.strokeCap = Paint.Cap.ROUND
+            linePaint.strokeJoin = Paint.Join.ROUND
+            lineGlowPaint.strokeWidth = CONNECTION_GLOW_WIDTH
+            lineGlowPaint.style = Paint.Style.STROKE
+            lineGlowPaint.strokeCap = Paint.Cap.ROUND
+            lineGlowPaint.strokeJoin = Paint.Join.ROUND
             pointPaint.style = Paint.Style.FILL
             applyZoneColor()
         }
@@ -63,22 +70,25 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
             }
         }
 
-        drawConnection(canvas, landmarks, 11, 12)
-        drawConnection(canvas, landmarks, 11, 23)
-        drawConnection(canvas, landmarks, 12, 24)
-        drawConnection(canvas, landmarks, 23, 24)
-        drawConnection(canvas, landmarks, 7, 3)
-        drawConnection(canvas, landmarks, 6, 8)
-        drawConnection(canvas, landmarks, 9, 10)
+        if (HeadUpRepository.arePoseConnectionsEnabled(context)) {
+            drawConnection(canvas, landmarks, 11, 12)
+            drawConnection(canvas, landmarks, 11, 23)
+            drawConnection(canvas, landmarks, 12, 24)
+            drawConnection(canvas, landmarks, 23, 24)
+            drawConnection(canvas, landmarks, 7, 3)
+            drawConnection(canvas, landmarks, 6, 8)
+            drawConnection(canvas, landmarks, 9, 10)
 
-        facePath.reset()
-        facePathIndices.forEachIndexed { pathIndex, landmarkIndex ->
-            landmarks.getOrNull(landmarkIndex)?.let { point ->
-                if (pathIndex == 0) facePath.moveTo(mapX(point.x()), mapY(point.y()))
-                else facePath.lineTo(mapX(point.x()), mapY(point.y()))
+            facePath.reset()
+            facePathIndices.forEachIndexed { pathIndex, landmarkIndex ->
+                landmarks.getOrNull(landmarkIndex)?.let { point ->
+                    if (pathIndex == 0) facePath.moveTo(mapX(point.x()), mapY(point.y()))
+                    else facePath.lineTo(mapX(point.x()), mapY(point.y()))
+                }
             }
+            canvas.drawPath(facePath, lineGlowPaint)
+            canvas.drawPath(facePath, linePaint)
         }
-        canvas.drawPath(facePath, linePaint)
     }
 
     private fun drawConnection(
@@ -89,7 +99,12 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     ) {
         val start = landmarks.getOrNull(startIndex) ?: return
         val end = landmarks.getOrNull(endIndex) ?: return
-        canvas.drawLine(mapX(start.x()), mapY(start.y()), mapX(end.x()), mapY(end.y()), linePaint)
+        val startX = mapX(start.x())
+        val startY = mapY(start.y())
+        val endX = mapX(end.x())
+        val endY = mapY(end.y())
+        canvas.drawLine(startX, startY, endX, endY, lineGlowPaint)
+        canvas.drawLine(startX, startY, endX, endY, linePaint)
     }
 
     private fun applyZoneColor() {
@@ -100,6 +115,12 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
             PostureZone.DANGER -> ContextCompat.getColor(context, R.color.headup_danger)
         }
         linePaint.color = color
+        lineGlowPaint.color = Color.argb(
+            CONNECTION_GLOW_ALPHA,
+            Color.red(color),
+            Color.green(color),
+            Color.blue(color),
+        )
         pointPaint.color = color
     }
 
@@ -139,7 +160,9 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     }
 
     companion object {
-        private const val LANDMARK_STROKE_WIDTH = 7f
+        private const val LANDMARK_STROKE_WIDTH = 4.5f
+        private const val CONNECTION_GLOW_WIDTH = 9f
+        private const val CONNECTION_GLOW_ALPHA = 80
         private const val POINT_RADIUS = 7f
     }
 }
