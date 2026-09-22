@@ -76,6 +76,13 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
 
+            <com.google.mediapipe.examples.poselandmarker.TechCameraFrameView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clickable="false"
+                android:focusable="false"
+                android:importantForAccessibility="no" />
+
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
