@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import kotlin.math.min
+import kotlin.math.max
 
 class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs) {
     private var results: PoseLandmarkerResult? = null
@@ -54,6 +55,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         super.onDraw(canvas)
         if (isInEditMode) return
         val landmarks = results?.landmarks()?.firstOrNull() ?: return
+        if (!HeadUpRepository.arePoseConnectionsEnabled(context)) return
         applyZoneColor()
 
         // MediaPipe Pose indices: face 0..10, shoulders 11..12, hips 23..24.
@@ -70,25 +72,23 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
             }
         }
 
-        if (HeadUpRepository.arePoseConnectionsEnabled(context)) {
-            drawConnection(canvas, landmarks, 11, 12)
-            drawConnection(canvas, landmarks, 11, 23)
-            drawConnection(canvas, landmarks, 12, 24)
-            drawConnection(canvas, landmarks, 23, 24)
-            drawConnection(canvas, landmarks, 7, 3)
-            drawConnection(canvas, landmarks, 6, 8)
-            drawConnection(canvas, landmarks, 9, 10)
+        drawConnection(canvas, landmarks, 11, 12)
+        drawConnection(canvas, landmarks, 11, 23)
+        drawConnection(canvas, landmarks, 12, 24)
+        drawConnection(canvas, landmarks, 23, 24)
+        drawConnection(canvas, landmarks, 7, 3)
+        drawConnection(canvas, landmarks, 6, 8)
+        drawConnection(canvas, landmarks, 9, 10)
 
-            facePath.reset()
-            facePathIndices.forEachIndexed { pathIndex, landmarkIndex ->
-                landmarks.getOrNull(landmarkIndex)?.let { point ->
-                    if (pathIndex == 0) facePath.moveTo(mapX(point.x()), mapY(point.y()))
-                    else facePath.lineTo(mapX(point.x()), mapY(point.y()))
-                }
+        facePath.reset()
+        facePathIndices.forEachIndexed { pathIndex, landmarkIndex ->
+            landmarks.getOrNull(landmarkIndex)?.let { point ->
+                if (pathIndex == 0) facePath.moveTo(mapX(point.x()), mapY(point.y()))
+                else facePath.lineTo(mapX(point.x()), mapY(point.y()))
             }
-            canvas.drawPath(facePath, lineGlowPaint)
-            canvas.drawPath(facePath, linePaint)
         }
+        canvas.drawPath(facePath, lineGlowPaint)
+        canvas.drawPath(facePath, linePaint)
     }
 
     private fun drawConnection(
@@ -110,8 +110,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     private fun applyZoneColor() {
         val color = when (postureZone) {
             PostureZone.SAFE -> ContextCompat.getColor(context, R.color.headup_safe)
-            // Every non-safe state uses the same red warning color as the result panel.
-            PostureZone.WARNING -> ContextCompat.getColor(context, R.color.headup_danger)
+            PostureZone.WARNING -> ContextCompat.getColor(context, R.color.headup_warning)
             PostureZone.DANGER -> ContextCompat.getColor(context, R.color.headup_danger)
         }
         linePaint.color = color
@@ -125,8 +124,11 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     }
 
     private fun landmarkColor(index: Int): Int {
-        if (postureZone != PostureZone.SAFE) {
+        if (postureZone == PostureZone.DANGER) {
             return ContextCompat.getColor(context, R.color.headup_danger)
+        }
+        if (postureZone == PostureZone.WARNING) {
+            return ContextCompat.getColor(context, R.color.headup_warning)
         }
         return when (index) {
         1, 2, 3, 4, 5, 6 -> ContextCompat.getColor(context, R.color.headup_primary)
@@ -152,8 +154,12 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         this.imageWidth = imageWidth
         postureZone = zone
 
-        // PreviewView uses FIT_CENTER, so the overlay must use the same letterbox transform.
-        scaleFactor = min(width.toFloat() / imageWidth, height.toFloat() / imageHeight)
+        // Live preview fills the card; gallery images retain their fitted transform.
+        scaleFactor = if (runningMode == RunningMode.LIVE_STREAM) {
+            max(width.toFloat() / imageWidth, height.toFloat() / imageHeight)
+        } else {
+            min(width.toFloat() / imageWidth, height.toFloat() / imageHeight)
+        }
         offsetX = (width - imageWidth * scaleFactor) / 2f
         offsetY = (height - imageHeight * scaleFactor) / 2f
         invalidate()

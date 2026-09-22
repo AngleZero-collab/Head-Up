@@ -69,7 +69,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 app:implementationMode="compatible"
-                app:scaleType="fitCenter" />
+                app:scaleType="fillCenter" />
 
             <com.google.mediapipe.examples.poselandmarker.OverlayView
                 android:id="@+id/overlay"
@@ -77,6 +77,7 @@
                 android:layout_height="match_parent" />
 
             <com.google.mediapipe.examples.poselandmarker.TechCameraFrameView
+                android:id="@+id/tech_camera_frame"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clickable="false"

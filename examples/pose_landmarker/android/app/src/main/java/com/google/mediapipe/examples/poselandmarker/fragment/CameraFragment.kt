@@ -104,6 +104,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
         initializeResultRows()
         val state = HeadUpRepository.currentState(requireContext())
         renderMetrics(state.metrics)
+        binding.techCameraFrame.setZone(null)
         updateAlarmUi(state.isAlarmEnabled)
         binding.connectionsSwitch.isChecked = HeadUpRepository.arePoseConnectionsEnabled(requireContext())
 
@@ -441,6 +442,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
             val currentBinding = _binding ?: return@runOnUiThread
             if (metrics != null) {
                 renderMetrics(metrics)
+                currentBinding.techCameraFrame.setZone(metrics.zone)
                 currentBinding.overlay.setResults(
                     result,
                     resultBundle.inputImageHeight,
@@ -449,6 +451,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
                     metrics.zone,
                 )
             } else {
+                currentBinding.techCameraFrame.setZone(null)
                 currentBinding.overlay.clear()
             }
         }
@@ -518,6 +521,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
         activity?.runOnUiThread {
             val currentBinding = _binding ?: return@runOnUiThread
             latestMetrics = null
+            currentBinding.techCameraFrame.setZone(null)
             currentBinding.overlay.clear()
             currentBinding.scanProgress.progress = 0
             initializeResultRows()

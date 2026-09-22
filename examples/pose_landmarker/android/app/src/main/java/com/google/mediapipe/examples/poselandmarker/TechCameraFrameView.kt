@@ -42,6 +42,26 @@ class TechCameraFrameView(context: Context, attrs: AttributeSet?) : View(context
     }
     private val framePath = Path()
     private val frameRect = RectF()
+    private var postureZone: PostureZone? = null
+
+    fun setZone(zone: PostureZone?) {
+        if (postureZone == zone) return
+        postureZone = zone
+        val color = ContextCompat.getColor(
+            context,
+            when (zone) {
+                PostureZone.SAFE -> R.color.headup_safe
+                PostureZone.WARNING -> R.color.headup_warning
+                PostureZone.DANGER -> R.color.headup_danger
+                null -> R.color.headup_primary
+            },
+        )
+        borderPaint.color = withAlpha(color, 190)
+        cornerGlowPaint.color = withAlpha(color, 48)
+        cornerPaint.color = color
+        accentPaint.color = color
+        invalidate()
+    }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
