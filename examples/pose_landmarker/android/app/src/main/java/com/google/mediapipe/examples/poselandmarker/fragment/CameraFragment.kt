@@ -28,12 +28,15 @@ import androidx.core.view.doOnLayout
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.Navigation
+import com.google.mediapipe.examples.poselandmarker.orientationFeedbackRes
 import com.google.mediapipe.examples.poselandmarker.CalibrationProfile
 import com.google.mediapipe.examples.poselandmarker.CameraOwnership
+import com.google.mediapipe.examples.poselandmarker.DistanceCalculator
 import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
 import com.google.mediapipe.examples.poselandmarker.HeadUpService
 import com.google.mediapipe.examples.poselandmarker.MainActivity
 import com.google.mediapipe.examples.poselandmarker.MainViewModel
+import com.google.mediapipe.examples.poselandmarker.MonitoringSessionRecorder
 import com.google.mediapipe.examples.poselandmarker.PoseLandmarkerHelper
 import com.google.mediapipe.examples.poselandmarker.PostureAnalyzer
 import com.google.mediapipe.examples.poselandmarker.PostureMetrics
@@ -50,6 +53,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
     companion object {
         private const val TAG = "HeadUpScan"
         private const val CALIBRATION_SECONDS = 3
+        private const val NO_FACE_CONFIRM_FRAMES = 5
     }
 
     private var _binding: FragmentCameraBinding? = null
@@ -71,13 +75,17 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
 
     private var sensorManager: SensorManager? = null
     private var gravitySensor: Sensor? = null
+    private var gyroscopeSensor: Sensor? = null
     private var lastDeviceTilt = 0
     private var isDeviceFlat = false
+    private var gravityZ = 0f
+    private var gyroMagnitude = 0f
 
     private var latestMetrics: PostureMetrics? = null
     private var isCalibrating = false
     private var pendingCalibrationRequest = false
     private val calibrationSamples = mutableListOf<PostureMetrics>()
+    private var noFaceFrames = 0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -90,6 +98,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        viewModel.initSettings(requireContext())
         backgroundExecutor = Executors.newSingleThreadExecutor()
         binding.viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         initializeResultRows()
@@ -262,15 +271,17 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
             viewModel.setMinPoseDetectionConfidence(poseLandmarkerHelper.minPoseDetectionConfidence)
             viewModel.setMinPoseTrackingConfidence(poseLandmarkerHelper.minPoseTrackingConfidence)
             viewModel.setMinPosePresenceConfidence(poseLandmarkerHelper.minPosePresenceConfidence)
-            viewModel.setDelegate(poseLandmarkerHelper.currentDelegate)
-            viewModel.setModel(poseLandmarkerHelper.currentModel)
+            viewModel.setDelegate(requireContext(), poseLandmarkerHelper.currentDelegate)
+            viewModel.setModel(requireContext(), poseLandmarkerHelper.currentModel)
             backgroundExecutor.execute { poseLandmarkerHelper.clearPoseLandmarker() }
         }
         PostureAnalyzer.resetSmoothing()
 
         if (handOffToService && context != null) {
             HeadUpRepository.setForegroundScanActive(requireContext(), false)
-            (activity as? MainActivity)?.startHeadUpService(HeadUpService.ACTION_RESUME_CAMERA)
+            if ((activity as? MainActivity)?.shouldResumeBackgroundGuard() != false) {
+                (activity as? MainActivity)?.startHeadUpService(HeadUpService.ACTION_RESUME_CAMERA)
+            }
         }
     }
 
@@ -313,6 +324,7 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
             Toast.makeText(requireContext(), R.string.calibration_wait_for_pose, Toast.LENGTH_SHORT).show()
             return
         }
+        PostureAnalyzer.resetSmoothing()
         isCalibrating = true
         calibrationSamples.clear()
         binding.calibrationButton.isEnabled = false
@@ -328,14 +340,42 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
             return
         }
 
-        val validSamples = calibrationSamples.filter { it.landmarkConfidence >= 0.35f }
-        if (validSamples.isEmpty()) {
+        val validSamples = calibrationSamples.filter {
+            it.landmarkConfidence >= 0.5f && it.rawHeadLateralDegrees != null &&
+                it.rawHeadYawDegrees != null && it.rawHeadPitchDegrees != null
+        }
+        val stable = listOf(
+            validSamples.mapNotNull { it.rawHeadLateralDegrees },
+            validSamples.mapNotNull { it.rawHeadYawDegrees },
+            validSamples.mapNotNull { it.rawHeadPitchDegrees },
+        ).all { values -> values.isNotEmpty() && values.max() - values.min() <= 8f }
+        if (validSamples.size < 10 || !stable) {
             Toast.makeText(requireContext(), R.string.calibration_failed, Toast.LENGTH_SHORT).show()
         } else {
+            val calibratedEyeDistance = validSamples
+                .mapNotNull { it.smoothedEyeDistancePixels ?: it.eyeDistancePixels }
+                .average()
+                .takeIf { !it.isNaN() }
+                ?.toFloat()
+            val distanceConstantK = calibratedEyeDistance?.let {
+                DistanceCalculator.calibrationConstantFor(
+                    DistanceCalculator.DEFAULT_CALIBRATION_DISTANCE_CM,
+                    it,
+                )
+            }
             val profile = CalibrationProfile(
                 angleDegrees = validSamples.map { it.rawAngleDegrees }.average().toFloat(),
                 postureRatio = validSamples.map { it.postureRatio }.average().toFloat(),
                 shoulderWidth = validSamples.map { it.shoulderWidth }.average().toFloat(),
+                eyeDistancePixels = calibratedEyeDistance,
+                distanceConstantK = distanceConstantK,
+                headLateralDegrees = validSamples.mapNotNull { it.rawHeadLateralDegrees }.average().toFloat(),
+                headYawDegrees = validSamples.mapNotNull { it.rawHeadYawDegrees }.average().toFloat(),
+                headRollDegrees = validSamples.mapNotNull { it.rawHeadRollDegrees }.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
+                lowerFaceRatio = validSamples.mapNotNull { it.lowerFaceRatio }.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
+                headPitchDegrees = validSamples.mapNotNull { it.rawHeadPitchDegrees }.average().toFloat(),
+                deviceTiltDegrees = validSamples.map { it.deviceTiltDegrees }.average().toFloat(),
+                deviceWasFlat = validSamples.count { it.isDeviceFlat } > validSamples.size / 2,
             )
             HeadUpRepository.setCalibration(requireContext(), profile)
             Toast.makeText(requireContext(), R.string.calibration_complete, Toast.LENGTH_SHORT).show()
@@ -347,41 +387,69 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
     }
 
     override fun onResults(resultBundle: PoseLandmarkerHelper.ResultBundle) {
-        val result = resultBundle.results.firstOrNull() ?: return
-        val landmarks = result.landmarks().firstOrNull()
+        val result = resultBundle.results.firstOrNull() ?: run {
+            PostureAnalyzer.resetSmoothing()
+            showNoFaceIfConfirmed()
+            return
+        }
+        val landmarks = result.landmarks().firstOrNull()?.takeUnless { resultBundle.faceChecked && resultBundle.denseFace == null }
+        if (landmarks == null) PostureAnalyzer.resetSmoothing()
         val metrics = landmarks?.let {
             PostureAnalyzer.analyzeMediaPipe(
                 landmarks = it,
                 deviceTilt = lastDeviceTilt,
                 isFlat = isDeviceFlat,
+                isLikelyLyingDown = isDeviceFlat && gravityZ < -8.0f && gyroMagnitude < 1.0f,
                 calibration = HeadUpRepository.getCalibration(requireContext()),
+                inputImageWidth = resultBundle.inputImageWidth,
+                inputImageHeight = resultBundle.inputImageHeight,
+                denseFace = resultBundle.denseFace,
             )
         }
 
         if (metrics != null) {
+            com.google.mediapipe.examples.poselandmarker.PostureDiagnostics.record(metrics, resultBundle.inferenceTime)
+            noFaceFrames = 0
             latestMetrics = metrics
             if (isCalibrating) calibrationSamples += metrics
-            HeadUpRepository.recordMetrics(requireContext(), metrics, source = "foreground")
+            val monitoringMode = HeadUpRepository.getMonitoringMode(requireContext())
+            if (monitoringMode.recordsPosture) {
+                HeadUpRepository.recordMetrics(requireContext(), metrics, source = "foreground")
+                MonitoringSessionRecorder.onInference()
+                MonitoringSessionRecorder.recordMetrics(metrics)
+            } else {
+                HeadUpRepository.updateLiveMetrics(requireContext(), metrics)
+            }
             if (pendingCalibrationRequest && !isCalibrating) {
                 pendingCalibrationRequest = false
                 activity?.runOnUiThread { startCalibration() }
             }
         }
+        if (metrics == null && HeadUpRepository.getMonitoringMode(requireContext()).recordsPosture) {
+            com.google.mediapipe.examples.poselandmarker.PostureDiagnostics.record(null, resultBundle.inferenceTime)
+            MonitoringSessionRecorder.recordUnknown()
+        }
+        if (metrics == null) showNoFaceIfConfirmed()
 
         activity?.runOnUiThread {
             val currentBinding = _binding ?: return@runOnUiThread
-            if (metrics != null) renderMetrics(metrics)
-            currentBinding.overlay.setResults(
-                result,
-                resultBundle.inputImageHeight,
-                resultBundle.inputImageWidth,
-                RunningMode.LIVE_STREAM,
-                metrics?.zone ?: PostureZone.SAFE,
-            )
+            if (metrics != null) {
+                renderMetrics(metrics)
+                currentBinding.overlay.setResults(
+                    result,
+                    resultBundle.inputImageHeight,
+                    resultBundle.inputImageWidth,
+                    RunningMode.LIVE_STREAM,
+                    metrics.zone,
+                )
+            } else {
+                currentBinding.overlay.clear()
+            }
         }
     }
 
     private fun initializeResultRows() {
+        bindOrientationRows(null)
         bindResultRow(binding.headTiltRow, "H", getString(R.string.head_forward_tilt), getString(R.string.reading), "--", R.color.headup_text_secondary)
         bindResultRow(binding.neckCurvatureRow, "N", getString(R.string.neck_curve), getString(R.string.reading), "--", R.color.headup_text_secondary)
         bindResultRow(binding.shoulderBalanceRow, "S", getString(R.string.shoulder_balance), getString(R.string.reading), "--", R.color.headup_text_secondary)
@@ -390,12 +458,16 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
 
     private fun renderMetrics(metrics: PostureMetrics) {
         val currentBinding = _binding ?: return
+        bindOrientationRows(metrics)
         val colorRes = metrics.zone.colorRes()
         currentBinding.scanProgress.progress = (100 - metrics.angleDegrees * 2).coerceIn(0, 100)
         currentBinding.scanStatusText.text = when (metrics.zone) {
             PostureZone.SAFE -> getString(R.string.posture_safe_format, metrics.angleDegrees)
             PostureZone.WARNING -> getString(R.string.posture_warning_format, metrics.angleDegrees)
             PostureZone.DANGER -> getString(R.string.posture_danger_format, metrics.angleDegrees)
+        }
+        if (metrics.isHeadOrientationConfirmed || metrics.isLowPhonePositionConfirmed) {
+            currentBinding.scanStatusText.text = getString(metrics.orientationFeedbackRes())
         }
         currentBinding.scanStatusText.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
 
@@ -415,12 +487,59 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
             getString(R.string.screen_distance),
             when {
                 metrics.screenDistanceCm == null -> getString(R.string.distance_requires_calibration)
-                metrics.isTooClose -> getString(R.string.distance_too_close)
+                metrics.screenDistanceCm < 20 -> getString(R.string.distance_too_close)
+                metrics.screenDistanceCm < 30 -> getString(R.string.distance_attention)
+                metrics.screenDistanceCm <= 40 -> getString(R.string.distance_normal)
                 else -> getString(R.string.distance_normal)
             },
-            metrics.screenDistanceCm?.let { getString(R.string.centimeters_format, it) } ?: "--",
-            if (metrics.isTooClose) R.color.headup_warning else R.color.headup_safe,
+            when {
+                metrics.screenDistanceCm == null -> "--"
+                metrics.screenDistanceCm < 20 -> getString(R.string.distance_less_than_20_cm)
+                else -> getString(R.string.centimeters_format, metrics.screenDistanceCm)
+            },
+            when {
+                metrics.screenDistanceCm == null -> R.color.headup_text_secondary
+                metrics.screenDistanceCm < 20 -> R.color.headup_danger
+                metrics.screenDistanceCm < 30 -> R.color.headup_warning
+                else -> R.color.headup_safe
+            },
         )
+    }
+
+    private fun showNoFaceIfConfirmed() {
+        noFaceFrames = (noFaceFrames + 1).coerceAtMost(NO_FACE_CONFIRM_FRAMES)
+        if (noFaceFrames < NO_FACE_CONFIRM_FRAMES) return
+        activity?.runOnUiThread {
+            val currentBinding = _binding ?: return@runOnUiThread
+            latestMetrics = null
+            currentBinding.overlay.clear()
+            currentBinding.scanProgress.progress = 0
+            initializeResultRows()
+            currentBinding.scanStatusText.setText(R.string.no_face_detected_warning)
+            currentBinding.scanStatusText.setTextColor(
+                ContextCompat.getColor(requireContext(), R.color.headup_danger),
+            )
+        }
+    }
+
+    private fun bindOrientationRows(metrics: PostureMetrics?) {
+        fun bind(row: ItemPostureResultBinding, title: Int, value: Int?, pitch: Boolean = false) {
+            val magnitude = kotlin.math.abs(value ?: 0)
+            val label = when {
+                value == null -> getString(if (pitch && metrics?.rawHeadPitchDegrees != null) R.string.head_pitch_calibrate else R.string.reading)
+                pitch && value <= -7 -> getString(R.string.head_looking_up)
+                pitch && value >= 7 -> getString(R.string.head_looking_down)
+                magnitude >= 7 -> getString(R.string.posture_alert)
+                else -> getString(R.string.posture_normal)
+            }
+            bindResultRow(row, "H", getString(title), label,
+                value?.let { "${kotlin.math.abs(it)}°" } ?: "--",
+                if (value == null) R.color.headup_text_secondary else PostureAnalyzer.zoneForOrientation(magnitude).colorRes())
+        }
+        bind(binding.headLateralRow, R.string.head_lateral, metrics?.headLateralDegrees)
+        bind(binding.headYawRow, R.string.head_yaw, metrics?.headYawDegrees)
+        bind(binding.headPitchRow, R.string.head_pitch, metrics?.headPitchDegrees, pitch = true)
+        bind(binding.headRollRow, R.string.head_roll, metrics?.headRollDegrees)
     }
 
     private fun localizedHeadTilt(metrics: PostureMetrics): String = when {
@@ -467,15 +586,24 @@ class CameraFragment : Fragment(), PoseLandmarkerHelper.LandmarkerListener, Sens
         sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
         gravitySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_GRAVITY)
             ?: sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        gyroscopeSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         gravitySensor?.let { sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        gyroscopeSensor?.let { sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_GRAVITY || event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
             val y = event.values[1]
             val z = event.values[2]
+            gravityZ = z
             lastDeviceTilt = Math.toDegrees(Math.atan2(y.toDouble(), z.toDouble())).toInt()
             isDeviceFlat = kotlin.math.abs(z) > 8.5f
+        } else if (event?.sensor?.type == Sensor.TYPE_GYROSCOPE) {
+            val magnitude = kotlin.math.sqrt(
+                event.values[0] * event.values[0] + event.values[1] * event.values[1] +
+                    event.values[2] * event.values[2],
+            )
+            gyroMagnitude = 0.25f * magnitude + 0.75f * gyroMagnitude
         }
     }
 

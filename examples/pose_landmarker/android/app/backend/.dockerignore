@@ -1,0 +1,11 @@
+.env
+.venv
+__pycache__/
+*.py[cod]
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.log
+headup-backend.out.log
+headup-backend.err.log

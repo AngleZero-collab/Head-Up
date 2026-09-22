@@ -41,7 +41,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="@string/my_vision_dragon"
+                    android:text="@string/my_virtual_pet"
                     android:textColor="@color/headup_text_primary"
                     android:textSize="22sp" />
 
@@ -56,22 +56,85 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <FrameLayout
+            <TextView
+                android:id="@+id/dragon_trait_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/headup_text_secondary"
+                android:textSize="14sp" />
+
+            <com.google.mediapipe.examples.poselandmarker.CircleClipFrameLayout
                 android:id="@+id/dragon_orb"
                 android:layout_width="188dp"
                 android:layout_height="188dp"
                 android:layout_marginTop="20dp"
                 android:background="@drawable/bg_headup_dragon_orb"
-                android:padding="10dp">
+                android:padding="16dp">
 
-                <TextureView
+                <com.google.mediapipe.examples.poselandmarker.VisionDragonVideoView
                     android:id="@+id/dragon_video_view"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:contentDescription="@string/vision_dragon_animation" />
-            </FrameLayout>
+                    android:contentDescription="@string/virtual_pet_animation"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/dragon_image_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/virtual_pet_animation"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/vision_dragon_little_blue_cutout" />
+
+                <ImageView
+                    android:id="@+id/dragon_cape_overlay"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/equip_dragon"
+                    android:paddingTop="48dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_dragon_cape"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/dragon_goggles_overlay"
+                    android:layout_width="104dp"
+                    android:layout_height="52dp"
+                    android:layout_gravity="top|center_horizontal"
+                    android:layout_marginTop="54dp"
+                    android:contentDescription="@string/shop_focus_goggles"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_dragon_goggles"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/dragon_armor_overlay"
+                    android:layout_width="58dp"
+                    android:layout_height="58dp"
+                    android:layout_gravity="bottom|center_horizontal"
+                    android:layout_marginBottom="42dp"
+                    android:contentDescription="@string/shop_starlight_armor"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_dragon_armor"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/dragon_badge_overlay"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
+                    android:layout_gravity="bottom|start"
+                    android:layout_marginStart="18dp"
+                    android:layout_marginBottom="16dp"
+                    android:contentDescription="@string/shop_focus_badge"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_dragon_badge"
+                    android:visibility="gone" />
+
+            </com.google.mediapipe.examples.poselandmarker.CircleClipFrameLayout>
 
             <TextView
+                android:id="@+id/dragon_name_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
@@ -99,6 +162,14 @@
                 android:textSize="16sp" />
 
             <TextView
+                android:id="@+id/dragon_bond_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="@color/headup_text_secondary"
+                android:textSize="14sp" />
+
+            <TextView
                 android:id="@+id/dragon_mood_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -106,6 +177,77 @@
                 android:textColor="@color/headup_safe"
                 android:textSize="16sp"
                 android:textStyle="bold" />
+
+            <HorizontalScrollView
+                android:id="@+id/dragon_selector_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:overScrollMode="never"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/dragon_selector_container"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:fontFamily="sans-serif-medium"
+            android:text="@string/pet_interactions"
+            android:textColor="@color/headup_text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/feed_dragon_button"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:text="@string/feed_dragon" />
+
+            <Button
+                android:id="@+id/play_dragon_button"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="@string/play_dragon" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/rest_dragon_button"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:text="@string/rest_dragon" />
+
+            <Button
+                android:id="@+id/equip_dragon_button"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="@string/equip_dragon" />
         </LinearLayout>
 
         <LinearLayout

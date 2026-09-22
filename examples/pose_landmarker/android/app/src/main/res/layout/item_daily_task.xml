@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="82dp"
+    android:layout_height="wrap_content"
     android:background="@drawable/bg_headup_card"
     android:gravity="center_vertical"
+    android:minHeight="90dp"
     android:orientation="horizontal"
     android:paddingStart="16dp"
-    android:paddingEnd="16dp">
+    android:paddingTop="12dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="12dp">
 
     <ImageView
         android:id="@+id/task_check"
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:background="@drawable/bg_headup_icon_button"
+        android:contentDescription="@string/daily_tasks"
         android:padding="6dp"
         android:src="@drawable/ic_check_headup" />
 
@@ -20,6 +24,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="14dp"
+        android:layout_marginEnd="12dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
@@ -27,18 +32,23 @@
             android:id="@+id/task_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="維持正確姿勢 30 分鐘"
+            android:includeFontPadding="true"
+            android:lineSpacingExtra="2dp"
+            android:maxLines="3"
+            android:text="Task"
             android:textColor="@color/headup_text_primary"
-            android:textSize="17sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/task_detail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="30/30 分鐘"
+            android:layout_marginTop="2dp"
+            android:includeFontPadding="true"
+            android:text="0/0"
             android:textColor="@color/headup_text_secondary"
-            android:textSize="15sp" />
+            android:textSize="14sp" />
     </LinearLayout>
 
     <TextView
@@ -46,8 +56,15 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_headup_reward"
+        android:includeFontPadding="true"
+        android:minWidth="64dp"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp"
         android:text="+50"
+        android:textAlignment="center"
         android:textColor="@color/headup_text_primary"
-        android:textSize="16sp"
+        android:textSize="15sp"
         android:textStyle="bold" />
 </LinearLayout>

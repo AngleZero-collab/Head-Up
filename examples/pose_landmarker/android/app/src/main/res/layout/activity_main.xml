@@ -11,10 +11,11 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/headup_top_bar"
         android:layout_width="0dp"
-        android:layout_height="92dp"
-        android:paddingStart="24dp"
-        android:paddingTop="18dp"
-        android:paddingEnd="24dp"
+        android:layout_height="76dp"
+        android:paddingStart="20dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -33,7 +34,8 @@
                 android:layout_height="30dp"
                 android:layout_gravity="center"
                 android:contentDescription="@string/app_name"
-                android:src="@drawable/ic_headup_arrow" />
+                android:scaleType="fitCenter"
+                android:src="@drawable/heads_up_logo" />
         </FrameLayout>
 
         <TextView
@@ -47,11 +49,40 @@
             android:ellipsize="end"
             android:text="@string/app_name"
             android:textColor="@color/headup_primary"
-            android:textSize="28sp"
+            android:textSize="16sp"
             android:textStyle="bold"
+            app:layout_constraintBottom_toTopOf="@id/monitoring_mode_status"
+            app:layout_constraintEnd_toStartOf="@id/stop_guard_button"
+            app:layout_constraintStart_toEndOf="@id/brand_icon"
+            app:layout_constraintTop_toTopOf="@id/brand_icon" />
+
+        <TextView
+            android:id="@+id/monitoring_mode_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/monitoring_status_off"
+            android:textColor="@color/headup_text_secondary"
+            android:textSize="11sp"
+            app:layout_constraintBottom_toBottomOf="@id/brand_icon"
+            app:layout_constraintEnd_toStartOf="@id/stop_guard_button"
+            app:layout_constraintStart_toEndOf="@id/brand_icon"
+            app:layout_constraintTop_toBottomOf="@id/brand_title" />
+
+        <ImageButton
+            android:id="@+id/stop_guard_button"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/bg_headup_icon_button"
+            android:contentDescription="@string/guard_stop"
+            android:padding="13dp"
+            android:src="@drawable/ic_stop_headup"
             app:layout_constraintBottom_toBottomOf="@id/brand_icon"
             app:layout_constraintEnd_toStartOf="@id/notification_button"
-            app:layout_constraintStart_toEndOf="@id/brand_icon"
             app:layout_constraintTop_toTopOf="@id/brand_icon" />
 
         <ImageButton
@@ -97,10 +128,10 @@
     <FrameLayout
         android:id="@+id/navigation_shell"
         android:layout_width="0dp"
-        android:layout_height="86dp"
-        android:layout_marginStart="18dp"
-        android:layout_marginEnd="18dp"
-        android:layout_marginBottom="16dp"
+        android:layout_height="72dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="10dp"
         android:background="@drawable/bg_headup_nav"
         android:elevation="12dp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -112,8 +143,6 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@android:color/transparent"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
             app:itemBackground="@drawable/bg_headup_nav_item"
             app:itemIconTint="@color/headup_bottom_nav_tint"
             app:itemRippleColor="@android:color/transparent"
@@ -149,7 +178,7 @@
                 android:adjustViewBounds="true"
                 android:contentDescription="@string/app_name"
                 android:scaleType="fitCenter"
-                android:src="@drawable/angel_zero_logo" />
+                android:src="@drawable/heads_up_logo" />
 
             <TextView
                 android:id="@+id/splash_status"

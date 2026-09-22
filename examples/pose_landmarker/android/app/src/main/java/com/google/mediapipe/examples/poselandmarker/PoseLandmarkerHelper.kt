@@ -47,6 +47,8 @@ class PoseLandmarkerHelper(
     // For this example this needs to be a var so it can be reset on changes.
     // If the Pose Landmarker will not change, a lazy val would be preferable.
     private var poseLandmarker: PoseLandmarker? = null
+    private var faceLandmarker: com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker? = null
+    private val faceFrames = java.util.concurrent.ConcurrentHashMap<Long, DenseFaceReading>()
 
     init {
         setupPoseLandmarker()
@@ -56,6 +58,9 @@ class PoseLandmarkerHelper(
     fun clearPoseLandmarker() {
         poseLandmarker?.close()
         poseLandmarker = null
+        faceLandmarker?.close()
+        faceLandmarker = null
+        faceFrames.clear()
     }
 
     // Return running status of PoseLandmarkerHelper
@@ -71,6 +76,23 @@ class PoseLandmarkerHelper(
     @Synchronized
     fun setupPoseLandmarker() {
         if (poseLandmarker != null) return
+
+        val modelName =
+            when (currentModel) {
+                MODEL_POSE_LANDMARKER_FULL -> "pose_landmarker_full.task"
+                MODEL_POSE_LANDMARKER_LITE -> "pose_landmarker_lite.task"
+                MODEL_POSE_LANDMARKER_HEAVY -> "pose_landmarker_heavy.task"
+                else -> "pose_landmarker_full.task"
+            }
+
+        // Verify model exists in assets to prevent MediaPipe internal NPE during layout preview
+        try {
+            context.assets.open(modelName).close()
+        } catch (e: Exception) {
+            poseLandmarkerHelperListener?.onError("Pose Landmarker model not found: $modelName")
+            return
+        }
+
         // Set general pose landmarker options
         val baseOptionBuilder = BaseOptions.builder()
 
@@ -83,14 +105,6 @@ class PoseLandmarkerHelper(
                 baseOptionBuilder.setDelegate(Delegate.GPU)
             }
         }
-
-        val modelName =
-            when (currentModel) {
-                MODEL_POSE_LANDMARKER_FULL -> "pose_landmarker_full.task"
-                MODEL_POSE_LANDMARKER_LITE -> "pose_landmarker_lite.task"
-                MODEL_POSE_LANDMARKER_HEAVY -> "pose_landmarker_heavy.task"
-                else -> "pose_landmarker_full.task"
-            }
 
         baseOptionBuilder.setModelAssetPath(modelName)
 
@@ -130,6 +144,19 @@ class PoseLandmarkerHelper(
             val options = optionsBuilder.build()
             poseLandmarker =
                 PoseLandmarker.createFromOptions(context, options)
+            if (runningMode == RunningMode.LIVE_STREAM) {
+                faceLandmarker = com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker.createFromOptions(
+                    context,
+                    com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker.FaceLandmarkerOptions.builder()
+                        .setBaseOptions(BaseOptions.builder().setModelAssetPath("face_landmarker.task").build())
+                        .setRunningMode(RunningMode.VIDEO)
+                        .setNumFaces(1)
+                        .setMinFaceDetectionConfidence(0.6f)
+                        .setMinFacePresenceConfidence(0.6f)
+                        .setMinTrackingConfidence(0.6f)
+                        .build(),
+                )
+            }
         } catch (e: IllegalStateException) {
             poseLandmarkerHelperListener?.onError(
                 "Pose Landmarker failed to initialize. See error logs for " +
@@ -173,7 +200,9 @@ class PoseLandmarkerHelper(
                 Bitmap.Config.ARGB_8888
             )
 
-        bitmapBuffer.copyPixelsFromBuffer(imageProxy.planes[0].buffer)
+        val buffer = imageProxy.planes[0].buffer
+        buffer.rewind()
+        bitmapBuffer.copyPixelsFromBuffer(buffer)
 
         val matrix = Matrix().apply {
             // Rotate the frame received from the camera to be in the same direction as it'll be shown
@@ -203,6 +232,13 @@ class PoseLandmarkerHelper(
     // Run pose landmark using MediaPipe Pose Landmarker API
     @VisibleForTesting
     fun detectAsync(mpImage: MPImage, frameTime: Long) {
+        faceFrames.keys.removeAll { it < frameTime - 2000L }
+        val face = faceLandmarker?.detectForVideo(mpImage, frameTime)?.faceLandmarks()?.firstOrNull()
+        val reading = face?.let {
+            DenseFaceReading.from(it.map { p -> LandmarkPoint(p.x(), p.y(), p.z()) },
+                mpImage.height.toFloat() / mpImage.width)
+        }
+        if (reading != null) faceFrames[frameTime] = reading
         poseLandmarker?.detectAsync(mpImage, frameTime)
         // As we're using running mode LIVE_STREAM, the landmark result will
         // be returned in returnLivestreamResult function
@@ -350,7 +386,9 @@ class PoseLandmarkerHelper(
                 listOf(result),
                 inferenceTime,
                 input.height,
-                input.width
+                input.width,
+                faceFrames.remove(result.timestampMs()),
+                true,
             )
         )
     }
@@ -384,6 +422,8 @@ class PoseLandmarkerHelper(
         val inferenceTime: Long,
         val inputImageHeight: Int,
         val inputImageWidth: Int,
+        val denseFace: DenseFaceReading? = null,
+        val faceChecked: Boolean = false,
     )
 
     interface LandmarkerListener {

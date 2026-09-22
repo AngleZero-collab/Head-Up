@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/warning_frame_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent"
+    android:importantForAccessibility="no"
+    android:padding="4dp">
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="18dp"
+        android:layout_gravity="top"
+        android:background="#FFFF3344" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="18dp"
+        android:layout_gravity="bottom"
+        android:background="#FFFF3344" />
+
+    <View
+        android:layout_width="18dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="#FFFF3344" />
+
+    <View
+        android:layout_width="18dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:background="#FFFF3344" />
+
+</FrameLayout>

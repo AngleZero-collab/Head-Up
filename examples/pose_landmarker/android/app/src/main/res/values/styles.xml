@@ -14,24 +14,25 @@
     ~ See the License for the specific language governing permissions and
     ~ limitations under the License.
 -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar" >
+    <style name="AppTheme" parent="Theme.MaterialComponents.NoActionBar" >
         <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/mp_color_primary</item>
-        <item name="colorPrimaryVariant">@color/mp_color_primary_variant</item>
-        <item name="colorPrimaryDark">@color/mp_color_primary_dark</item>
+        <item name="colorPrimary">@color/headup_primary</item>
+        <item name="colorPrimaryVariant">@color/headup_primary_dark</item>
+        <item name="colorPrimaryDark">@color/headup_bg_top</item>
         <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/mp_color_secondary</item>
-        <item name="colorSecondaryVariant">@color/mp_color_secondary_variant</item>
-        <item name="colorError">@color/mp_color_error</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="colorSecondary">@color/headup_warning</item>
+        <item name="colorSecondaryVariant">@color/headup_warning</item>
+        <item name="colorError">@color/headup_danger</item>
+        <!-- Window and Navigation bars -->
+        <item name="android:windowBackground">@drawable/bg_headup_screen</item>
+        <item name="android:statusBarColor">@color/headup_bg_top</item>
         <item name="android:navigationBarColor">@color/headup_bg_bottom</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
-        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+        <item name="android:fontFamily">sans-serif</item>
         <item name="android:windowNoTitle">true</item>
     </style>
 
