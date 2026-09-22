@@ -39,7 +39,7 @@
                 android:textSize="28sp"
                 android:textStyle="bold" />
 
-            <com.google.android.material.materialswitch.MaterialSwitch
+            <Switch
                 android:id="@+id/connections_switch"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -47,8 +47,9 @@
                 android:showText="false"
                 android:text="@string/pose_connections"
                 android:textColor="@color/headup_text_secondary"
-                android:textSize="12sp"
-                app:useMaterialThemeColors="true" />
+                android:textOff="@string/pose_connections_off_short"
+                android:textOn="@string/pose_connections_on_short"
+                android:textSize="12sp" />
         </LinearLayout>
 
         <FrameLayout

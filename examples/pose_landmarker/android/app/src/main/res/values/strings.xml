@@ -59,6 +59,8 @@
     <string name="settings_sync_now">Sync records now</string>
     <string name="settings_language">App language</string>
     <string name="pose_connections">Connections</string>
+    <string name="pose_connections_on_short">On</string>
+    <string name="pose_connections_off_short">Off</string>
     <string name="settings_warning_overlay_on">Red warning frame: On</string>
     <string name="settings_warning_overlay_off">Red warning frame: Off</string>
     <string name="settings_pet_overlay_on">Virtual pet popup: On</string>

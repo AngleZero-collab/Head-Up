@@ -61,6 +61,8 @@
     <string name="settings_sync_now">立即同步紀錄</string>
     <string name="settings_language">應用程式語言</string>
     <string name="pose_connections">連接線</string>
+    <string name="pose_connections_on_short">開</string>
+    <string name="pose_connections_off_short">關</string>
     <string name="settings_warning_overlay_on">紅色警戒框：開啟</string>
     <string name="settings_warning_overlay_off">紅色警戒框：關閉</string>
     <string name="settings_overlay_permission">顯示在其他 App 上層的權限</string>
