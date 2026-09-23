@@ -2,6 +2,7 @@ package com.google.mediapipe.examples.poselandmarker
 
 import android.content.Context
 import androidx.room.Dao
+import androidx.room.ColumnInfo
 import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.Index
@@ -19,6 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     indices = [
         Index(value = ["timestampMs"]),
         Index(value = ["isSynced", "timestampMs"]),
+        Index(value = ["isFeatureSynced", "timestampMs"]),
     ],
 )
 data class PostureRecordEntity(
@@ -37,6 +39,11 @@ data class PostureRecordEntity(
     val isRapidFall: Boolean = false,
     val isSynced: Boolean = false,
     val syncedAtMs: Long? = null,
+    @ColumnInfo(defaultValue = "0") val angularVelocity: Float = 0f,
+    @ColumnInfo(defaultValue = "0") val parallaxCosineRatio: Float = 0f,
+    @ColumnInfo(defaultValue = "0") val isStable: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val isFeatureSynced: Boolean = false,
+    val featureSyncedAtMs: Long? = null,
 )
 
 @Dao
@@ -76,7 +83,7 @@ interface PostureRecordDao {
         LeaderboardCacheEntity::class,
         SyncQueueEntity::class,
     ],
-    version = 3,
+    version = 5,
     exportSchema = false,
 )
 abstract class PostureDatabase : RoomDatabase() {
@@ -137,6 +144,23 @@ abstract class PostureDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE posture_records ADD COLUMN angularVelocity REAL NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE posture_records ADD COLUMN parallaxCosineRatio REAL NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE posture_records ADD COLUMN isStable INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE posture_records ADD COLUMN isFeatureSynced INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE posture_records ADD COLUMN featureSyncedAtMs INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_posture_records_isFeatureSynced_timestampMs ON posture_records(isFeatureSynced, timestampMs)")
+            }
+        }
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Preserve existing version 4 posture records and their feature columns.
+            }
+        }
+
         fun getInstance(context: Context): PostureDatabase = instance ?: synchronized(this) {
             instance ?: buildDatabase(context.applicationContext).also { instance = it }
         }
@@ -146,7 +170,7 @@ abstract class PostureDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): PostureDatabase =
             Room.databaseBuilder(context, PostureDatabase::class.java, DATABASE_NAME)
                 .openHelperFactory(HeadUpDatabasePassphrase.createSupportFactory(context, DATABASE_NAME))
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
     }
 }
