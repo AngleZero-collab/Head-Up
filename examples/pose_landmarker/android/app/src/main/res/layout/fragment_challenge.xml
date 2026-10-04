@@ -22,6 +22,8 @@
             android:textSize="32sp"
             android:textStyle="bold" />
 
+        <include android:id="@+id/hatch_panel" layout="@layout/layout_challenge_hatch" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

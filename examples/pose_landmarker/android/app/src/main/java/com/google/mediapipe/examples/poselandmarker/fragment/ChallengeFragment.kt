@@ -27,6 +27,7 @@ import com.google.mediapipe.examples.poselandmarker.databinding.FragmentChalleng
 class ChallengeFragment : Fragment() {
     private var _binding: FragmentChallengeBinding? = null
     private val binding get() = _binding!!
+    private var hatchUi: ChallengeHatchUi? = null
     private var latestState = HeadUpUiState()
     private var currentDragonImageResId = 0
     private var currentDragonVideoResId = 0
@@ -47,6 +48,7 @@ class ChallengeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        hatchUi = ChallengeHatchUi(binding.hatchPanel)
         setupDragonOrb()
         binding.claimMaintainButton.setOnClickListener { claimGoodPostureReward() }
         binding.recordEyeRestButton.setOnClickListener { showEyeRestDialog() }
@@ -61,10 +63,12 @@ class ChallengeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        hatchUi?.resume()
         renderDragonVisuals(latestState)
     }
 
     override fun onPause() {
+        hatchUi?.pause()
         stopDragonAnimation()
         binding.dragonVideoView.stopPlayback()
         super.onPause()
@@ -472,6 +476,8 @@ class ChallengeFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        hatchUi?.dispose()
+        hatchUi = null
         stopDragonAnimation()
         binding.dragonVideoView.stopPlayback()
         _binding = null
