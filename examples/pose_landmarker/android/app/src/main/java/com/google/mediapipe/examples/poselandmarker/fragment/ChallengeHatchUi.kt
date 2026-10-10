@@ -148,7 +148,7 @@ internal class ChallengeHatchUi(private val binding: LayoutChallengeHatchBinding
                     binding.eggStage.visibility = View.GONE
                     binding.hatchButton.visibility = View.GONE
                     binding.hatchResultPanel.visibility = View.VISIBLE
-                    resume()
+                    this@ChallengeHatchUi.resume()
                     binding.hatchResultPanel.announceForAccessibility(
                         context.getString(R.string.hatch_result) + " " + context.getString(R.string.hatch_dragon),
                     )
@@ -181,7 +181,10 @@ internal class ChallengeHatchUi(private val binding: LayoutChallengeHatchBinding
         }
         val dialog = AlertDialog.Builder(context).setView(story.root).create()
         storyDialog = dialog
-        dialog.setOnDismissListener { storyDialog = null }
+        dialog.setOnDismissListener {
+            story.storyDragonAnimation.stopPlayback()
+            storyDialog = null
+        }
         story.previousButton.setOnClickListener { if (chapter > 0) { chapter--; renderChapter() } }
         story.nextButton.setOnClickListener {
             if (chapter == chapters.lastIndex) dialog.dismiss() else { chapter++; renderChapter() }
@@ -189,6 +192,9 @@ internal class ChallengeHatchUi(private val binding: LayoutChallengeHatchBinding
         story.closeButton.setOnClickListener { dialog.dismiss() }
         renderChapter()
         dialog.show()
+        if (!story.storyDragonAnimation.play(R.raw.dragon_happy_gold, loop = true)) {
+            story.storyDragonAnimation.setImageResource(R.drawable.vision_dragon_sunny_gold_cutout)
+        }
         dialog.window?.apply {
             setBackgroundDrawable(GradientDrawable().apply { setColor(Color.TRANSPARENT) })
             setLayout(
