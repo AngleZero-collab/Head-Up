@@ -14,6 +14,7 @@ import androidx.annotation.RawRes
 import androidx.appcompat.app.AlertDialog
 import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
+import androidx.navigation.fragment.findNavController
 import androidx.fragment.app.Fragment
 import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
 import com.google.mediapipe.examples.poselandmarker.HeadUpUiState
@@ -49,6 +50,7 @@ class ChallengeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         hatchUi = ChallengeHatchUi(binding.hatchPanel)
+        binding.rehabEntry.setOnClickListener { findNavController().navigate(R.id.rehab_fragment) }
         setupDragonOrb()
         binding.claimMaintainButton.setOnClickListener { claimGoodPostureReward() }
         binding.recordEyeRestButton.setOnClickListener { showEyeRestDialog() }

@@ -91,4 +91,5 @@
         android:id="@+id/shop_fragment"
         android:name="com.google.mediapipe.examples.poselandmarker.fragment.ShopFragment"
         android:label="ShopFragment" />
+    <fragment android:id="@+id/rehab_fragment" android:name="com.google.mediapipe.examples.poselandmarker.fragment.RehabFragment" android:label="@string/rehab_title" />
 </navigation>
