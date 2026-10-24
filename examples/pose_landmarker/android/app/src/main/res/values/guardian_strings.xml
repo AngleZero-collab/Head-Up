@@ -7,11 +7,11 @@
     <string name="guardian_pitch">Last estimated head pitch: %1$d°</string>
     <string name="guardian_vision_pending">EAR, complete-blink detection and blink rate: not enabled. No simulated readings are shown.</string>
     <string name="guardian_spine_pending">Clinical CVA, cervical load and muscle-specific recommendations: not available. Head angle cannot identify which muscles are strained.</string>
-    <string name="guardian_intervention">Gentle reminder preview</string>
+    <string name="guardian_intervention">Gentle reminder</string>
     <string name="guardian_vision_reminder">Take a screen break, blink naturally and enlarge text if it is difficult to read. Move the screen to a comfortable viewing distance.</string>
     <string name="guardian_spine_reminder">Relax your shoulders and bring the screen closer to eye level with your arms supported. Avoid forcing your neck into position.</string>
-    <string name="guardian_preview_note">Manual text preview only. Automatic zoom, edge ripples, floating prompts and vibration are not enabled.</string>
-    <string name="guardian_preview">Preview reminder</string>
+    <string name="guardian_preview_note">Tap to read a reminder. Automatic zoom, edge ripples, floating prompts and vibration are not enabled.</string>
+    <string name="guardian_preview">View reminder</string>
     <string name="guardian_routine_note">Set aside about 3 minutes at your own pace. Reading guidance only: no countdown, exercise verification or completion record. Stop if uncomfortable.</string>
     <string name="guardian_start">Open relaxation guide</string>
     <string name="guardian_vision_routine">Vision Guardian · End-of-day break</string>

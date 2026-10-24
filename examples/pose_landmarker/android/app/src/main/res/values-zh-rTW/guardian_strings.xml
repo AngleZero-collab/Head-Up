@@ -7,11 +7,11 @@
     <string name="guardian_pitch">最近頭部俯仰角估算：%1$d°</string>
     <string name="guardian_vision_pending">EAR、完整眨眼與眨眼頻率：尚未啟用，不顯示模擬讀值。</string>
     <string name="guardian_spine_pending">臨床 CVA、頸椎負載與肌群專屬推薦：尚未提供。頭部角度不能判定哪個肌群緊繃。</string>
-    <string name="guardian_intervention">溫和提醒預覽</string>
+    <string name="guardian_intervention">溫和提醒</string>
     <string name="guardian_vision_reminder">暫停看螢幕，自然眨眼；文字看不清楚時可放大字級，並將螢幕移至舒適的觀看距離。</string>
     <string name="guardian_spine_reminder">放鬆肩膀，讓手臂有支撐，再把螢幕提高至接近視線高度；不要勉強扳正頸部。</string>
-    <string name="guardian_preview_note">僅手動預覽提醒文字。自動縮放、邊緣波紋、懸浮提醒與震動均未啟用。</string>
-    <string name="guardian_preview">預覽提醒</string>
+    <string name="guardian_preview_note">點選按鈕查看提醒。自動縮放、邊緣波紋、懸浮提醒與震動均未啟用。</string>
+    <string name="guardian_preview">查看提醒</string>
     <string name="guardian_routine_note">可預留約 3 分鐘，依舒適節奏閱讀與休息。沒有倒數、動作驗證或完成紀錄；不舒服就停止。</string>
     <string name="guardian_start">開啟放鬆導引</string>
     <string name="guardian_vision_routine">眼睛的守護・日末休息</string>

@@ -1,60 +1,119 @@
 <?xml version='1.0' encoding='utf-8'?>
+
 <resources>
+
     <string name="hatch_title">星芒孵化所</string>
+
     <string name="hatch_kicker">每一點好習慣，都在孕育新夥伴</string>
-    <string name="hatch_demo">UI 展示・以下為示範進度</string>
+
+    <string name="hatch_demo">孵化體驗・進度為固定範例，非個人紀錄</string>
+
     <string name="hatch_hint">好習慣可以分次累積，記得適時休息，不必為了集蛋持續使用螢幕。</string>
+
     <string name="hatch_action">體驗孵化</string>
+
     <string name="hatch_running">蛋裡的星光正在甦醒…</string>
-    <string name="hatch_result">示範結果・SSR</string>
+
+    <string name="hatch_result">孵化結果・SSR</string>
+
     <string name="hatch_dragon">晴金龍</string>
-    <string name="hatch_result_note">眼睛閃亮的小守護者誕生了！本展示固定孵出晴金龍，不消耗能量，也不發放獎勵。</string>
+
+    <string name="hatch_result_note">眼睛閃亮的小守護者誕生了！此體驗固定孵出晴金龍，不消耗能量，也不發放獎勵。</string>
+
     <string name="hatch_replay">再看一次</string>
+
     <string name="hatch_read">閱讀牠的故事</string>
+
     <string name="hatch_egg_description">散發星光的視力龍蛋</string>
+
     <string name="hatch_dragon_description">被星光環繞的黃色晴金龍</string>
+
     <string name="hatch_rates_pending">R／SR／SSR・機率待設定</string>
+
     <string name="hatch_rates">R %1$d%%  ·  SR %2$d%%  ·  SSR %3$d%%</string>
+
     <string name="hatch_story_title">晴金龍\n與迷霧森林</string>
+
     <string name="hatch_story_subtitle">五章冒險・與小龍一起學會護眼</string>
+
     <string name="hatch_story_open">展開故事冒險</string>
+
     <string name="hatch_growth_title">陪你一起成長的守護者</string>
+
     <string name="hatch_growth">晶亮幼龍 → 星芒龍角 → 守護雙翼\n讓端正習慣陪伴小龍長大。此為成長預告，尚未設定進化門檻。</string>
+
     <string name="hatch_shiny">SHINY・星空中的祕密\n連續 30 天達成每日姿勢目標，未來有機會遇見稀有星空異色版。目前僅為預告，機率尚未設定。</string>
+
     <string name="hatch_chapter_count">第 %1$d／%2$d 章</string>
+
     <string name="hatch_previous">上一章</string>
+
     <string name="hatch_next">下一章</string>
+
     <string name="hatch_finish">完成閱讀</string>
+
     <string name="hatch_close">關閉故事</string>
+
     <string name="hatch_source">護眼參考：美國眼科學會「Digital Devices and Your Eyes」。迷霧與視力龍為故事設定。</string>
+
     <string name="hatch_white">白色蛋</string>
+
     <string name="hatch_white_requirement">累積 1 小時正確姿勢</string>
-    <string name="hatch_white_progress">30／60 分鐘・示範</string>
+
+    <string name="hatch_white_progress">30／60 分鐘・固定範例</string>
+
     <string name="hatch_silver">銀色蛋</string>
+
     <string name="hatch_silver_requirement">累積 5 小時正確姿勢</string>
-    <string name="hatch_silver_progress">2／5 小時・示範</string>
+
+    <string name="hatch_silver_progress">2／5 小時・固定範例</string>
+
     <string name="hatch_gold">金色蛋</string>
+
     <string name="hatch_gold_requirement">累積 24 小時正確姿勢</string>
-    <string name="hatch_gold_progress">12／24 小時・示範</string>
+
+    <string name="hatch_gold_progress">12／24 小時・固定範例</string>
+
     <string name="hatch_platinum">白金蛋</string>
+
     <string name="hatch_platinum_requirement">連續 7 天達成每日目標</string>
-    <string name="hatch_platinum_progress">4／7 天・示範</string>
+
+    <string name="hatch_platinum_progress">4／7 天・固定範例</string>
+
     <string name="hatch_diamond">鑽石蛋</string>
+
     <string name="hatch_diamond_requirement">累積 100 小時正確姿勢，或達成特殊衛教成就</string>
-    <string name="hatch_diamond_progress">68／100 小時・示範</string>
+
+    <string name="hatch_diamond_progress">68／100 小時・固定範例</string>
+
     <string name="hatch_chapter_0_title">迷霧降臨</string>
+
     <string name="hatch_chapter_0_body">森林深處，晶亮的小視力龍循著你的光前進。當你久久盯著螢幕，故事裡的「疲勞迷霧」便遮住道路。你決定陪牠找到一片明亮的空地。</string>
+
     <string name="hatch_chapter_0_action">第一個小魔法：自然眨眼，眼睛疲倦時先停下來休息。</string>
+
     <string name="hatch_chapter_1_title">龍翼距離</string>
+
     <string name="hatch_chapter_1_body">小龍想展開雙翼，卻被身旁的樹枝擋住。你往後挪出舒適的空間，讓牠自在飛行。保留距離，冒險也能輕鬆一些。</string>
+
     <string name="hatch_chapter_1_action">使用電腦螢幕時，保持約一臂距離；字太小就放大，別一直向前湊近。</string>
+
     <string name="hatch_chapter_2_title">脊椎龍柱</string>
+
     <string name="hatch_chapter_2_body">來到安靜的空地，小龍需要歇歇腳。你放鬆肩膀，舒適地坐正；故事中的大樹也穩穩站好，成為牠最喜歡的棲木。</string>
+
     <string name="hatch_chapter_2_action">下巴微收、肩膀放鬆，背部有支撐；適時變換姿勢，不必一直僵硬挺直。</string>
+
     <string name="hatch_chapter_3_title">遠眺充能</string>
+
     <string name="hatch_chapter_3_body">空地外，遠方山丘閃著光。你和小龍一起把目光移開螢幕，望向遠處。眼睛休息的片刻，星光悄悄聚集在牠的雙翼旁。</string>
+
     <string name="hatch_chapter_3_action">20-20-20：每 20 分鐘，望向約 6 公尺外至少 20 秒。</string>
+
     <string name="hatch_chapter_4_title">星芒甦醒</string>
+
     <string name="hatch_chapter_4_body">你帶著適時休息與舒適姿勢的好習慣，繼續森林冒險。想像中的小龍逐漸長出璀璨龍角與寬闊雙翼，提醒你：照顧自己，就是最重要的魔法。</string>
+
     <string name="hatch_chapter_4_action">記住三個約定：舒適距離、放鬆且有支撐的姿勢，以及規律的護眼休息。</string>
+
 </resources>

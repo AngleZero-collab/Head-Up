@@ -1,7 +1,7 @@
 <resources>
     <string name="rehab_title">復健與護眼</string>
     <string name="rehab_intro">從一小段休息開始，找到舒適的節奏。</string>
-    <string name="rehab_preview">閱讀展示・不計時、不紀錄訓練</string>
+    <string name="rehab_preview">放鬆與護眼指引・不計時、不紀錄訓練</string>
     <string name="rehab_neck">肩頸放鬆</string>
     <string name="rehab_eyes">護眼休息</string>
     <string name="rehab_cdr">CDR 術後</string>
@@ -19,7 +19,7 @@
     <string name="rehab_eye_caution">供一般螢幕使用者休息參考，不是近視或眼疾治療。不要按壓或揉眼；不舒服就停止，持續不適請尋求眼科評估。</string>
     <string name="rehab_cdr_intro">頸椎人工椎間盤置換術（CDR）\n術後安排依手術醫師與物理治療師指示。以下分類不是固定時程，也不是個人運動處方。</string>
     <string name="rehab_cdr_caution">一般肩頸課程不直接適用於 CDR 術後患者，請先確認醫療團隊的限制。本頁不蒐集手術日期、症狀或健康資訊。</string>
-    <string name="rehab_cdr_review">衛教展示・尚待醫療團隊審核</string>
+    <string name="rehab_cdr_review">術後衛教・尚待醫療團隊審核</string>
     <string name="rehab_pending">內容待專業審核，尚未開放</string>
     <string name="rehab_pending_title">獲准後復健訓練</string>
     <string name="rehab_pending_note">以下僅為課程預告，沒有開始或自行解鎖功能；請依個別醫療計畫進行。</string>
@@ -47,7 +47,7 @@
     <string name="rehab_turn_step_2">再輕柔向右轉頭並回到中央。有疼痛、暈眩、麻木或無力時停止。</string>
     <string name="rehab_distance">20-20-20 遠眺</string>
     <string name="rehab_distance_summary">暫時把目光移開近處螢幕。</string>
-    <string name="rehab_distance_step_0">使用螢幕約 20 分鐘後，暫停手邊活動。本展示不會啟動計時器。</string>
+    <string name="rehab_distance_step_0">使用螢幕約 20 分鐘後，暫停手邊活動。本指引不會啟動計時器。</string>
     <string name="rehab_distance_step_1">望向約 6 公尺外的實際景物，至少 20 秒；不要繼續盯著這個畫面。</string>
     <string name="rehab_distance_step_2">自然眨眼，舒適後再回到活動。把規律休息融入日常。</string>
     <string name="rehab_blink">自然眨眼</string>
@@ -64,7 +64,7 @@
     <string name="rehab_protection_summary">整理要詢問醫療團隊的事項。</string>
     <string name="rehab_protection_step_0">先閱讀手術團隊提供的出院指示，保留容易查找的聯絡方式。</string>
     <string name="rehab_protection_step_1">詢問哪些活動受限、是否需要頸圈，以及哪些症狀應聯絡團隊；不要從一般運動卡自行推論。</string>
-    <string name="rehab_protection_step_2">回診時確認何時可開始復健、由誰指導。本展示不設定開始日期、負重或動作角度。</string>
+    <string name="rehab_protection_step_2">回診時確認何時可開始復健、由誰指導。本指引不設定開始日期、負重或動作角度。</string>
     <string name="rehab_daily">日常活動恢復</string>
     <string name="rehab_daily_summary">與醫療團隊確認個別活動安排。</string>
     <string name="rehab_daily_step_0">與醫療團隊討論步行、坐姿、睡眠及電腦使用等日常需求。</string>

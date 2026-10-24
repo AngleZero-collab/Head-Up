@@ -1,7 +1,7 @@
 <resources>
     <string name="rehab_title">Relaxation &amp; eye care</string>
     <string name="rehab_intro">Small breaks, comfortable movement. Browse guidance at your own pace.</string>
-    <string name="rehab_preview">Reading preview · no timer or activity recording</string>
+    <string name="rehab_preview">Relaxation and eye-care guide · no timer or activity recording</string>
     <string name="rehab_neck">Neck &amp; shoulders</string>
     <string name="rehab_eyes">Eye breaks</string>
     <string name="rehab_cdr">After CDR</string>
@@ -19,7 +19,7 @@
     <string name="rehab_eye_caution">For everyday screen breaks, not treatment for myopia or an eye condition. Do not press or rub your eyes. Stop if uncomfortable; persistent symptoms need an eye-care assessment.</string>
     <string name="rehab_cdr_intro">Cervical Disc Replacement (CDR)\nYour surgeon and physiotherapist determine postoperative care. These categories are not a timetable or an exercise prescription.</string>
     <string name="rehab_cdr_caution">General neck exercises are not automatically suitable after CDR. Confirm restrictions with your care team. No surgery date, symptoms or health information are collected here.</string>
-    <string name="rehab_cdr_review">Education preview · local clinical review pending</string>
+    <string name="rehab_cdr_review">Postoperative education · local clinical review pending</string>
     <string name="rehab_pending">Pending professional review · not available</string>
     <string name="rehab_pending_title">Rehabilitation after clearance</string>
     <string name="rehab_pending_note">Course placeholders only. There is no start or self-unlock option. Follow your own clinical plan.</string>
@@ -64,7 +64,7 @@
     <string name="rehab_protection_summary">Prepare questions for your care team.</string>
     <string name="rehab_protection_step_0">Read the discharge instructions provided by your surgical team. Keep their contact details accessible.</string>
     <string name="rehab_protection_step_1">Ask which activities are restricted, whether a collar is required, and when to contact the team about symptoms. Do not infer these from general exercise cards.</string>
-    <string name="rehab_protection_step_2">At follow-up, ask when rehabilitation may begin and who will guide it. This preview does not set dates, loads or movement angles.</string>
+    <string name="rehab_protection_step_2">At follow-up, ask when rehabilitation may begin and who will guide it. This guide does not set dates, loads or movement angles.</string>
     <string name="rehab_daily">Return to daily activities</string>
     <string name="rehab_daily_summary">Discuss a personal return-to-activity plan.</string>
     <string name="rehab_daily_step_0">Review daily needs such as walking, sitting, sleep and computer use with your care team.</string>
