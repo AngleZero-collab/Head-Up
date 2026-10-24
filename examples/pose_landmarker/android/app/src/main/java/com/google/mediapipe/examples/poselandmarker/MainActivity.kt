@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowManager
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
@@ -51,16 +52,26 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.attributes = window.attributes.apply {
+            rotationAnimation = WindowManager.LayoutParams.ROTATION_ANIMATION_JUMPCUT
+        }
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        playLaunchAnimation()
+        val restoringState = savedInstanceState != null
+        if (restoringState) {
+            // Recreated screens should be visible immediately, without the launch overlay.
+            binding.splashOverlay.visibility = View.GONE
+            resetDestinationAppearance()
+        } else {
+            playLaunchAnimation()
+        }
 
         val navHost = supportFragmentManager
             .findFragmentById(R.id.fragment_container) as NavHostFragment
         navController = navHost.navController
         binding.navigation.setupWithNavController(navController)
         binding.navigation.setOnItemReselectedListener { }
-        configureNavigationChrome()
+        configureNavigationChrome(skipInitialAnimation = restoringState)
 
         binding.notificationButton.setOnClickListener { openNotificationControls() }
         binding.stopGuardButton.setOnClickListener { toggleBackgroundGuard() }
@@ -206,7 +217,8 @@ class MainActivity : AppCompatActivity() {
         navController.navigate(R.id.login_fragment, null, options)
     }
 
-    private fun configureNavigationChrome() {
+    private fun configureNavigationChrome(skipInitialAnimation: Boolean) {
+        var initialDestination = true
         navController.addOnDestinationChangedListener { _, destination, _ ->
             val showAppChrome = destination.id != R.id.login_fragment &&
                 destination.id != R.id.permissions_fragment
@@ -215,9 +227,20 @@ class MainActivity : AppCompatActivity() {
             }
             binding.headupTopBar.visibility = if (showAppChrome) View.VISIBLE else View.GONE
             binding.navigationShell.visibility = if (showAppChrome) View.VISIBLE else View.GONE
-            if (showAppChrome) animateDestinationChange()
+            if (initialDestination && skipInitialAnimation) {
+                resetDestinationAppearance()
+            } else if (showAppChrome) {
+                animateDestinationChange()
+            }
+            initialDestination = false
             updateGuardButton()
         }
+    }
+
+    private fun resetDestinationAppearance() {
+        binding.fragmentContainer.animate().cancel()
+        binding.fragmentContainer.alpha = 1f
+        binding.fragmentContainer.translationY = 0f
     }
 
     private fun animateDestinationChange() {
