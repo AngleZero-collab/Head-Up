@@ -19,16 +19,16 @@
     <string name="rehab_eye_caution">For everyday screen breaks, not treatment for myopia or an eye condition. Do not press or rub your eyes. Stop if uncomfortable; persistent symptoms need an eye-care assessment.</string>
     <string name="rehab_cdr_intro">Cervical Disc Replacement (CDR)\nYour surgeon and physiotherapist determine postoperative care. These categories are not a timetable or an exercise prescription.</string>
     <string name="rehab_cdr_caution">General neck exercises are not automatically suitable after CDR. Confirm restrictions with your care team. No surgery date, symptoms or health information are collected here.</string>
-    <string name="rehab_cdr_review">Postoperative education · local clinical review pending</string>
-    <string name="rehab_pending">Pending professional review · not available</string>
-    <string name="rehab_pending_title">Rehabilitation after clearance</string>
-    <string name="rehab_pending_note">Course placeholders only. There is no start or self-unlock option. Follow your own clinical plan.</string>
-    <string name="rehab_rom">Neck mobility</string>
-    <string name="rehab_scapula">Shoulder-blade control</string>
-    <string name="rehab_function">Functional recovery</string>
+    <string name="rehab_cdr_review">CDR postoperative education · follow your individual care plan</string>
+    <string name="rehab_pending">Training requires surgical assessment and physiotherapist guidance</string>
+    <string name="rehab_pending_title">Postoperative rehabilitation principles</string>
+    <string name="rehab_pending_note">These are rehabilitation goals and follow-up discussion points, not a home exercise prescription. Your surgeon and physiotherapist determine timing, movement range, resistance and repetitions for your situation.</string>
+    <string name="rehab_rom">Cervical range of motion (ROM)</string>
+    <string name="rehab_scapula">Scapular stability and motor control</string>
+    <string name="rehab_function">Functional recovery in daily activities</string>
     <string name="rehab_source_neck">Sources: NHS Sitting exercises; Frimley Health head, neck and shoulder stretches.</string>
     <string name="rehab_source_eye">Source: American Academy of Ophthalmology — Computers, Digital Devices and Eye Strain.</string>
-    <string name="rehab_source_cdr">Source: Ohio State spine rehabilitation guidelines. Local clinical review pending; this is not an individualized protocol.</string>
+    <string name="rehab_source_cdr">Further reading: Ohio State spine rehabilitation guidelines. This general education is not endorsed by that institution and does not replace individual assessment or a clinical prescription.</string>
     <string name="rehab_sources">View source</string>
     <string name="rehab_posture">Comfortable sitting</string>
     <string name="rehab_posture_summary">Find a supported, relaxed position.</string>
@@ -70,4 +70,7 @@
     <string name="rehab_daily_step_0">Review daily needs such as walking, sitting, sleep and computer use with your care team.</string>
     <string name="rehab_daily_step_1">Ask how to pace activity and rest, and when work, driving or lifting may resume. Follow your own instructions.</string>
     <string name="rehab_daily_step_2">Request an approved plan before starting neck mobility, strengthening or other rehabilitation. General relaxation cards are not a postoperative prescription.</string>
+    <string name="cdr_rom_guidance">Goal: gradually restore neck movement according to postoperative status. Ask your care team when to begin, which directions and ranges are permitted, and whether a collar is needed. Without individual instructions, avoid passive manipulation, traction or pushing to end range.</string>
+    <string name="cdr_scapula_guidance">Goal: develop shoulder-girdle stability and coordinated arm movement. Ask your physiotherapist to assess compensatory movement and explain appropriate technique, breathing and resistance. Do not add loads or adopt general neck exercises based on this page.</string>
+    <string name="cdr_function_guidance">Goal: resume walking, seated work and daily activities within individual restrictions. Discuss activity and rest, lifting and driving restrictions, and return-to-work criteria. Stop the relevant activity and contact your care team for new or worsening numbness, weakness or pain.</string>
 </resources>

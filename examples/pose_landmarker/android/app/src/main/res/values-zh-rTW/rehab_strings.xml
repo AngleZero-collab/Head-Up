@@ -19,16 +19,16 @@
     <string name="rehab_eye_caution">供一般螢幕使用者休息參考，不是近視或眼疾治療。不要按壓或揉眼；不舒服就停止，持續不適請尋求眼科評估。</string>
     <string name="rehab_cdr_intro">頸椎人工椎間盤置換術（CDR）\n術後安排依手術醫師與物理治療師指示。以下分類不是固定時程，也不是個人運動處方。</string>
     <string name="rehab_cdr_caution">一般肩頸課程不直接適用於 CDR 術後患者，請先確認醫療團隊的限制。本頁不蒐集手術日期、症狀或健康資訊。</string>
-    <string name="rehab_cdr_review">術後衛教・尚待醫療團隊審核</string>
-    <string name="rehab_pending">內容待專業審核，尚未開放</string>
-    <string name="rehab_pending_title">獲准後復健訓練</string>
-    <string name="rehab_pending_note">以下僅為課程預告，沒有開始或自行解鎖功能；請依個別醫療計畫進行。</string>
-    <string name="rehab_rom">頸部活動度</string>
-    <string name="rehab_scapula">肩胛控制</string>
-    <string name="rehab_function">功能恢復</string>
+    <string name="rehab_cdr_review">CDR 術後衛教・依個別醫囑進行復健</string>
+    <string name="rehab_pending">訓練須經手術醫師評估，並由物理治療師指導</string>
+    <string name="rehab_pending_title">術後復健指導原則</string>
+    <string name="rehab_pending_note">以下說明復健目標與回診討論重點，非居家運動處方。開始時機、活動範圍、阻力與訓練次數，須由手術醫師及物理治療師依個別狀況訂定。</string>
+    <string name="rehab_rom">頸椎活動度訓練（Cervical ROM）</string>
+    <string name="rehab_scapula">肩胛穩定與動作控制（Scapular Control）</string>
+    <string name="rehab_function">日常生活功能恢復（Functional Recovery）</string>
     <string name="rehab_source_neck">參考：NHS 坐姿運動；Frimley Health 頭頸肩伸展衛教。</string>
     <string name="rehab_source_eye">參考：美國眼科學會「Computers, Digital Devices and Eye Strain」。</string>
-    <string name="rehab_source_cdr">參考：Ohio State 脊椎術後復健指引。內容尚待醫療團隊審核，不是個人化處方。</string>
+    <string name="rehab_source_cdr">延伸閱讀：Ohio State 脊椎術後復健指引。本頁為一般衛教整理，未經該機構認證，不取代醫療團隊的個別評估與處方。</string>
     <string name="rehab_sources">查看來源</string>
     <string name="rehab_posture">坐姿與肩膀放鬆</string>
     <string name="rehab_posture_summary">找到有支撐、放鬆的坐姿。</string>
@@ -70,4 +70,7 @@
     <string name="rehab_daily_step_0">與醫療團隊討論步行、坐姿、睡眠及電腦使用等日常需求。</string>
     <string name="rehab_daily_step_1">詢問活動與休息如何安排，以及何時可恢復工作、駕駛或搬物，依自己的醫囑進行。</string>
     <string name="rehab_daily_step_2">開始頸部活動度、肌力或其他復健前，先取得核准的計畫。一般放鬆卡不是術後處方。</string>
+    <string name="cdr_rom_guidance">目標：依手術後狀況逐步恢復頸部活動功能。請向醫療團隊確認可開始的時間、允許方向與範圍，以及是否需要頸圈。未獲個別指示前，不自行進行被動扳動、牽引或追求活動終點。</string>
+    <string name="cdr_scapula_guidance">目標：建立肩胛帶穩定與上肢動作協調。請物理治療師評估肩頸代償，說明合適的動作方式、呼吸與阻力安排；不依本頁自行加重或套用一般肩頸課程。</string>
+    <string name="cdr_function_guidance">目標：在個別限制內恢復步行、坐姿工作與日常活動。回診時討論活動與休息安排、搬提及駕車限制，以及返回工作的條件。若出現新發或加重的麻木、無力或疼痛，停止相關活動並聯絡醫療團隊。</string>
 </resources>

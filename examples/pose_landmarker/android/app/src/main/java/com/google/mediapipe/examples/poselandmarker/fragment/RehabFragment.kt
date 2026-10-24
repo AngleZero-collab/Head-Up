@@ -196,9 +196,13 @@ class RehabFragment : Fragment() {
             val pending = card(parent)
             label(pending, R.string.rehab_pending_title, 21f, true)
             label(pending, R.string.rehab_pending_note)
-            listOf(R.string.rehab_rom, R.string.rehab_scapula, R.string.rehab_function).forEach {
-                label(pending, it, 18f, true)
-                label(pending, R.string.rehab_pending, 14f)
+            listOf(
+                R.string.rehab_rom to R.string.cdr_rom_guidance,
+                R.string.rehab_scapula to R.string.cdr_scapula_guidance,
+                R.string.rehab_function to R.string.cdr_function_guidance,
+            ).forEach { (title, guidance) ->
+                label(pending, title, 18f, true)
+                label(pending, guidance, 14f)
             }
         }
         source(parent)
