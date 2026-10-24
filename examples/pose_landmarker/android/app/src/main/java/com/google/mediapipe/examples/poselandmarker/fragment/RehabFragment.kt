@@ -17,6 +17,8 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.button.MaterialButton
 import com.google.mediapipe.examples.poselandmarker.R
+import com.google.mediapipe.examples.poselandmarker.HeadUpRepository
+import com.google.mediapipe.examples.poselandmarker.HeadUpUiState
 import com.google.mediapipe.examples.poselandmarker.databinding.FragmentRehabBinding
 
 /** Session-only reading UI: it never writes exercise, health, or reward records. */
@@ -26,6 +28,8 @@ class RehabFragment : Fragment() {
     private var courseIndex = -1
     private var step = 0
     private var completed = false
+    private var guardianMetric: TextView? = null
+    private var reminderDialog: androidx.appcompat.app.AlertDialog? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View {
         val view = FragmentRehabBinding.inflate(inflater, container, false)
@@ -46,6 +50,7 @@ class RehabFragment : Fragment() {
             override fun handleOnBackPressed() = back()
         })
         render()
+        HeadUpRepository.observeState().observe(viewLifecycleOwner) { updateGuardianMetric(it) }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -146,6 +151,7 @@ class RehabFragment : Fragment() {
     private fun render() {
         val ui = binding ?: return
         val parent = ui.rehabContent
+        guardianMetric = null
         parent.removeAllViews()
         label(parent, R.string.rehab_title, 28f, true)
         label(parent, R.string.rehab_preview, 12f)
@@ -156,7 +162,7 @@ class RehabFragment : Fragment() {
     private fun renderList(parent: LinearLayout) {
         label(parent, R.string.rehab_intro)
         // Vertical choices stay readable at large font sizes and narrow screen widths.
-        listOf(R.string.rehab_neck, R.string.rehab_eyes, R.string.rehab_cdr).forEachIndexed { i, title ->
+        listOf(R.string.guardian_spine, R.string.guardian_vision, R.string.rehab_cdr).forEachIndexed { i, title ->
             button(parent, title) { category = i; render() }.apply {
                 isSelected = category == i
                 strokeWidth = if (isSelected) dp(2) else 0
@@ -172,6 +178,8 @@ class RehabFragment : Fragment() {
         if (category == 2) {
             label(parent, R.string.rehab_cdr_caution)
             label(parent, R.string.rehab_cdr_review, 13f)
+        } else {
+            renderGuardian(parent)
         }
         RehabCourses.all.forEachIndexed { index, course ->
             if (course.category == category) {
@@ -220,7 +228,44 @@ class RehabFragment : Fragment() {
         source(parent)
     }
 
+    private fun renderGuardian(parent: LinearLayout) {
+        val panel = card(parent)
+        illustration(panel)
+        label(panel, if (category == 1) R.string.guardian_vision else R.string.guardian_spine, 23f, true)
+        label(panel, R.string.guardian_estimate_note, 13f)
+        guardianMetric = label(panel, R.string.guardian_no_reading, 20f, true)
+        updateGuardianMetric(HeadUpRepository.currentState(requireContext()))
+        label(panel, if (category == 1) R.string.guardian_vision_pending else R.string.guardian_spine_pending, 14f)
+        label(panel, R.string.guardian_intervention, 18f, true)
+        label(panel, if (category == 1) R.string.guardian_vision_reminder else R.string.guardian_spine_reminder)
+        label(panel, R.string.guardian_preview_note, 13f)
+        button(panel, R.string.guardian_preview) {
+            reminderDialog?.dismiss()
+            reminderDialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(if (category == 1) R.string.guardian_vision else R.string.guardian_spine)
+                .setMessage(if (category == 1) R.string.guardian_vision_reminder else R.string.guardian_spine_reminder)
+                .setPositiveButton(android.R.string.ok, null).show()
+        }
+        label(panel, R.string.guardian_routine_note, 14f)
+        button(panel, R.string.guardian_start) {
+            courseIndex = RehabCourses.all.indexOfFirst {
+                it.title == if (category == 1) R.string.guardian_vision_routine else R.string.guardian_spine_routine
+            }
+            step = 0; completed = false; render()
+        }
+    }
+
+    private fun updateGuardianMetric(state: HeadUpUiState) {
+        val target = guardianMetric ?: return
+        val value = if (category == 1) state.metrics.screenDistanceCm else state.metrics.headPitchDegrees
+        target.text = if (state.lastUpdatedMs <= 0 || value == null) getString(R.string.guardian_no_reading)
+        else getString(if (category == 1) R.string.guardian_distance else R.string.guardian_pitch, value)
+    }
+
     override fun onDestroyView() {
+        reminderDialog?.dismiss()
+        reminderDialog = null
+        guardianMetric = null
         binding = null
         super.onDestroyView()
     }

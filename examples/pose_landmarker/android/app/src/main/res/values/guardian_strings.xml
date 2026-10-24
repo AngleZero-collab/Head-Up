@@ -1,0 +1,25 @@
+<resources>
+    <string name="guardian_spine">Spine Guardian · Neck relaxation</string>
+    <string name="guardian_vision">Vision Guardian · Eye breaks</string>
+    <string name="guardian_estimate_note">Latest available estimate from existing detection; it may be from an earlier session. This page does not start the camera. Not a medical measurement.</string>
+    <string name="guardian_no_reading">No estimate available · use the scan page to check detection and calibration</string>
+    <string name="guardian_distance">Last estimated viewing distance: %1$d cm</string>
+    <string name="guardian_pitch">Last estimated head pitch: %1$d°</string>
+    <string name="guardian_vision_pending">EAR, complete-blink detection and blink rate: not enabled. No simulated readings are shown.</string>
+    <string name="guardian_spine_pending">Clinical CVA, cervical load and muscle-specific recommendations: not available. Head angle cannot identify which muscles are strained.</string>
+    <string name="guardian_intervention">Gentle reminder preview</string>
+    <string name="guardian_vision_reminder">Take a screen break, blink naturally and enlarge text if it is difficult to read. Move the screen to a comfortable viewing distance.</string>
+    <string name="guardian_spine_reminder">Relax your shoulders and bring the screen closer to eye level with your arms supported. Avoid forcing your neck into position.</string>
+    <string name="guardian_preview_note">Manual text preview only. Automatic zoom, edge ripples, floating prompts and vibration are not enabled.</string>
+    <string name="guardian_preview">Preview reminder</string>
+    <string name="guardian_routine_note">Set aside about 3 minutes at your own pace. Reading guidance only: no countdown, exercise verification or completion record. Stop if uncomfortable.</string>
+    <string name="guardian_start">Open relaxation guide</string>
+    <string name="guardian_vision_routine">Vision Guardian · End-of-day break</string>
+    <string name="guardian_spine_routine">Spine Guardian · End-of-day relaxation</string>
+    <string name="guardian_eye_step_0">Pause your screen task and relax your face. Blink gently and naturally without squeezing, pressing or rubbing your eyes.</string>
+    <string name="guardian_eye_step_1">Look away from this screen at something about 6 metres away for at least 20 seconds. Repeat screen breaks during the day: every 20 minutes, look 20 feet away for 20 seconds. No need to stretch your eyes to their limits.</string>
+    <string name="guardian_eye_step_2">Adjust text size, glare and screen position before returning. This guide supports comfortable breaks; it does not treat myopia or dry-eye disease. Persistent discomfort needs an eye-care assessment. Eye-pressure and extreme-gaze exercises are not offered.</string>
+    <string name="guardian_neck_step_0">For general relaxation only. After CDR, other neck surgery or with a cervical condition, follow your care team’s instructions instead. Sit with your feet and back supported; breathe naturally.</string>
+    <string name="guardian_neck_step_1">Let your shoulders settle. If comfortable, make gentle shoulder circles without forcing your neck, then pause. No deep pressure, pulling or prescribed range is needed.</string>
+    <string name="guardian_neck_step_2">Change position and bring the screen to a comfortable height with your arms supported. Stop for increasing pain, dizziness, numbness or weakness and seek advice. Chin-tuck training, deep neck pressure and traction await professional review.</string>
+</resources>

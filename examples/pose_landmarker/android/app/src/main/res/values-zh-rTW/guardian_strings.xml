@@ -1,0 +1,25 @@
+<resources>
+    <string name="guardian_spine">頸椎的守護・肩頸放鬆</string>
+    <string name="guardian_vision">眼睛的守護・護眼休息</string>
+    <string name="guardian_estimate_note">沿用既有偵測的最近可用估算，可能來自先前使用階段。本頁不啟動鏡頭，不作為醫療量測。</string>
+    <string name="guardian_no_reading">尚無可用估算・請至掃描頁確認偵測與校準</string>
+    <string name="guardian_distance">最近視距估算：%1$d 公分</string>
+    <string name="guardian_pitch">最近頭部俯仰角估算：%1$d°</string>
+    <string name="guardian_vision_pending">EAR、完整眨眼與眨眼頻率：尚未啟用，不顯示模擬讀值。</string>
+    <string name="guardian_spine_pending">臨床 CVA、頸椎負載與肌群專屬推薦：尚未提供。頭部角度不能判定哪個肌群緊繃。</string>
+    <string name="guardian_intervention">溫和提醒預覽</string>
+    <string name="guardian_vision_reminder">暫停看螢幕，自然眨眼；文字看不清楚時可放大字級，並將螢幕移至舒適的觀看距離。</string>
+    <string name="guardian_spine_reminder">放鬆肩膀，讓手臂有支撐，再把螢幕提高至接近視線高度；不要勉強扳正頸部。</string>
+    <string name="guardian_preview_note">僅手動預覽提醒文字。自動縮放、邊緣波紋、懸浮提醒與震動均未啟用。</string>
+    <string name="guardian_preview">預覽提醒</string>
+    <string name="guardian_routine_note">可預留約 3 分鐘，依舒適節奏閱讀與休息。沒有倒數、動作驗證或完成紀錄；不舒服就停止。</string>
+    <string name="guardian_start">開啟放鬆導引</string>
+    <string name="guardian_vision_routine">眼睛的守護・日末休息</string>
+    <string name="guardian_spine_routine">頸椎的守護・日末放鬆</string>
+    <string name="guardian_eye_step_0">暫停螢幕工作，放鬆臉部，自然輕柔地眨眼。不用力擠眼，不按壓或揉眼。</string>
+    <string name="guardian_eye_step_1">將視線移開這個螢幕，看約 6 公尺外的景物至少 20 秒。白天也可採用 20-20-20：每 20 分鐘看約 6 公尺外至少 20 秒，不需要把眼球伸展到極限。</string>
+    <string name="guardian_eye_step_2">回到螢幕前，調整字級、反光與螢幕位置。本導引協助舒適休息，不治療近視或乾眼；若持續不適，請尋求眼科評估。不提供眼周點壓與極限眼球伸展。</string>
+    <string name="guardian_neck_step_0">僅供一般日常放鬆。CDR、其他頸部術後或頸椎疾病患者，請依醫療團隊指示。選擇雙腳與背部有支撐的坐姿，自然呼吸。</string>
+    <string name="guardian_neck_step_1">讓肩膀自然放鬆；若舒適，可輕柔地繞動肩膀後暫停，不強拉頸部。不需要深層按壓、牽引或追求固定角度。</string>
+    <string name="guardian_neck_step_2">適時改變姿勢，讓手臂有支撐，再調整螢幕高度。若疼痛加劇、暈眩、麻木或無力，停止並尋求醫療建議。下巴後收訓練、頸部深壓及牽引待專業審核。</string>
+</resources>

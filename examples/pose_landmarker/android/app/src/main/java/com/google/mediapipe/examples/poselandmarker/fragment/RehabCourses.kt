@@ -14,5 +14,7 @@ internal object RehabCourses {
         Course(1, R.string.rehab_screen, R.string.rehab_screen_summary, intArrayOf(R.string.rehab_screen_step_0, R.string.rehab_screen_step_1, R.string.rehab_screen_step_2)),
         Course(2, R.string.rehab_protection, R.string.rehab_protection_summary, intArrayOf(R.string.rehab_protection_step_0, R.string.rehab_protection_step_1, R.string.rehab_protection_step_2)),
         Course(2, R.string.rehab_daily, R.string.rehab_daily_summary, intArrayOf(R.string.rehab_daily_step_0, R.string.rehab_daily_step_1, R.string.rehab_daily_step_2)),
+        Course(1, R.string.guardian_vision_routine, R.string.guardian_routine_note, intArrayOf(R.string.guardian_eye_step_0, R.string.guardian_eye_step_1, R.string.guardian_eye_step_2)),
+        Course(0, R.string.guardian_spine_routine, R.string.guardian_routine_note, intArrayOf(R.string.guardian_neck_step_0, R.string.guardian_neck_step_1, R.string.guardian_neck_step_2)),
     )
 }
