@@ -466,16 +466,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:background="@drawable/bg_headup_card"
+            android:background="@drawable/bg_health_trend_card"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="18dp">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/weekly_health_trend"
                 android:textColor="@color/headup_text_primary"
-                android:textSize="18sp"
+                android:textSize="22sp"
                 android:textStyle="bold" />
 
             <LinearLayout
@@ -487,36 +487,37 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/legend_safe"
+                    android:text="@string/trend_legend_safe"
                     android:textColor="@color/headup_safe"
-                    android:textSize="12sp"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
-                    android:text="@string/legend_warning"
+                    android:text="@string/trend_legend_warning"
                     android:textColor="@color/headup_warning"
-                    android:textSize="12sp"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
-                    android:text="@string/legend_danger"
+                    android:text="@string/trend_legend_danger"
                     android:textColor="@color/headup_danger"
-                    android:textSize="12sp"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
             <com.google.mediapipe.examples.poselandmarker.HealthTrendChartView
                 android:id="@+id/health_trend_chart"
                 android:layout_width="match_parent"
-                android:layout_height="190dp"
-                android:layout_marginTop="8dp"
+                android:layout_height="250dp"
+                android:layout_marginTop="20dp"
                 android:contentDescription="@string/weekly_health_trend" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/trend_scale_note" android:textSize="12sp" android:textColor="@color/headup_text_secondary" />
         </LinearLayout>
 
         <LinearLayout

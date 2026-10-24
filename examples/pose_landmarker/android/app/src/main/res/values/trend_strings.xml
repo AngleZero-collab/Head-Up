@@ -1,0 +1,8 @@
+<resources>
+<string name="trend_legend_safe">● Safe</string>
+<string name="trend_legend_warning">● Warning</string>
+<string name="trend_legend_danger">● Danger</string>
+<string name="trend_scale_note">Bars: posture time (shared scale). Curve: danger events (separate scale); colour is decorative. Gaps mean no records.</string>
+<string name="trend_empty">No records yet</string>
+<string name="trend_day_description">%1$s: safe %2$d min, warning %3$d min, danger %4$d min; %5$d danger events.</string>
+</resources>

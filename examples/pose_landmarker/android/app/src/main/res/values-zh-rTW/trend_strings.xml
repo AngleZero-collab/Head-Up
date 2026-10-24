@@ -1,0 +1,8 @@
+<resources>
+<string name="trend_legend_safe">● 安全</string>
+<string name="trend_legend_warning">● 提醒</string>
+<string name="trend_legend_danger">● 危險</string>
+<string name="trend_scale_note">柱狀：姿勢時數（共用尺度）。曲線：危險事件次數（獨立尺度）；漸層為裝飾。缺口表示無紀錄。</string>
+<string name="trend_empty">尚無紀錄</string>
+<string name="trend_day_description">%1$s：安全 %2$d 分鐘、提醒 %3$d 分鐘、危險 %4$d 分鐘；危險事件 %5$d 次。</string>
+</resources>
