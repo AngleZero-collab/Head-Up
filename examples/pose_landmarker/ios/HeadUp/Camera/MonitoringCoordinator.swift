@@ -17,16 +17,20 @@ final class MonitoringCoordinator: ObservableObject {
     @Published private(set) var landmarks: [LandmarkPoint] = []
     @Published private(set) var warningActive = false
     @Published private(set) var isFrontCamera = true
+    @Published private(set) var isFloatingWindowOpen = false
+    // Exposed only by the opt-in device test UI; counts real inference callbacks, not poses.
+    @Published private(set) var backgroundFrameCount = 0
     @Published private(set) var frameSize = CGSize(width: 480, height: 640)
     @Published var errorMessage: String?
     let camera = CameraPipeline()
+    let pictureInPicture = PosturePictureInPicture()
     private let motion = CMMotionManager()
     private let store: HeadUpStore
     private let analyzer = PostureAnalyzer()
     private let alerts = AlertEngine()
     private var token = UUID()
     private var wantsMonitoring = false
-    private var sceneActive = true
+    private var visibility = MonitoringVisibility()
     private var interrupted = false
     private var previousValidMs: Int64?
     private var lastFrameAt: TimeInterval = 0
@@ -36,12 +40,38 @@ final class MonitoringCoordinator: ObservableObject {
     private var calibrationSamples: [PostureMetrics] = []
     private var pendingCalibration = false
     private var rotation: CGFloat = 90
+    var captureRotation: CGFloat { rotation }
     private var observers: [NSObjectProtocol] = []
 
     init(store: HeadUpStore) {
         self.store = store
+        visibility.protectedDataAvailable = UIApplication.shared.isProtectedDataAvailable
+        pictureInPicture.stateChanged = { [weak self] state in
+            guard let self else { return }
+            self.visibility.pictureInPicture = state
+            self.isFloatingWindowOpen = state != .stopped
+            if !self.visibility.shouldKeepCapture && self.isMonitoring {
+                // Closing the window while another app is foreground ends this session.
+                self.wantsMonitoring = false
+                self.suspend()
+            }
+        }
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: UIApplication.protectedDataWillBecomeUnavailableNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.visibility.protectedDataAvailable = false
+                self.suspend()
+            }
+        })
+        observers.append(center.addObserver(forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.visibility.protectedDataAvailable = true
+                if self.wantsMonitoring && self.visibility.scene == .active { self.start() }
+            }
+        })
         observers.append(center.addObserver(forName: AVCaptureSession.wasInterruptedNotification, object: camera.session, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.handleInterruption() }
         })
@@ -49,7 +79,7 @@ final class MonitoringCoordinator: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.interrupted = false
-                if self.wantsMonitoring && self.sceneActive { self.start() }
+                if self.wantsMonitoring && self.visibility.shouldKeepCapture { self.start() }
             }
         })
         observers.append(center.addObserver(forName: AVCaptureSession.runtimeErrorNotification, object: camera.session, queue: .main) { [weak self] notification in
@@ -91,7 +121,7 @@ final class MonitoringCoordinator: ObservableObject {
         #else
         wantsMonitoring = true
         if interrupted && !camera.session.isInterrupted { interrupted = false }
-        guard sceneActive, !interrupted, !isMonitoring else { return }
+        guard visibility.shouldKeepCapture, !interrupted, !isMonitoring else { return }
         errorMessage = nil
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized: beginCapture()
@@ -114,12 +144,22 @@ final class MonitoringCoordinator: ObservableObject {
         suspend()
     }
 
-    func setSceneActive(_ active: Bool) {
-        sceneActive = active
-        if active {
+    func setScene(_ scene: MonitoringVisibility.Scene) {
+        visibility.scene = scene
+        if scene == .active {
+            visibility.protectedDataAvailable = UIApplication.shared.isProtectedDataAvailable
             store.refresh()
             if wantsMonitoring { start() }
-        } else { suspend() }
+            pictureInPicture.completeRestorationIfActive()
+        } else if !visibility.shouldKeepCapture { suspend() }
+        UIApplication.shared.isIdleTimerDisabled = isMonitoring && scene == .active
+    }
+
+    func openPictureInPicture() {
+        guard isMonitoring, status != .starting, !isCalibrating, visibility.scene == .active else { return }
+        updatePictureInPicture()
+        pictureInPicture.start(cameraSupported: camera.session.isMultitaskingCameraAccessEnabled,
+                               copy: HeadUpCopy(language: store.language))
     }
 
     func switchCamera() {
@@ -132,6 +172,7 @@ final class MonitoringCoordinator: ObservableObject {
     }
 
     func startCalibration() {
+        pictureInPicture.stop()
         guard isMonitoring, status != .starting else { pendingCalibration = true; start(); return }
         pendingCalibration = false
         clearContinuity()
@@ -144,6 +185,7 @@ final class MonitoringCoordinator: ObservableObject {
     }
 
     func setRotation(_ angle: CGFloat) {
+        guard visibility.pictureInPicture == .stopped else { return }
         guard angle != rotation else { return }
         rotation = angle
         let resume = wantsMonitoring
@@ -178,7 +220,7 @@ final class MonitoringCoordinator: ObservableObject {
             }
         }
         camera.start(token: currentToken, front: isFrontCamera, handler: { [weak self] token, result in
-            guard let self, self.token == token, self.isMonitoring, self.sceneActive else { return }
+            guard let self, self.token == token, self.isMonitoring, self.visibility.canProcessFrames else { return }
             switch result {
             case .success(let frame): self.receive(frame)
             case .failure(let error): self.suspend(); self.status = .failed; self.errorMessage = error.localizedDescription
@@ -191,13 +233,17 @@ final class MonitoringCoordinator: ObservableObject {
                 self.errorMessage = error.localizedDescription
             } else {
                 self.status = .noPose
-                UIApplication.shared.isIdleTimerDisabled = true
+                UIApplication.shared.isIdleTimerDisabled = self.visibility.scene == .active
                 if self.pendingCalibration { self.startCalibration() }
             }
         })
     }
 
     private func receive(_ frame: PoseFrame) {
+        if ProcessInfo.processInfo.arguments.contains("--pip-device-test"),
+           visibility.scene == .background, visibility.pictureInPicture == .active {
+            backgroundFrameCount += 1
+        }
         lastFrameAt = ProcessInfo.processInfo.systemUptime
         frameSize = frame.size
         if let previousValidMs, frame.monotonicMs - previousValidMs > 2_000 { clearContinuity(); cancelCalibration() }
@@ -247,6 +293,7 @@ final class MonitoringCoordinator: ObservableObject {
         store.recordMetrics(value, elapsedMilliseconds: elapsed)
         let output = alerts.process(metrics: value, monotonicTimeMs: frame.monotonicMs, alarmEnabled: store.alarmEnabled)
         warningActive = output.warningActive
+        updatePictureInPicture()
         if let haptic = output.haptic {
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(haptic == .danger ? .warning : .success)
@@ -261,7 +308,14 @@ final class MonitoringCoordinator: ObservableObject {
         analyzer.reset()
         alerts.reset()
         warningActive = false
+        updatePictureInPicture()
         store.endMonitoring()
+    }
+
+    private func updatePictureInPicture() {
+        pictureInPicture.update(metrics: metrics, points: landmarks, size: frameSize,
+                                front: isFrontCamera, rotation: rotation, warning: warningActive,
+                                copy: HeadUpCopy(language: store.language))
     }
 
     private func cancelCalibration() {
@@ -278,6 +332,7 @@ final class MonitoringCoordinator: ObservableObject {
     private func suspend() {
         token = UUID()
         isMonitoring = false
+        pictureInPicture.stop()
         camera.stop()
         motion.stopDeviceMotionUpdates()
         watchdog?.invalidate()

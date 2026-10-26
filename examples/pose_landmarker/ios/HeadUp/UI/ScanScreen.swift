@@ -20,9 +20,7 @@ struct ScanScreen: View {
                 cameraCard
                 results
             }
-            Label(copy.text("Monitoring pauses when you leave HeadUp.", "離開 HeadUp 時會暫停姿勢偵測。"), systemImage: "info.circle")
-                .font(.footnote)
-                .foregroundStyle(HeadUpStyle.secondary)
+            FloatingWindowControls(monitor: monitor, window: monitor.pictureInPicture, copy: copy)
         }
         .accessibilityIdentifier("scanScreen")
     }
@@ -75,7 +73,7 @@ struct ScanScreen: View {
                     Image(systemName: "camera.rotate")
                         .frame(width: 44, height: 44)
                 }
-                .disabled(monitor.isCalibrating)
+                .disabled(monitor.isCalibrating || monitor.isFloatingWindowOpen)
                 .accessibilityLabel(copy.text("Switch camera", "切換鏡頭"))
                 .accessibilityIdentifier("switchCamera")
             }
@@ -150,5 +148,53 @@ struct ScanScreen: View {
             Text(value).font(.headline).monospacedDigit().fixedSize()
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+private struct FloatingWindowControls: View {
+    @ObservedObject var monitor: MonitoringCoordinator
+    @ObservedObject var window: PosturePictureInPicture
+    let copy: HeadUpCopy
+
+    var body: some View {
+        HeadUpCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Label(copy.text("Monitor while using other apps", "使用其他 App 時繼續偵測"), systemImage: "pip")
+                    .font(.headline)
+                Text(copy.text("Start monitoring, then open the small camera window before switching apps. Keep your face and shoulders visible. Closing or hiding the window may pause detection.", "開始偵測後，先開啟相機小視窗，再切換至其他 App。請讓臉部與雙肩入鏡；關閉或隱藏視窗可能暫停偵測。"))
+                    .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
+                Button {
+                    if window.state == .stopped { monitor.openPictureInPicture() }
+                    else { window.stop() }
+                } label: {
+                    Label(copy.text(window.state == .stopped ? "Open small window" : "Close small window",
+                                    window.state == .stopped ? "開啟小視窗" : "關閉小視窗"),
+                          systemImage: window.state == .stopped ? "pip.enter" : "pip.exit")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(window.state == .stopped && (!monitor.isMonitoring || monitor.isCalibrating || monitor.status == .starting))
+                .accessibilityIdentifier("pictureInPictureToggle")
+                if window.state == .starting {
+                    Text(copy.text("Opening camera window…", "正在開啟相機小視窗…")).font(.footnote)
+                } else if window.state == .active {
+                    Text(copy.text("Small window active. You can switch apps now.", "小視窗已開啟，現在可切換至其他 App。"))
+                        .font(.footnote).foregroundStyle(HeadUpStyle.cyan)
+                }
+                if let message = window.errorMessage {
+                    Text(message).font(.footnote).foregroundStyle(HeadUpStyle.danger)
+                }
+                #if targetEnvironment(simulator)
+                Text(copy.text("A physical device is required to test camera monitoring in the small window.", "小視窗相機偵測需以實體裝置測試。"))
+                    .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
+                    .accessibilityIdentifier("pictureInPictureDeviceHint")
+                #endif
+                #if HEADUP_PIP_PREVIEW
+                if ProcessInfo.processInfo.arguments.contains("--pip-device-test") {
+                    Text("\(monitor.backgroundFrameCount)")
+                        .accessibilityIdentifier("backgroundFrameCount")
+                }
+                #endif
+            }
+        }
     }
 }

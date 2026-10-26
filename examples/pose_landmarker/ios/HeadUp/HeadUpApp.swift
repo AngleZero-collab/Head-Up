@@ -43,6 +43,13 @@ private struct HeadUpContainer: View {
     }
     var body: some View {
         HeadUpRootView(store: store, monitor: monitor)
-            .onChange(of: scenePhase) { _, phase in monitor.setSceneActive(phase == .active) }
+            .onChange(of: scenePhase) { _, phase in
+                switch phase {
+                case .active: monitor.setScene(.active)
+                case .inactive: monitor.setScene(.inactive)
+                case .background: monitor.setScene(.background)
+                @unknown default: monitor.setScene(.background)
+                }
+            }
     }
 }

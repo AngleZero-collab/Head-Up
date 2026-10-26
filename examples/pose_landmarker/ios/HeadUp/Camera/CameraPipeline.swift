@@ -72,6 +72,9 @@ final class CameraPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
                         }
                     }
                     self.output = output
+                    if self.session.isMultitaskingCameraAccessSupported {
+                        self.session.isMultitaskingCameraAccessEnabled = true
+                    }
                     self.session.commitConfiguration()
                 } catch {
                     self.session.commitConfiguration()

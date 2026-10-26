@@ -64,6 +64,11 @@ struct HeadUpRootView: View {
         .tint(HeadUpStyle.cyan)
         .preferredColorScheme(.dark)
         .environment(\.locale, copy.locale)
+        .onReceive(monitor.pictureInPicture.$restoreRequest) { request in
+            guard request > 0 else { return }
+            selection = 0
+            showsSettings = false
+        }
         .overlay {
             if monitor.warningActive {
                 RoundedRectangle(cornerRadius: 26)

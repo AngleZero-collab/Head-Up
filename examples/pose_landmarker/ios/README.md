@@ -11,10 +11,25 @@ Native iPhone and iPad app, iOS/iPadOS 17+. The product project is **HeadUp.xcod
 
 The default bundle identifier is `org.anglezero.HeadUp`. No credentials or signing team are committed. English and Traditional Chinese are available in Settings.
 
+## Small camera window / 小視窗
+
+For the iPhone feasibility build, select **HeadUp PiP Preview** in Xcode and run on a physical **iPhone with iOS 18 or later**. Your local signing team is retained when regenerating the project.
+
+1. Start monitoring and complete calibration on the Scan tab.
+2. Scroll to **Monitor while using other apps / 使用其他 App 時繼續偵測** and tap **Open small window / 開啟小視窗**.
+3. Wait for the small window to appear, then open another app. Keep your face and shoulders in camera view. Posture analysis and valid monitoring time continue only while real frames arrive.
+4. Use the system window's return control to return to Scan. Closing the window while HeadUp is in the background stops monitoring. Closing it while HeadUp is foreground continues ordinary monitoring. Locking or hiding the window may interrupt the camera; return to HeadUp to restart.
+
+The **PiPPreview** configuration declares `audio` and `voip` background modes because Apple's iOS 18 multitasking-camera support on iPhone depends on the VoIP declaration. This is a **local feasibility configuration**, not an assertion that a posture-only app qualifies as a calling app. It does not simulate a call, use CallKit/PushKit, record audio, or contact a server. AVKit uses a playback audio session that mixes with other apps; no silent audio is played. The normal **HeadUp** Debug/Release configuration declares only `audio`, checks actual camera support, and may refuse PiP on iPhone. Both schemes archive using **Release**, without the experimental `voip` declaration. TestFlight/App Store distribution requires resolving the permitted use of this background mode with Apple first.
+
+The simulator cannot validate camera capture or background inference. Runtime support checks and error messages handle unsupported devices/builds. Camera access may be interrupted by another camera app, a hidden PiP window, locking, or system pressure. Background sound/haptics follow system policy and are not guaranteed; the small window supplies the visible posture warning.
+
+References: [Apple PiP camera setup](https://developer.apple.com/documentation/avkit/adopting-picture-in-picture-for-video-calls), [multitasking camera support conditions](https://developer.apple.com/documentation/avfoundation/avcapturesession/ismultitaskingcameraaccesssupported), [background service purposes, 2.5.4](https://developer.apple.com/app-store/review/guidelines/#software-requirements).
+
 ## Behavior and data
 
-- Monitoring continues across Scan, Stats, Challenge and Shop. It pauses when HeadUp leaves the foreground, the screen locks, or the camera is interrupted. Returning to the app resumes a previously started session. Pause explicitly to stop it.
-- No cross-app overlay, hidden background camera or background monitoring is implemented. Camera images stay on device and are not recorded or uploaded.
+- Monitoring continues across Scan, Stats, Challenge and Shop. With an explicitly opened, supported Picture in Picture camera window, it also processes frames while another app is foreground. Otherwise leaving HeadUp pauses monitoring. Locking, closing the background window, camera interruption or missing poses breaks time continuity; interrupted time earns no progress.
+- The small window shows a live camera preview, skeleton, posture status and the existing danger border. Camera images stay on device and are not recorded or uploaded. There is no hidden camera mode, fake call, microphone capture, or silent audio loop.
 - Three seconds of valid calibration samples establish the baseline. Missing/low-confidence poses interrupt an in-progress calibration and do not count as good posture.
 - The analyzer preserves the Kotlin face/shoulder geometry, 0.15 EMA, angle/distance/shoulder thresholds and per-frame rapid-fall heuristic. A sustained danger state triggers an in-app border after **2 seconds**, matching the Android code rather than the root README's 3-second description. This is not a prediction of posture two seconds into the future.
 - Safety corrections: missing poses clear old metrics and smoothing; interrupted intervals earn no time or rewards; rapid-fall feedback is triggered on the rising edge. Haptic cooldown is 1.5 seconds; optional warning sound cooldown is 3 seconds. Device mute settings and haptic availability apply.
@@ -44,7 +59,7 @@ xcodebuild -project HeadUp.xcodeproj -scheme HeadUp \
 
 Use an installed simulator name from `xcrun simctl list devices available`. The app-hosted smoke test loads the real Full model and detects 33 landmarks in the bundled reference image. Store tests cover exact elapsed time, gaps, danger episodes, daily rewards, purchases, resets, midnight and disk relaunch. UI tests cover tab navigation, settings, language and unavailable camera behavior.
 
-The project is checked in and needs no generator to open. After adding/removing source files, regenerate it with `python3 RunScripts/generate_headup_project.py` (Python standard library only). The icon can be regenerated with `swift RunScripts/generate_icon.swift HeadUp/Assets.xcassets/AppIcon.appiconset/Icon.png`.
+The project is checked in and needs no generator to open. After adding/removing source files, regenerate it with `python3 RunScripts/generate_headup_project.py` (Python standard library only). Signing choices already saved in Xcode are preserved locally by the generator. The icon can be regenerated with `swift RunScripts/generate_icon.swift HeadUp/Assets.xcassets/AppIcon.appiconset/Icon.png`.
 
 ## Physical-device acceptance remaining
 

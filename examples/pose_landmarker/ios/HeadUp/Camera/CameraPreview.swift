@@ -8,6 +8,7 @@ struct CameraPreview: UIViewRepresentable {
     func makeUIView(context: Context) -> PreviewSurface {
         let view = PreviewSurface()
         view.preview.session = monitor.camera.session
+        monitor.pictureInPicture.attach(source: view, session: monitor.camera.session)
         view.rotationChanged = { [weak monitor] angle in
             DispatchQueue.main.async { monitor?.setRotation(angle) }
         }
@@ -15,7 +16,9 @@ struct CameraPreview: UIViewRepresentable {
     }
 
     func updateUIView(_ view: PreviewSurface, context: Context) {
+        monitor.pictureInPicture.attach(source: view, session: monitor.camera.session)
         view.front = monitor.isFrontCamera
+        view.rotationOverride = monitor.isFloatingWindowOpen ? monitor.captureRotation : nil
         view.points = monitor.landmarks
         view.imageSize = monitor.frameSize
         view.setNeedsLayout()
@@ -29,6 +32,7 @@ final class PreviewSurface: UIView {
     var imageSize = CGSize(width: 480, height: 640)
     var front = true
     var rotationChanged: ((CGFloat) -> Void)?
+    var rotationOverride: CGFloat?
     private let skeleton = CAShapeLayer()
     private var lastRotation: CGFloat?
 
@@ -49,11 +53,14 @@ final class PreviewSurface: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let angle: CGFloat
-        switch window?.windowScene?.interfaceOrientation {
-        case .landscapeLeft: angle = 180
-        case .landscapeRight: angle = 0
-        case .portraitUpsideDown: angle = 270
-        default: angle = 90
+        if let rotationOverride { angle = rotationOverride }
+        else {
+            switch window?.windowScene?.interfaceOrientation {
+            case .landscapeLeft: angle = 180
+            case .landscapeRight: angle = 0
+            case .portraitUpsideDown: angle = 270
+            default: angle = 90
+            }
         }
         if lastRotation != angle { lastRotation = angle; rotationChanged?(angle) }
         if let connection = preview.connection {

@@ -3,9 +3,15 @@
 import hashlib
 from pathlib import Path
 import json
+import subprocess
 
 ROOT = Path(__file__).resolve().parent.parent
 objects = {}
+# Keep signing choices made in Xcode local when regenerating the source inventory.
+project_file = ROOT/'HeadUp.xcodeproj'/'project.pbxproj'
+previous = {}
+if project_file.exists():
+    previous = json.loads(subprocess.check_output(['plutil', '-convert', 'json', '-o', '-', str(project_file)]))['objects']
 
 def ident(label):
     return hashlib.sha1(label.encode()).hexdigest()[:24].upper()
@@ -62,15 +68,22 @@ for target in ['app','tests']:
 common = {'IPHONEOS_DEPLOYMENT_TARGET':'17.0','SDKROOT':'iphoneos','SWIFT_VERSION':'5.0','CLANG_ENABLE_MODULES':'YES','CLANG_ENABLE_OBJC_ARC':'YES','ENABLE_USER_SCRIPT_SANDBOX':'YES','SWIFT_STRICT_CONCURRENCY':'targeted'}
 common['ARCHS'] = 'arm64'
 common['ONLY_ACTIVE_ARCH'] = 'YES'
-app_settings = {'PRODUCT_BUNDLE_IDENTIFIER':'org.anglezero.HeadUp','PRODUCT_NAME':'HeadUp','GENERATE_INFOPLIST_FILE':'YES','INFOPLIST_KEY_CFBundleDisplayName':'HeadUp','INFOPLIST_KEY_NSCameraUsageDescription':'HeadUp uses the camera to analyze your posture on this device while the app is open. / HeadUp 僅在 App 開啟時使用相機，在本機分析姿勢。','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UISupportedInterfaceOrientations':'UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight','INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad':'UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight','TARGETED_DEVICE_FAMILY':'1,2','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO','CODE_SIGN_STYLE':'Automatic','MARKETING_VERSION':'1.0.0','CURRENT_PROJECT_VERSION':'1','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks']}
+app_settings = {'PRODUCT_BUNDLE_IDENTIFIER':'org.anglezero.HeadUp','PRODUCT_NAME':'HeadUp','GENERATE_INFOPLIST_FILE':'YES','INFOPLIST_KEY_CFBundleDisplayName':'HeadUp','INFOPLIST_FILE':'HeadUp/Info.plist','INFOPLIST_KEY_NSCameraUsageDescription':'HeadUp uses the camera to analyze posture on this device, including while your camera window is visible over other apps. / HeadUp 使用相機在本機分析姿勢，也可在其他 App 上方顯示相機小視窗時持續偵測。','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UISupportedInterfaceOrientations':'UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight','INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad':'UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight','TARGETED_DEVICE_FAMILY':'1,2','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO','CODE_SIGN_STYLE':'Automatic','MARKETING_VERSION':'1.0.0','CURRENT_PROJECT_VERSION':'1','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks']}
 test_settings = {'PRODUCT_BUNDLE_IDENTIFIER':'org.anglezero.HeadUpTests','PRODUCT_NAME':'$(TARGET_NAME)','GENERATE_INFOPLIST_FILE':'YES','TARGETED_DEVICE_FAMILY':'1,2','CODE_SIGN_STYLE':'Automatic','BUNDLE_LOADER':'$(TEST_HOST)','TEST_HOST':'$(BUILT_PRODUCTS_DIR)/HeadUp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HeadUp','LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks','@loader_path/Frameworks']}
 app_settings['OTHER_LDFLAGS'] = ['$(inherited)', '-framework', 'UIKit', '-framework', 'Metal', '-framework', 'OpenGLES']
 def configs(label, settings):
     refs=[]
-    for name in ['Debug','Release']:
+    for name in ['Debug','Release','PiPPreview']:
         values=dict(settings)
-        values.update({'SWIFT_OPTIMIZATION_LEVEL':'-Onone' if name=='Debug' else '-O','DEBUG_INFORMATION_FORMAT':'dwarf' if name=='Debug' else 'dwarf-with-dsym'})
-        if name=='Debug': values.update({'ENABLE_TESTABILITY':'YES','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG $(inherited)'})
+        values.update({'SWIFT_OPTIMIZATION_LEVEL':'-Onone' if name!='Release' else '-O','DEBUG_INFORMATION_FORMAT':'dwarf' if name!='Release' else 'dwarf-with-dsym'})
+        if name!='Release': values.update({'ENABLE_TESTABILITY':'YES','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG $(inherited)'})
+        if name == 'PiPPreview':
+            values['IPHONEOS_DEPLOYMENT_TARGET'] = '18.0'
+            values['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = 'DEBUG HEADUP_PIP_PREVIEW $(inherited)'
+            if label == 'app': values['INFOPLIST_FILE'] = 'HeadUp/Info-PiPPreview.plist'
+        saved = previous.get(ident(label+name), previous.get(ident(label+'Debug'), {})).get('buildSettings', {})
+        for key in ['DEVELOPMENT_TEAM', 'CODE_SIGN_IDENTITY', 'PROVISIONING_PROFILE_SPECIFIER', 'PRODUCT_BUNDLE_IDENTIFIER', 'CODE_SIGN_STYLE']:
+            if key in saved: values[key] = saved[key]
         refs.append(obj(label+name,'XCBuildConfiguration',buildSettings=values,name=name))
     return obj(label+'-configs','XCConfigurationList',buildConfigurations=refs,defaultConfigurationIsVisible=0,defaultConfigurationName='Release')
 project_key = ident('project')
@@ -111,4 +124,8 @@ ui_ref=reference(ui_key,'HeadUpUITests','HeadUpUITests.xctest')
 <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES"><BuildableProductRunnable runnableDebuggingMode="0">{app_ref}</BuildableProductRunnable></ProfileAction>
 <AnalyzeAction buildConfiguration="Debug"/><ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>
 </Scheme>''')
+# Preview runs locally with the iOS 18 VoIP multitasking-camera capability. Archive
+# deliberately remains Release and does not carry that experimental declaration.
+preview_scheme = (schemes/'HeadUp.xcscheme').read_text().replace('buildConfiguration="Debug"', 'buildConfiguration="PiPPreview"')
+(schemes/'HeadUp PiP Preview.xcscheme').write_text(preview_scheme)
 print(project)
