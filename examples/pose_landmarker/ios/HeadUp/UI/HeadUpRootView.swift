@@ -64,6 +64,11 @@ struct HeadUpRootView: View {
         .tint(HeadUpStyle.cyan)
         .preferredColorScheme(.dark)
         .environment(\.locale, copy.locale)
+        .onOpenURL { url in
+            guard url.scheme == "headup", ["today", "scan"].contains(url.host) else { return }
+            showsSettings = false
+            selection = url.host == "today" ? 1 : 0
+        }
         .onReceive(monitor.pictureInPicture.$restoreRequest) { request in
             guard request > 0 else { return }
             selection = 0
@@ -174,6 +179,9 @@ struct HeadUpSettingsView: View {
                     }
                     .accessibilityIdentifier("languagePicker")
                     Toggle(copy.text("Warning sound", "姿勢提醒音效"), isOn: Binding(get: { store.alarmEnabled }, set: store.setAlarmEnabled))
+                    Toggle(copy.text("Dynamic Island and Lock Screen", "靈動島與鎖定畫面"),
+                           isOn: Binding(get: { store.liveActivitiesEnabled }, set: monitor.setLiveActivitiesEnabled))
+                        .accessibilityIdentifier("liveActivitiesToggle")
                 }
                 Section {
                     Button(copy.text("3-second posture calibration", "3 秒個人姿勢校準")) {
@@ -192,8 +200,8 @@ struct HeadUpSettingsView: View {
                     Text(copy.text("Sit upright with your face and both shoulders visible, about 45 cm from the screen. Distance readings are estimates.", "請坐正，讓臉部與雙肩清楚入鏡，並與螢幕保持約 45 公分。距離數值為估算結果。"))
                 }
                 Section {
-                    Label(copy.text("Monitoring runs while HeadUp is visible", "HeadUp 顯示時才會偵測姿勢"), systemImage: "camera")
-                    Text(copy.text("Changing tabs keeps monitoring active. Switching to another app or locking the screen pauses monitoring and tracked time.", "切換 HeadUp 內的分頁會持續偵測。切到其他 App 或鎖定螢幕時，偵測與時間紀錄都會暫停。"))
+                    Label(copy.text("Monitoring with HeadUp or its camera window", "透過 HeadUp 或相機小視窗偵測"), systemImage: "camera")
+                    Text(copy.text("To monitor while using other apps, first open the camera window. Dynamic Island shows posture updates but does not keep the camera running. Locking or camera interruptions pause monitoring and tracked time.", "使用其他 App 時，請先開啟相機小視窗。靈動島顯示姿勢狀態，本身不會讓相機持續運作。鎖屏或相機中斷時會暫停偵測與時間紀錄。"))
                         .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
                     Text(copy.text("Your camera images are processed on this device. HeadUp stores posture measurements locally, not photos or video.", "相機影像只在裝置上處理。HeadUp 僅在本機儲存姿勢數據，不儲存照片或影片。"))
                         .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
@@ -217,8 +225,7 @@ struct HeadUpSettingsView: View {
             }
             .alert(copy.text("Reset all local data?", "重設所有本機資料？"), isPresented: $confirmsReset) {
                 Button(copy.text("Reset", "重設"), role: .destructive) {
-                    monitor.pause()
-                    store.resetAllData()
+                    monitor.resetData()
                 }
                 Button(copy.text("Cancel", "取消"), role: .cancel) { }
             } message: {

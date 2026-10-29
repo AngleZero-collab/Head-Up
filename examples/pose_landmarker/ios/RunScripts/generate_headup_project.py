@@ -52,6 +52,27 @@ for target, folder in [('app','HeadUp'),('tests','HeadUpTests')]:
     phases[target] = [obj(target+'-sources','PBXSourcesBuildPhase',buildActionMask=2147483647,files=sources,runOnlyForDeploymentPostprocessing=0),
                       obj(target+'-resources','PBXResourcesBuildPhase',buildActionMask=2147483647,files=resources,runOnlyForDeploymentPostprocessing=0)]
 
+# Lightweight ActivityKit contract and intent are compiled into app + widget.
+shared_files, shared_builds = [], []
+for path in sorted((ROOT/'HeadUpActivityShared').glob('*.swift')):
+    ref = obj('shared/'+path.name,'PBXFileReference',lastKnownFileType='sourcecode.swift',path=path.name,sourceTree='<group>')
+    shared_files.append(ref)
+    shared_builds.append(obj('shared-app/'+path.name,'PBXBuildFile',fileRef=ref))
+groups.append(obj('shared-group','PBXGroup',children=shared_files,path='HeadUpActivityShared',sourceTree='<group>'))
+objects[phases['app'][0]]['files'].extend(shared_builds)
+widget_files, widget_sources = [], []
+for path in sorted((ROOT/'HeadUpWidgets').glob('*.swift')):
+    ref = obj('widget/'+path.name,'PBXFileReference',lastKnownFileType='sourcecode.swift',path=path.name,sourceTree='<group>')
+    widget_files.append(ref)
+    widget_sources.append(obj('widget-build/'+path.name,'PBXBuildFile',fileRef=ref))
+for ref in shared_files:
+    widget_sources.append(obj('widget-shared/'+ref,'PBXBuildFile',fileRef=ref))
+widget_assets = obj('widget-assets','PBXFileReference',lastKnownFileType='folder.assetcatalog',path='Assets.xcassets',sourceTree='<group>')
+widget_files.append(widget_assets)
+groups.append(obj('widget-group','PBXGroup',children=widget_files,path='HeadUpWidgets',sourceTree='<group>'))
+widget_phases = [obj('widget-sources','PBXSourcesBuildPhase',buildActionMask=2147483647,files=widget_sources,runOnlyForDeploymentPostprocessing=0),
+                 obj('widget-resources','PBXResourcesBuildPhase',buildActionMask=2147483647,files=[obj('widget-assets-build','PBXBuildFile',fileRef=widget_assets)],runOnlyForDeploymentPostprocessing=0)]
+
 remote = obj('mediapipe','XCRemoteSwiftPackageReference',repositoryURL='https://github.com/google-ai-edge/mediapipe.git',requirement={'kind':'revision','revision':'50505c8312c7eacb1bd411cecdc4cc9fd08d53cb'})
 local = obj('core','XCLocalSwiftPackageReference',relativePath='HeadUpCore')
 dependencies = {}
@@ -81,6 +102,8 @@ def configs(label, settings):
             values['IPHONEOS_DEPLOYMENT_TARGET'] = '18.0'
             values['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = 'DEBUG HEADUP_PIP_PREVIEW $(inherited)'
             if label == 'app': values['INFOPLIST_FILE'] = 'HeadUp/Info-PiPPreview.plist'
+        if label == 'widget':
+            values['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = values.get('SWIFT_ACTIVE_COMPILATION_CONDITIONS','$(inherited)') + ' HEADUP_WIDGET'
         saved = previous.get(ident(label+name), previous.get(ident(label+'Debug'), {})).get('buildSettings', {})
         for key in ['DEVELOPMENT_TEAM', 'CODE_SIGN_IDENTITY', 'PROVISIONING_PROFILE_SPECIFIER', 'PRODUCT_BUNDLE_IDENTIFIER', 'CODE_SIGN_STYLE']:
             if key in saved: values[key] = saved[key]
@@ -101,6 +124,23 @@ ui_key = obj('ui-target','PBXNativeTarget',buildConfigurationList=configs('ui',u
 root_group = obj('root-group','PBXGroup',children=groups,sourceTree='<group>')
 obj('project','PBXProject',attributes={'BuildIndependentTargetsInParallel':'YES','LastUpgradeCheck':'1600','TargetAttributes':{app_key:{'CreatedOnToolsVersion':'16.0'},test_key:{'CreatedOnToolsVersion':'16.0','TestTargetID':app_key}}},buildConfigurationList=configs('project',common),compatibilityVersion='Xcode 14.0',developmentRegion='en',hasScannedForEncodings=0,knownRegions=['en','zh-Hant','Base'],mainGroup=root_group,packageReferences=[remote,local],productRefGroup=products,projectDirPath='',projectRoot='',targets=[app_key,test_key])
 objects[project_key]['targets'].append(ui_key)
+widget_product = obj('widget-product','PBXFileReference',explicitFileType='wrapper.app-extension',path='HeadUpWidgets.appex',sourceTree='BUILT_PRODUCTS_DIR')
+objects[products]['children'].append(widget_product)
+app_debug = objects[ident('appDebug')]['buildSettings']
+widget_settings = {'PRODUCT_NAME':'HeadUpWidgets','PRODUCT_BUNDLE_IDENTIFIER':app_debug['PRODUCT_BUNDLE_IDENTIFIER']+'.Widgets',
+                   'GENERATE_INFOPLIST_FILE':'YES','INFOPLIST_FILE':'HeadUpWidgets/Info.plist','TARGETED_DEVICE_FAMILY':'1,2',
+                   'CODE_SIGN_STYLE':'Automatic','APPLICATION_EXTENSION_API_ONLY':'YES','SKIP_INSTALL':'YES',
+                   'MARKETING_VERSION':'1.0.0','CURRENT_PROJECT_VERSION':'1',
+                   'LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks','@executable_path/../../Frameworks']}
+if 'DEVELOPMENT_TEAM' in app_debug: widget_settings['DEVELOPMENT_TEAM'] = app_debug['DEVELOPMENT_TEAM']
+widget_key = obj('widget-target','PBXNativeTarget',buildConfigurationList=configs('widget',widget_settings),buildPhases=widget_phases,
+                 buildRules=[],dependencies=[],name='HeadUpWidgets',productName='HeadUpWidgets',productReference=widget_product,productType='com.apple.product-type.app-extension')
+objects[project_key]['targets'].append(widget_key)
+widget_proxy = obj('widget-proxy','PBXContainerItemProxy',containerPortal=project_key,proxyType=1,remoteGlobalIDString=widget_key,remoteInfo='HeadUpWidgets')
+objects[app_key]['dependencies'].append(obj('widget-dependency','PBXTargetDependency',target=widget_key,targetProxy=widget_proxy))
+embed_build = obj('embed-widget-build','PBXBuildFile',fileRef=widget_product,settings={'ATTRIBUTES':['RemoveHeadersOnCopy']})
+objects[app_key]['buildPhases'].append(obj('embed-widget','PBXCopyFilesBuildPhase',buildActionMask=2147483647,dstPath='',dstSubfolderSpec=13,
+                                         files=[embed_build],runOnlyForDeploymentPostprocessing=0,name='Embed App Extensions'))
 project = ROOT/'HeadUp.xcodeproj'
 project.mkdir(exist_ok=True)
 workspace = project/'project.xcworkspace'

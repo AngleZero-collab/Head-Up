@@ -48,6 +48,8 @@ private struct SavedState: Codable {
     var calibration: CalibrationProfile?
     var alarm = false
     var language = AppLanguage.system
+    // Optional keeps existing v1 profiles decodable; absent means enabled.
+    var liveActivities: Bool?
 }
 
 @MainActor final class HeadUpStore: ObservableObject {
@@ -63,6 +65,7 @@ private struct SavedState: Codable {
     @Published private(set) var calibration: CalibrationProfile?
     @Published private(set) var alarmEnabled = false
     @Published private(set) var language = AppLanguage.system
+    @Published private(set) var liveActivitiesEnabled = true
     @Published var errorMessage: String?
     private let container: ModelContainer
     private let context: ModelContext
@@ -164,6 +167,7 @@ private struct SavedState: Codable {
     func setCalibration(_ profile: CalibrationProfile?) { state.calibration = profile; _ = persist(); publish() }
     func setAlarmEnabled(_ enabled: Bool) { state.alarm = enabled; _ = persist(); publish() }
     func setLanguage(_ value: AppLanguage) { state.language = value; _ = persist(); publish() }
+    func setLiveActivitiesEnabled(_ value: Bool) { state.liveActivities = value; _ = persist(); publish() }
     func recordEyeRest() {
         let day = key(now()); var totals = state.days[day] ?? DayTotals(); totals.rests += 1; state.days[day] = totals
         _ = persist(); publish()
@@ -223,6 +227,7 @@ private struct SavedState: Codable {
         coins = state.coins; dragonEnergy = state.energy; dragonLevel = state.level
         ownedShopItems = state.owned; claimedTaskIDs = state.days[key(date)]?.claimed ?? []
         calibration = state.calibration; alarmEnabled = state.alarm; language = state.language
+        liveActivitiesEnabled = state.liveActivities ?? true
         consecutiveDays = 0
         for day in week.reversed() { if day.safeSeconds > 0 { consecutiveDays += 1 } else { break } }
     }

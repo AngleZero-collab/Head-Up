@@ -52,6 +52,60 @@ final class HeadUpUITests: XCTestCase {
         #endif
     }
 
+    func testLiveActivityPreferenceAndTodayLink() {
+        let app = launch()
+        app.buttons["settingsButton"].tap()
+        let setting = app.switches["liveActivitiesToggle"]
+        XCTAssertTrue(setting.waitForExistence(timeout: 5))
+        XCTAssertEqual(setting.value as? String, "1")
+        setting.tap()
+        XCTAssertEqual(setting.value as? String, "0")
+        app.open(URL(string: "headup://today")!)
+        XCTAssertTrue(app.tabBars.buttons["Stats"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Stats"].isSelected)
+        app.buttons["settingsButton"].tap()
+        XCTAssertEqual(setting.value as? String, "0")
+    }
+
+    func testDeviceDynamicIslandTodayAndPause() throws {
+        #if targetEnvironment(simulator) || !HEADUP_PIP_PREVIEW
+        throw XCTSkip("Requires PiP Preview and a physical iPhone with Dynamic Island.")
+        #else
+        let app = launch()
+        app.buttons["monitoringToggle"].firstMatch.tap()
+        let toggle = app.buttons["pictureInPictureToggle"]
+        for _ in 0..<3 where !toggle.isHittable { app.swipeUp() }
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: toggle)
+        waitForExpectations(timeout: 20)
+        toggle.tap()
+        XCTAssertTrue(app.staticTexts["Small window active. You can switch apps now."].waitForExistence(timeout: 15))
+        XCUIDevice.shared.press(.home)
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        sleep(2)
+        system.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.035)).press(forDuration: 1)
+        let today = system.buttons["activityViewToday"]
+        XCTAssertTrue(today.waitForExistence(timeout: 8))
+        let expanded = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        expanded.name = "Dynamic Island expanded — real camera"
+        expanded.lifetime = .keepAlways
+        add(expanded)
+        today.tap()
+        XCTAssertTrue(app.tabBars.buttons["Stats"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tabBars.buttons["Stats"].isSelected)
+        XCUIDevice.shared.press(.home)
+        sleep(2)
+        system.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.035)).press(forDuration: 1)
+        let pause = system.buttons["activityPauseMonitoring"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 8))
+        pause.tap()
+        sleep(2)
+        app.activate()
+        XCTAssertTrue(app.buttons["monitoringToggle"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["monitoringToggle"].firstMatch.label.contains("Start"))
+        XCTAssertTrue(app.staticTexts["Monitoring paused"].exists)
+        #endif
+    }
+
     func testDevicePiPReceivesFramesWhileUsingAnotherApp() throws {
         #if targetEnvironment(simulator) || !HEADUP_PIP_PREVIEW
         throw XCTSkip("Requires the PiP Preview configuration and a physical device.")

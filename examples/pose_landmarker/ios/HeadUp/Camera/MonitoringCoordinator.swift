@@ -24,6 +24,10 @@ final class MonitoringCoordinator: ObservableObject {
     @Published var errorMessage: String?
     let camera = CameraPipeline()
     let pictureInPicture = PosturePictureInPicture()
+    let liveActivity = PostureActivityService()
+    private(set) var monitoringSessionID: UUID?
+    private var cameraStartedForSession = false
+    private var languageObserver: AnyCancellable?
     private let motion = CMMotionManager()
     private let store: HeadUpStore
     private let analyzer = PostureAnalyzer()
@@ -45,6 +49,14 @@ final class MonitoringCoordinator: ObservableObject {
 
     init(store: HeadUpStore) {
         self.store = store
+        MonitoringIntentRouter.shared.handler = { [weak self] sessionID in
+            guard let self, self.monitoringSessionID == sessionID else { return }
+            self.pause()
+            await self.liveActivity.waitForPendingUpdates()
+        }
+        languageObserver = store.$language.removeDuplicates().sink { [weak self] _ in
+            Task { @MainActor in self?.publishActivity(force: true) }
+        }
         visibility.protectedDataAvailable = UIApplication.shared.isProtectedDataAvailable
         pictureInPicture.stateChanged = { [weak self] state in
             guard let self else { return }
@@ -54,6 +66,7 @@ final class MonitoringCoordinator: ObservableObject {
                 // Closing the window while another app is foreground ends this session.
                 self.wantsMonitoring = false
                 self.suspend()
+                self.endActivitySession()
             }
         }
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
@@ -89,6 +102,7 @@ final class MonitoringCoordinator: ObservableObject {
                 self.suspend()
                 self.status = .failed
                 self.errorMessage = message
+                self.publishActivity(force: true)
             }
         })
         observers.append(center.addObserver(forName: UIDevice.orientationDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
@@ -119,6 +133,10 @@ final class MonitoringCoordinator: ObservableObject {
         errorMessage = HeadUpCopy(language: store.language).text("Camera monitoring requires a physical iPhone or iPad. You can explore all other features in the simulator.", "相機偵測需要實體 iPhone 或 iPad。模擬器可操作其他所有功能。")
         return
         #else
+        if !wantsMonitoring {
+            monitoringSessionID = UUID()
+            cameraStartedForSession = false
+        }
         wantsMonitoring = true
         if interrupted && !camera.session.isInterrupted { interrupted = false }
         guard visibility.shouldKeepCapture, !interrupted, !isMonitoring else { return }
@@ -142,6 +160,19 @@ final class MonitoringCoordinator: ObservableObject {
         wantsMonitoring = false
         pendingCalibration = false
         suspend()
+        endActivitySession()
+    }
+
+    private func endActivitySession(immediately: Bool = false) {
+        monitoringSessionID = nil
+        cameraStartedForSession = false
+        liveActivity.end(immediately: immediately)
+    }
+
+    func setLiveActivitiesEnabled(_ enabled: Bool) {
+        store.setLiveActivitiesEnabled(enabled)
+        if !store.liveActivitiesEnabled { liveActivity.end(immediately: true) }
+        else { publishActivity(force: true) }
     }
 
     func setScene(_ scene: MonitoringVisibility.Scene) {
@@ -151,6 +182,7 @@ final class MonitoringCoordinator: ObservableObject {
             store.refresh()
             if wantsMonitoring { start() }
             pictureInPicture.completeRestorationIfActive()
+            publishActivity(force: true)
         } else if !visibility.shouldKeepCapture { suspend() }
         UIApplication.shared.isIdleTimerDisabled = isMonitoring && scene == .active
     }
@@ -182,6 +214,7 @@ final class MonitoringCoordinator: ObservableObject {
         calibrationLastFrameMs = nil
         calibrationSamples = []
         status = .calibrating
+        publishActivity(force: true)
     }
 
     func setRotation(_ angle: CGFloat) {
@@ -197,6 +230,7 @@ final class MonitoringCoordinator: ObservableObject {
 
     func resetData() {
         pause()
+        liveActivity.end(immediately: true)
         store.resetAllData()
     }
 
@@ -206,6 +240,7 @@ final class MonitoringCoordinator: ObservableObject {
         isMonitoring = true
         status = .starting
         clearContinuity()
+        publishActivity(force: true)
         if motion.isDeviceMotionAvailable { motion.deviceMotionUpdateInterval = 0.1; motion.startDeviceMotionUpdates() }
         lastFrameAt = ProcessInfo.processInfo.systemUptime
         watchdog?.invalidate()
@@ -216,6 +251,7 @@ final class MonitoringCoordinator: ObservableObject {
                     self.clearContinuity()
                     self.status = .noPose
                     self.cancelCalibration()
+                    self.publishActivity()
                 }
             }
         }
@@ -223,7 +259,9 @@ final class MonitoringCoordinator: ObservableObject {
             guard let self, self.token == token, self.isMonitoring, self.visibility.canProcessFrames else { return }
             switch result {
             case .success(let frame): self.receive(frame)
-            case .failure(let error): self.suspend(); self.status = .failed; self.errorMessage = error.localizedDescription
+            case .failure(let error):
+                self.suspend(); self.status = .failed; self.errorMessage = error.localizedDescription
+                self.publishActivity(force: true)
             }
         }, completion: { [weak self] token, error in
             guard let self, self.token == token, self.isMonitoring else { return }
@@ -231,15 +269,19 @@ final class MonitoringCoordinator: ObservableObject {
                 self.suspend()
                 self.status = (error as? CameraPipeline.CameraError) == .noCamera ? .unavailable : .failed
                 self.errorMessage = error.localizedDescription
+                self.publishActivity(force: true)
             } else {
+                self.cameraStartedForSession = true
                 self.status = .noPose
                 UIApplication.shared.isIdleTimerDisabled = self.visibility.scene == .active
                 if self.pendingCalibration { self.startCalibration() }
+                self.publishActivity(force: true)
             }
         })
     }
 
     private func receive(_ frame: PoseFrame) {
+        defer { publishActivity() }
         if ProcessInfo.processInfo.arguments.contains("--pip-device-test"),
            visibility.scene == .background, visibility.pictureInPicture == .active {
             backgroundFrameCount += 1
@@ -318,6 +360,33 @@ final class MonitoringCoordinator: ObservableObject {
                                 copy: HeadUpCopy(language: store.language))
     }
 
+    static func activityStatus(status: MonitoringStatus, metrics: PostureMetrics?, warningActive: Bool) -> PostureActivityAttributes.Status {
+        switch status {
+        case .idle, .paused: return .paused
+        case .starting: return .starting
+        case .calibrating: return .calibrating
+        case .noPose: return .noPose
+        case .failed, .permissionDenied, .unavailable: return .failed
+        case .monitoring:
+            guard let metrics else { return .noPose }
+            if warningActive || metrics.isRapidFall { return .liftHead }
+            return metrics.zone == .safe ? .good : .attention
+        }
+    }
+
+    private func publishActivity(force: Bool = false) {
+        guard let sessionID = monitoringSessionID, cameraStartedForSession, store.liveActivitiesEnabled else { return }
+        let now = Date()
+        if !Calendar.current.isDate(store.today.dayStart, inSameDayAs: now) { store.refresh() }
+        let copy = HeadUpCopy(language: store.language)
+        let snapshot = PostureActivityAttributes.ContentState(
+            status: Self.activityStatus(status: status, metrics: metrics, warningActive: warningActive),
+            safeSeconds: store.today.safeSeconds, totalSeconds: store.today.totalTrackedSeconds,
+            dayStart: store.today.dayStart, updatedAt: now, language: copy.text("en", "zh-Hant"))
+        liveActivity.offer(sessionID: sessionID, content: snapshot,
+                           canStart: isMonitoring && visibility.scene == .active, force: force)
+    }
+
     private func cancelCalibration() {
         guard isCalibrating else { return }
         isCalibrating = false
@@ -341,6 +410,7 @@ final class MonitoringCoordinator: ObservableObject {
         clearContinuity()
         UIApplication.shared.isIdleTimerDisabled = false
         status = .paused
+        publishActivity(force: true)
     }
 
     private func handleInterruption() {

@@ -26,6 +26,20 @@ The simulator cannot validate camera capture or background inference. Runtime su
 
 References: [Apple PiP camera setup](https://developer.apple.com/documentation/avkit/adopting-picture-in-picture-for-video-calls), [multitasking camera support conditions](https://developer.apple.com/documentation/avfoundation/avcapturesession/ismultitaskingcameraaccesssupported), [background service purposes, 2.5.4](https://developer.apple.com/app-store/review/guidelines/#software-requirements).
 
+## Little Blue in Dynamic Island and on the Lock Screen
+
+A Live Activity starts after the camera starts successfully, when **Settings → Dynamic Island and Lock Screen / 靈動島與鎖定畫面** is enabled (default). The existing PiP camera window is still needed for cross-app camera monitoring. The Live Activity itself grants no camera or background execution permission.
+
+- Compact: dragon, current posture text and status icon. Long press to expand: current status, today's good-posture share and effective monitored minutes. A sustained two-second danger alert or the existing rapid-fall condition shows **Look up / 抬頭**; before that, warning/danger posture shows **Careful / 注意**.
+- **View today / 查看今日** opens Stats. **Pause / 暫停偵測** stops the existing camera session and PiP without opening the app; an old activity cannot stop a newer session. The Lock Screen keeps the final summary for 15 minutes. Tap the remaining activity area to open Scan.
+- No pose, calibration, interrupted camera and paused monitoring have explicit non-good states. Active snapshots expire after ten seconds without updates; ActivityKit controls actual rendering time. Updates are coalesced, normally every five seconds, with earlier state-change updates. Durations are measured values, never a timer that keeps counting while detection is unavailable.
+- Today uses exactly the same totals as Stats: no records means “—”; under ten minutes means “Building your day / 累積中”; after that the existing 80% goal determines the goal label. The record date is included so old summaries are not mistaken for new-day data.
+- Closing a Live Activity does not stop camera monitoring, and HeadUp does not recreate it within the same session. Explicitly pause/start monitoring to begin another. Disabling the setting or resetting local data removes activities and retained summaries. Cold app initialization clears lingering activities. System expiry/authorization limits are respected.
+
+The widget extension contains only SwiftUI, ActivityKit/App Intents and small still images extracted from the original dragon movies. It does not load MediaPipe, read the posture database, record images or contact a server. There are no push notifications, extra alert sounds or looping widget videos. Devices without Dynamic Island use the Lock Screen presentation. The camera/PiP compatibility restrictions above still apply.
+
+Widget layouts have Xcode previews in `HeadUpWidgets/HeadUpLiveActivity.swift`. Re-extract the original stills with `swift RunScripts/extract_dragon_stills.swift` from this directory. Shared activity/intent types are compiled into the app and extension by the project generator; the extension receives its signing team from the locally configured app target.
+
 ## Behavior and data
 
 - Monitoring continues across Scan, Stats, Challenge and Shop. With an explicitly opened, supported Picture in Picture camera window, it also processes frames while another app is foreground. Otherwise leaving HeadUp pauses monitoring. Locking, closing the background window, camera interruption or missing poses breaks time continuity; interrupted time earns no progress.
