@@ -14,7 +14,7 @@ arrow.move(to: CGPoint(x: 512, y: 800)); arrow.line(to: CGPoint(x: 744, y: 560))
 arrow.move(to: CGPoint(x: 512, y: 800)); arrow.line(to: CGPoint(x: 512, y: 300))
 arrow.lineWidth = 76; arrow.lineCapStyle = .round; arrow.lineJoinStyle = .round
 NSColor(red: 0.22, green: 0.78, blue: 0.96, alpha: 1).setStroke(); arrow.stroke()
-let text = "HeadUp" as NSString
+let text = "Heads Up" as NSString
 let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 120, weight: .bold), .foregroundColor: NSColor.white]
 let size = text.size(withAttributes: attributes)
 text.draw(at: CGPoint(x: (1024-size.width)/2, y: 100), withAttributes: attributes)

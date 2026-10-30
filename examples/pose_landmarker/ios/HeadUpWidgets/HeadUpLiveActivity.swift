@@ -123,7 +123,7 @@ private struct PostureActivityCard: View {
             HStack(spacing: 12) {
                 ActivityDragon(state: context.state, stale: context.isStale, size: 48)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("HeadUp · Little Blue").font(.caption).foregroundStyle(.secondary)
+                    Text("Heads Up · Little Blue").font(.caption).foregroundStyle(.secondary)
                     PostureStatus(state: context.state, stale: context.isStale)
                     Text("\(context.state.dayLabel()) · \(context.state.goalText)")
                         .font(.caption).foregroundStyle(.secondary)

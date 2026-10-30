@@ -1,6 +1,6 @@
-# HeadUp for iOS
+# Heads Up for iOS
 
-Native iPhone and iPad app, iOS/iPadOS 17+. The product project is **HeadUp.xcodeproj**, scheme **HeadUp**. The original `PoseLandmarker.xcodeproj` and sample sources remain as reference; their Podfile is not used by HeadUp.
+Native iPhone and iPad app, iOS/iPadOS 17+. The product project is **HeadUp.xcodeproj**, scheme **HeadUp**. The original `PoseLandmarker.xcodeproj` and sample sources remain as reference; their Podfile is not used by Heads Up.
 
 ## Open and run
 
@@ -9,7 +9,7 @@ Native iPhone and iPad app, iOS/iPadOS 17+. The product project is **HeadUp.xcod
 3. For a physical device, select your Apple development team under **HeadUp → Signing & Capabilities** and use a unique bundle identifier if required. Connect and trust the unlocked device, enable Developer Mode, select it and Run.
 4. Tap **Start**, allow camera access and use **3-second calibration** while sitting upright about 45 cm from the screen, with your face and shoulders visible. Front and rear cameras are supported; changing lens or orientation invalidates the calibration, so calibrate again.
 
-The default bundle identifier is `org.anglezero.HeadUp`. No credentials or signing team are committed. English and Traditional Chinese are available in Settings.
+The app display name is **Heads Up** in both languages. Internal Xcode project/scheme names and the bundle identifier remain stable so existing installations and local data continue to work. The default bundle identifier is `org.anglezero.HeadUp`. No credentials or signing team are committed. English and Traditional Chinese are available in Settings.
 
 ## Small camera window / 小視窗
 
@@ -18,7 +18,7 @@ For the iPhone feasibility build, select **HeadUp PiP Preview** in Xcode and run
 1. Start monitoring and complete calibration on the Scan tab.
 2. Scroll to **Monitor while using other apps / 使用其他 App 時繼續偵測** and tap **Open small window / 開啟小視窗**.
 3. Wait for the small window to appear, then open another app. Keep your face and shoulders in camera view. Posture analysis and valid monitoring time continue only while real frames arrive.
-4. Use the system window's return control to return to Scan. Closing the window while HeadUp is in the background stops monitoring. Closing it while HeadUp is foreground continues ordinary monitoring. Locking or hiding the window may interrupt the camera; return to HeadUp to restart.
+4. Use the system window's return control to return to Scan. Closing the window while Heads Up is in the background stops monitoring. Closing it while Heads Up is foreground continues ordinary monitoring. Locking or hiding the window may interrupt the camera; return to Heads Up to restart.
 
 The **PiPPreview** configuration declares `audio` and `voip` background modes because Apple's iOS 18 multitasking-camera support on iPhone depends on the VoIP declaration. This is a **local feasibility configuration**, not an assertion that a posture-only app qualifies as a calling app. It does not simulate a call, use CallKit/PushKit, record audio, or contact a server. AVKit uses a playback audio session that mixes with other apps; no silent audio is played. The normal **HeadUp** Debug/Release configuration declares only `audio`, checks actual camera support, and may refuse PiP on iPhone. Both schemes archive using **Release**, without the experimental `voip` declaration. TestFlight/App Store distribution requires resolving the permitted use of this background mode with Apple first.
 
@@ -34,7 +34,7 @@ A Live Activity starts after the camera starts successfully, when **Settings →
 - **View today / 查看今日** opens Stats. **Pause / 暫停偵測** stops the existing camera session and PiP without opening the app; an old activity cannot stop a newer session. The Lock Screen keeps the final summary for 15 minutes. Tap the remaining activity area to open Scan.
 - No pose, calibration, interrupted camera and paused monitoring have explicit non-good states. Active snapshots expire after ten seconds without updates; ActivityKit controls actual rendering time. Updates are coalesced, normally every five seconds, with earlier state-change updates. Durations are measured values, never a timer that keeps counting while detection is unavailable.
 - Today uses exactly the same totals as Stats: no records means “—”; under ten minutes means “Building your day / 累積中”; after that the existing 80% goal determines the goal label. The record date is included so old summaries are not mistaken for new-day data.
-- Closing a Live Activity does not stop camera monitoring, and HeadUp does not recreate it within the same session. Explicitly pause/start monitoring to begin another. Disabling the setting or resetting local data removes activities and retained summaries. Cold app initialization clears lingering activities. System expiry/authorization limits are respected.
+- Closing a Live Activity does not stop camera monitoring, and Heads Up does not recreate it within the same session. Explicitly pause/start monitoring to begin another. Disabling the setting or resetting local data removes activities and retained summaries. Cold app initialization clears lingering activities. System expiry/authorization limits are respected.
 
 The widget extension contains only SwiftUI, ActivityKit/App Intents and small still images extracted from the original dragon movies. It does not load MediaPipe, read the posture database, record images or contact a server. There are no push notifications, extra alert sounds or looping widget videos. Devices without Dynamic Island use the Lock Screen presentation. The camera/PiP compatibility restrictions above still apply.
 
@@ -42,7 +42,7 @@ Widget layouts have Xcode previews in `HeadUpWidgets/HeadUpLiveActivity.swift`. 
 
 ## Behavior and data
 
-- Monitoring continues across Scan, Stats, Challenge and Shop. With an explicitly opened, supported Picture in Picture camera window, it also processes frames while another app is foreground. Otherwise leaving HeadUp pauses monitoring. Locking, closing the background window, camera interruption or missing poses breaks time continuity; interrupted time earns no progress.
+- Monitoring continues across Scan, Stats, Challenge and Shop. With an explicitly opened, supported Picture in Picture camera window, it also processes frames while another app is foreground. Otherwise leaving Heads Up pauses monitoring. Locking, closing the background window, camera interruption or missing poses breaks time continuity; interrupted time earns no progress.
 - The small window shows a live camera preview, skeleton, posture status and the existing danger border. Camera images stay on device and are not recorded or uploaded. There is no hidden camera mode, fake call, microphone capture, or silent audio loop.
 - Three seconds of valid calibration samples establish the baseline. Missing/low-confidence poses interrupt an in-progress calibration and do not count as good posture.
 - The analyzer preserves the Kotlin face/shoulder geometry, 0.15 EMA, angle/distance/shoulder thresholds and per-frame rapid-fall heuristic. A sustained danger state triggers an in-app border after **2 seconds**, matching the Android code rather than the root README's 3-second description. This is not a prediction of posture two seconds into the future.

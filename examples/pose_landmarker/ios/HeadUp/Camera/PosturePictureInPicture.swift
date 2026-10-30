@@ -62,7 +62,7 @@ final class PosturePictureInPicture: NSObject, ObservableObject, @preconcurrency
         let source = AVPictureInPictureController.ContentSource(activeVideoCallSourceView: sourceView, contentViewController: content)
         controller = AVPictureInPictureController(contentSource: source)
         controller?.delegate = self
-        // Explicit opt-in each session; merely leaving HeadUp must not start a camera window.
+        // Explicit opt-in each session; merely leaving Heads Up must not start a camera window.
         controller?.canStartPictureInPictureAutomaticallyFromInline = false
         needsSourceUpdate = false
     }
@@ -130,8 +130,8 @@ final class PosturePictureInPicture: NSObject, ObservableObject, @preconcurrency
         preview.setNeedsLayout()
         let color: UIColor = warning ? .systemRed : metrics == nil ? .white : UIColor(HeadUpStyle.color(for: metrics?.zone))
         label.textColor = color
-        label.text = metrics.map { "HeadUp · \(copy.zone($0.zone))\n\($0.angleDegrees)°" }
-            ?? copy.text("HeadUp · Keep face and shoulders in view", "HeadUp · 請讓臉部與雙肩入鏡")
+        label.text = metrics.map { "Heads Up · \(copy.zone($0.zone))\n\($0.angleDegrees)°" }
+            ?? copy.text("Heads Up · Keep face and shoulders in view", "Heads Up · 請讓臉部與雙肩入鏡")
         preview.layer.borderColor = (warning ? UIColor.systemRed : .clear).cgColor
     }
 
@@ -161,7 +161,7 @@ final class PosturePictureInPicture: NSObject, ObservableObject, @preconcurrency
     }
 
     private func fail() {
-        errorMessage = copy.text("The system could not start the camera window. Continue in HeadUp or try again on a supported device.", "系統無法啟動相機小視窗。請在 HeadUp 內繼續，或於支援的裝置重試。")
+        errorMessage = copy.text("The system could not start the camera window. Continue in Heads Up or try again on a supported device.", "系統無法啟動相機小視窗。請在 Heads Up 內繼續，或於支援的裝置重試。")
         finish()
     }
 

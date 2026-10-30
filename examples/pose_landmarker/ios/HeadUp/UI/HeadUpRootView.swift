@@ -43,7 +43,7 @@ struct HeadUpRootView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.up.right.circle.fill")
                             .foregroundStyle(HeadUpStyle.cyan)
-                        Text("HeadUp").fontWeight(.bold)
+                        Text("Heads Up").fontWeight(.bold)
                     }
                     .font(.title2)
                     .accessibilityElement(children: .combine)
@@ -200,10 +200,10 @@ struct HeadUpSettingsView: View {
                     Text(copy.text("Sit upright with your face and both shoulders visible, about 45 cm from the screen. Distance readings are estimates.", "請坐正，讓臉部與雙肩清楚入鏡，並與螢幕保持約 45 公分。距離數值為估算結果。"))
                 }
                 Section {
-                    Label(copy.text("Monitoring with HeadUp or its camera window", "透過 HeadUp 或相機小視窗偵測"), systemImage: "camera")
+                    Label(copy.text("Monitoring with Heads Up or its camera window", "透過 Heads Up 或相機小視窗偵測"), systemImage: "camera")
                     Text(copy.text("To monitor while using other apps, first open the camera window. Dynamic Island shows posture updates but does not keep the camera running. Locking or camera interruptions pause monitoring and tracked time.", "使用其他 App 時，請先開啟相機小視窗。靈動島顯示姿勢狀態，本身不會讓相機持續運作。鎖屏或相機中斷時會暫停偵測與時間紀錄。"))
                         .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
-                    Text(copy.text("Your camera images are processed on this device. HeadUp stores posture measurements locally, not photos or video.", "相機影像只在裝置上處理。HeadUp 僅在本機儲存姿勢數據，不儲存照片或影片。"))
+                    Text(copy.text("Your camera images are processed on this device. Heads Up stores posture measurements locally, not photos or video.", "相機影像只在裝置上處理。Heads Up 僅在本機儲存姿勢數據，不儲存照片或影片。"))
                         .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
                 } header: {
                     Text(copy.text("About monitoring", "關於姿勢守護"))

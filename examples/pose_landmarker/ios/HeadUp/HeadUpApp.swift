@@ -16,13 +16,13 @@ private struct HeadUpBootstrap: View {
                 HeadUpContainer(store: store)
             } else if let error {
                 ContentUnavailableView {
-                    Label("Unable to open HeadUp / 無法開啟", systemImage: "externaldrive.badge.exclamationmark")
+                    Label("Unable to open Heads Up / 無法開啟", systemImage: "externaldrive.badge.exclamationmark")
                 } description: {
                     Text(error)
                 } actions: {
                     Button("Try again / 重試") { openStore() }
                 }
-            } else { ProgressView("HeadUp").task { openStore() } }
+            } else { ProgressView("Heads Up").task { openStore() } }
         }.preferredColorScheme(.dark)
     }
     private func openStore() {

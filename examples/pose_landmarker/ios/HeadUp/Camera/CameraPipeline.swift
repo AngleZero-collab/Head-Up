@@ -152,7 +152,7 @@ final class CameraPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
             switch self {
             case .noCamera: return "No camera is available. Run camera monitoring on a physical iPhone or iPad."
             case .configuration: return "The camera could not be configured. Please try again."
-            case .missingModel: return "The bundled pose model is missing. Rebuild HeadUp with its resources."
+            case .missingModel: return "The bundled pose model is missing. Rebuild Heads Up with its resources."
             }
         }
     }
