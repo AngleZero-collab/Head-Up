@@ -128,6 +128,26 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "025ED32507AFF67926E28BBA";
 		};
+		"5640F0265ED14078C2BDF70B" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "file";
+			"path" = "Resources/dragon_angry_red.webp";
+			"sourceTree" = "<group>";
+		};
+		"A9F609BDA67013C0D21DF641" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "5640F0265ED14078C2BDF70B";
+		};
+		"FF2DEDF348216726EDF45357" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "file";
+			"path" = "Resources/dragon_happy_blue.webp";
+			"sourceTree" = "<group>";
+		};
+		"8410E1AEB3089AB67DEBC4C7" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "FF2DEDF348216726EDF45357";
+		};
 		"8869C58368428F1D0D5A07BF" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "file";
@@ -147,6 +167,16 @@
 		"506872409D0A8FB2508A60C1" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "3624EB2478F564A1A6647A43";
+		};
+		"9FBE4956F3728BBF38C9F13D" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UI/DragonCompanionView.swift";
+			"sourceTree" = "<group>";
+		};
+		"69D0F341D8B0BBA35A46F2C0" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "9FBE4956F3728BBF38C9F13D";
 		};
 		"DFC9918BDC4F4A1B77E2C022" = {
 			"isa" = "PBXFileReference";
@@ -221,8 +251,11 @@
 				"1A25441B8F46EA947A5FB6FB",
 				"465A135700E4454F17C9FD15",
 				"025ED32507AFF67926E28BBA",
+				"5640F0265ED14078C2BDF70B",
+				"FF2DEDF348216726EDF45357",
 				"8869C58368428F1D0D5A07BF",
 				"3624EB2478F564A1A6647A43",
+				"9FBE4956F3728BBF38C9F13D",
 				"DFC9918BDC4F4A1B77E2C022",
 				"CA2CF2123F369315C2719FA2",
 				"36C4F5DA6C22455CA881DCC4",
@@ -245,6 +278,7 @@
 				"EA486C4A1D3726D71C57763A",
 				"CC5D871730C70B1C488B520C",
 				"506872409D0A8FB2508A60C1",
+				"69D0F341D8B0BBA35A46F2C0",
 				"76F739FE369DF0E0DCE4C177",
 				"E9E5051E572341257648F0FB",
 				"F502008283ED0D8F3DD9F12D",
@@ -252,6 +286,7 @@
 				"D6A8C3CD88092E7CACAD5C5A",
 				"B2E29E7135CF31E243B1BD67",
 				"D88ADD50E4730BC37345375F",
+				"9AE922992137B2CC7315EA90",
 			);
 			"runOnlyForDeploymentPostprocessing" = "0";
 		};
@@ -262,8 +297,11 @@
 				"C85DB159208DEAED39B69D92",
 				"1974306968D41C96AAAF9EB2",
 				"5CD282E28DFC0139000A88FD",
+				"A9F609BDA67013C0D21DF641",
+				"8410E1AEB3089AB67DEBC4C7",
 				"EFF3846098C962C7E627F68F",
 				"716E9590E60B3AFA6E62BF18",
+				"857FF2202356C9B281C509B8",
 			);
 			"runOnlyForDeploymentPostprocessing" = "0";
 		};
@@ -380,11 +418,22 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "925947B47FEEBB021EF34A17";
 		};
+		"88EBE357D2DABF4CBC6E0D2F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "PostureDragonView.swift";
+			"sourceTree" = "<group>";
+		};
+		"9AE922992137B2CC7315EA90" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "88EBE357D2DABF4CBC6E0D2F";
+		};
 		"AC019E2923F944A838FB0A8F" = {
 			"isa" = "PBXGroup";
 			"children" = (
 				"D3DBD2858E523BE87040B867",
 				"925947B47FEEBB021EF34A17",
+				"88EBE357D2DABF4CBC6E0D2F",
 			);
 			"path" = "HeadUpActivityShared";
 			"sourceTree" = "<group>";
@@ -407,11 +456,19 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "925947B47FEEBB021EF34A17";
 		};
+		"2773E8687B912E8C66801DDD" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "88EBE357D2DABF4CBC6E0D2F";
+		};
 		"889C1E3F895975BC34140EEF" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "folder.assetcatalog";
 			"path" = "Assets.xcassets";
 			"sourceTree" = "<group>";
+		};
+		"857FF2202356C9B281C509B8" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "889C1E3F895975BC34140EEF";
 		};
 		"9A9EF54833B45752B2579676" = {
 			"isa" = "PBXGroup";
@@ -429,6 +486,7 @@
 				"02723D942CBC5DD8E6042A0D",
 				"C55EE34043F50178068A6A71",
 				"CF391C40104F45675F07AFA7",
+				"2773E8687B912E8C66801DDD",
 			);
 			"runOnlyForDeploymentPostprocessing" = "0";
 		};

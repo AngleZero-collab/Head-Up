@@ -14,7 +14,10 @@ final class PosturePictureInPicture: NSObject, ObservableObject, @preconcurrency
     private var controller: AVPictureInPictureController?
     private let content = AVPictureInPictureVideoCallViewController()
     private let preview = PreviewSurface()
+    private let footer = UIView()
     private let label = UILabel()
+    private let dragon = UIHostingController(rootView: PostureDragonView(status: .paused, size: 48))
+    private var dragonStatus: PostureActivityAttributes.Status = .paused
     private var startTimeout: Task<Void, Never>?
     private var restoreCompletion: ((Bool) -> Void)?
     private var restoreTimeout: Task<Void, Never>?
@@ -29,23 +32,39 @@ final class PosturePictureInPicture: NSObject, ObservableObject, @preconcurrency
         content.view.backgroundColor = .black
         preview.translatesAutoresizingMaskIntoConstraints = false
         content.view.addSubview(preview)
+        footer.translatesAutoresizingMaskIntoConstraints = false
+        footer.backgroundColor = UIColor.black.withAlphaComponent(0.8)
+        content.view.addSubview(footer)
+        content.addChild(dragon)
+        dragon.view.translatesAutoresizingMaskIntoConstraints = false
+        dragon.view.backgroundColor = .clear
+        dragon.view.isUserInteractionEnabled = false
+        footer.addSubview(dragon.view)
+        dragon.didMove(toParent: content)
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.textAlignment = .center
+        label.textAlignment = .natural
         label.font = .systemFont(ofSize: 16, weight: .semibold)
         label.numberOfLines = 2
         label.adjustsFontSizeToFitWidth = true
         label.minimumScaleFactor = 0.65
-        label.backgroundColor = UIColor.black.withAlphaComponent(0.8)
-        content.view.addSubview(label)
+        footer.addSubview(label)
         NSLayoutConstraint.activate([
             preview.leadingAnchor.constraint(equalTo: content.view.leadingAnchor),
             preview.trailingAnchor.constraint(equalTo: content.view.trailingAnchor),
             preview.topAnchor.constraint(equalTo: content.view.topAnchor),
             preview.bottomAnchor.constraint(equalTo: content.view.bottomAnchor),
-            label.leadingAnchor.constraint(equalTo: content.view.leadingAnchor),
-            label.trailingAnchor.constraint(equalTo: content.view.trailingAnchor),
-            label.bottomAnchor.constraint(equalTo: content.view.bottomAnchor),
-            label.heightAnchor.constraint(equalToConstant: 54)
+            footer.leadingAnchor.constraint(equalTo: content.view.leadingAnchor),
+            footer.trailingAnchor.constraint(equalTo: content.view.trailingAnchor),
+            footer.bottomAnchor.constraint(equalTo: content.view.bottomAnchor),
+            footer.heightAnchor.constraint(equalToConstant: 64),
+            dragon.view.leadingAnchor.constraint(equalTo: footer.leadingAnchor, constant: 8),
+            dragon.view.centerYAnchor.constraint(equalTo: footer.centerYAnchor),
+            dragon.view.widthAnchor.constraint(equalToConstant: 48),
+            dragon.view.heightAnchor.constraint(equalToConstant: 48),
+            label.leadingAnchor.constraint(equalTo: dragon.view.trailingAnchor, constant: 8),
+            label.trailingAnchor.constraint(equalTo: footer.trailingAnchor, constant: -8),
+            label.topAnchor.constraint(equalTo: footer.topAnchor, constant: 4),
+            label.bottomAnchor.constraint(equalTo: footer.bottomAnchor, constant: -4)
         ])
         preview.layer.borderWidth = 5
     }
@@ -121,18 +140,35 @@ final class PosturePictureInPicture: NSObject, ObservableObject, @preconcurrency
     }
 
     func update(metrics: PostureMetrics?, points: [LandmarkPoint], size: CGSize,
-                front: Bool, rotation: CGFloat, warning: Bool, copy: HeadUpCopy) {
+                front: Bool, rotation: CGFloat, status: PostureActivityAttributes.Status, copy: HeadUpCopy) {
         self.copy = copy
         preview.points = points
         preview.imageSize = size
         preview.front = front
         preview.rotationOverride = rotation
         preview.setNeedsLayout()
-        let color: UIColor = warning ? .systemRed : metrics == nil ? .white : UIColor(HeadUpStyle.color(for: metrics?.zone))
-        label.textColor = color
-        label.text = metrics.map { "Heads Up · \(copy.zone($0.zone))\n\($0.angleDegrees)°" }
-            ?? copy.text("Heads Up · Keep face and shoulders in view", "Heads Up · 請讓臉部與雙肩入鏡")
-        preview.layer.borderColor = (warning ? UIColor.systemRed : .clear).cgColor
+        // Keep one hosting controller for the PiP lifetime; camera frames do not
+        // recreate the dragon or restart its rendering while the status is stable.
+        if dragonStatus != status {
+            dragonStatus = status
+            dragon.rootView = PostureDragonView(status: status, size: 48)
+        }
+        switch status {
+        case .good: label.textColor = .systemCyan
+        case .attention: label.textColor = .systemYellow
+        case .liftHead: label.textColor = .systemRed
+        default: label.textColor = .lightGray
+        }
+        let snapshot = PostureActivityAttributes.ContentState(
+            status: status, safeSeconds: 0, totalSeconds: 0,
+            dayStart: .distantPast, updatedAt: .distantPast, language: copy.text("en", "zh-Hant"))
+        let title = snapshot.statusTitle(isStale: false)
+        if [.good, .attention, .liftHead].contains(status), let metrics {
+            label.text = "\(title)\n\(metrics.angleDegrees)° · Heads Up"
+        } else {
+            label.text = "\(title)\nHeads Up"
+        }
+        preview.layer.borderColor = (status == .liftHead ? UIColor.systemRed : .clear).cgColor
     }
 
     func completeRestorationIfActive() {

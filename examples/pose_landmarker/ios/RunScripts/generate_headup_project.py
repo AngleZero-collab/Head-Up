@@ -36,10 +36,10 @@ phases = {}
 for target, folder in [('app','HeadUp'),('tests','HeadUpTests')]:
     files, sources, resources = [], [], []
     for path in sorted((ROOT/folder).rglob('*')):
-        if not path.is_file() or path.name.startswith('.') or path.suffix not in ['.swift','.mp4','.task','.jpg','.xcprivacy']:
+        if not path.is_file() or path.name.startswith('.') or path.suffix not in ['.swift','.mp4','.webp','.task','.jpg','.xcprivacy']:
             continue
         relative = str(path.relative_to(ROOT/folder))
-        kind = {'.swift':'sourcecode.swift','.jpg':'image.jpeg','.mp4':'file','.task':'file','.xcprivacy':'text.xml'}[path.suffix]
+        kind = {'.swift':'sourcecode.swift','.jpg':'image.jpeg','.mp4':'file','.webp':'file','.task':'file','.xcprivacy':'text.xml'}[path.suffix]
         ref = obj(folder+'/'+relative,'PBXFileReference',lastKnownFileType=kind,path=relative,sourceTree='<group>')
         files.append(ref)
         build = obj('build/'+folder+'/'+relative,'PBXBuildFile',fileRef=ref)
@@ -68,6 +68,8 @@ for path in sorted((ROOT/'HeadUpWidgets').glob('*.swift')):
 for ref in shared_files:
     widget_sources.append(obj('widget-shared/'+ref,'PBXBuildFile',fileRef=ref))
 widget_assets = obj('widget-assets','PBXFileReference',lastKnownFileType='folder.assetcatalog',path='Assets.xcassets',sourceTree='<group>')
+# Both products compile the same stills; animations remain app-only resources.
+objects[phases['app'][1]]['files'].append(obj('app-dragon-assets-build','PBXBuildFile',fileRef=widget_assets))
 widget_files.append(widget_assets)
 groups.append(obj('widget-group','PBXGroup',children=widget_files,path='HeadUpWidgets',sourceTree='<group>'))
 widget_phases = [obj('widget-sources','PBXSourcesBuildPhase',buildActionMask=2147483647,files=widget_sources,runOnlyForDeploymentPostprocessing=0),

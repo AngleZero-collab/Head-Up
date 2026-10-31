@@ -45,6 +45,9 @@ final class MonitoringCoordinator: ObservableObject {
     private var pendingCalibration = false
     private var rotation: CGFloat = 90
     var captureRotation: CGFloat { rotation }
+    var postureStatus: PostureActivityAttributes.Status {
+        Self.activityStatus(status: status, metrics: metrics, warningActive: warningActive)
+    }
     private var observers: [NSObjectProtocol] = []
 
     init(store: HeadUpStore) {
@@ -335,7 +338,6 @@ final class MonitoringCoordinator: ObservableObject {
         store.recordMetrics(value, elapsedMilliseconds: elapsed)
         let output = alerts.process(metrics: value, monotonicTimeMs: frame.monotonicMs, alarmEnabled: store.alarmEnabled)
         warningActive = output.warningActive
-        updatePictureInPicture()
         if let haptic = output.haptic {
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(haptic == .danger ? .warning : .success)
@@ -356,7 +358,7 @@ final class MonitoringCoordinator: ObservableObject {
 
     private func updatePictureInPicture() {
         pictureInPicture.update(metrics: metrics, points: landmarks, size: frameSize,
-                                front: isFrontCamera, rotation: rotation, warning: warningActive,
+                                front: isFrontCamera, rotation: rotation, status: postureStatus,
                                 copy: HeadUpCopy(language: store.language))
     }
 
@@ -375,12 +377,15 @@ final class MonitoringCoordinator: ObservableObject {
     }
 
     private func publishActivity(force: Bool = false) {
+        // Refresh PiP even when Live Activities are disabled or not yet started.
+        // Called after state transitions, including calibration and lost poses.
+        updatePictureInPicture()
         guard let sessionID = monitoringSessionID, cameraStartedForSession, store.liveActivitiesEnabled else { return }
         let now = Date()
         if !Calendar.current.isDate(store.today.dayStart, inSameDayAs: now) { store.refresh() }
         let copy = HeadUpCopy(language: store.language)
         let snapshot = PostureActivityAttributes.ContentState(
-            status: Self.activityStatus(status: status, metrics: metrics, warningActive: warningActive),
+            status: postureStatus,
             safeSeconds: store.today.safeSeconds, totalSeconds: store.today.totalTrackedSeconds,
             dayStart: store.today.dayStart, updatedAt: now, language: copy.text("en", "zh-Hant"))
         liveActivity.offer(sessionID: sessionID, content: snapshot,

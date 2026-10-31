@@ -1,5 +1,4 @@
 import SwiftUI
-import AVFoundation
 import HeadUpCore
 
 struct ChallengeScreen: View {
@@ -21,12 +20,12 @@ struct ChallengeScreen: View {
                             .padding(.horizontal, 12).padding(.vertical, 7)
                             .background(HeadUpStyle.purple.opacity(0.2), in: Capsule())
                     }
-                    DragonVideoView(resource: monitor.metrics?.zone == .danger ? "angry_dragon" : "blue_dragon", copy: copy)
+                    DragonCompanionView(status: monitor.postureStatus, copy: copy)
                         .frame(width: 220, height: 220)
-                        .clipShape(Circle())
-                        .overlay(Circle().strokeBorder(HeadUpStyle.color(for: monitor.metrics?.zone).opacity(0.45), lineWidth: 2))
+                        .background(monitor.postureStatus.dragonTint.opacity(0.08), in: RoundedRectangle(cornerRadius: 32))
+                        .overlay(RoundedRectangle(cornerRadius: 32).strokeBorder(monitor.postureStatus.dragonTint.opacity(0.45), lineWidth: 2))
                         .shadow(color: HeadUpStyle.cyan.opacity(0.15), radius: 25)
-                    Text("Little Blue").font(.title.bold())
+                    Text(copy.text(monitor.postureStatus == .liftHead ? "Angry Dragon" : "Little Blue", monitor.postureStatus == .liftHead ? "生氣視力龍" : "藍色視力龍")).font(.title.bold())
                     ProgressView(value: Double(store.dragonEnergy), total: 100)
                         .tint(HeadUpStyle.cyan)
                         .accessibilityLabel(copy.text("Dragon energy", "視力龍能量"))
@@ -34,7 +33,7 @@ struct ChallengeScreen: View {
                         .font(.subheadline).foregroundStyle(HeadUpStyle.secondary)
                     Text(dragonMood)
                         .font(.headline)
-                        .foregroundStyle(HeadUpStyle.color(for: monitor.metrics?.zone))
+                        .foregroundStyle(monitor.postureStatus.dragonTint)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -71,97 +70,9 @@ struct ChallengeScreen: View {
     }
 
     private var dragonMood: String {
-        switch monitor.metrics?.zone {
-        case .safe: return copy.text("Little Blue is recharging", "Little Blue 正在充電")
-        case .warning: return copy.text("Little Blue reminds you to look up", "Little Blue 提醒你抬頭")
-        case .danger: return copy.text("Little Blue needs a little rest", "Little Blue 需要休息")
-        case nil: return copy.text("Little Blue is waiting for you", "Little Blue 正在等你")
-        }
-    }
-}
-
-private final class DragonPlayback: ObservableObject {
-    let player = AVQueuePlayer()
-    private var looper: AVPlayerLooper?
-    private var resource: String?
-
-    func load(_ name: String) {
-        guard resource != name else { return }
-        player.pause()
-        looper?.disableLooping()
-        player.removeAllItems()
-        resource = name
-        guard let url = Bundle.main.url(forResource: name, withExtension: "mp4") else { return }
-        player.isMuted = true
-        looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: url))
-    }
-
-    deinit { player.pause() }
-}
-
-private struct DragonVideoView: View {
-    let resource: String
-    let copy: HeadUpCopy
-    @StateObject private var playback = DragonPlayback()
-    @State private var userPaused = false
-    @State private var visible = false
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        Button {
-            userPaused.toggle()
-            updatePlayback()
-        } label: {
-            ZStack(alignment: .bottomTrailing) {
-                DragonPlayerLayer(player: playback.player)
-                    .background(HeadUpStyle.top)
-                Image(systemName: userPaused || reduceMotion ? "play.fill" : "pause.fill")
-                    .font(.caption.bold())
-                    .padding(10)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .padding(24)
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(copy.text("Little Blue animation", "Little Blue 動畫"))
-        .accessibilityHint(copy.text("Tap to pause or play", "點一下暫停或播放"))
-        .onAppear {
-            visible = true
-            playback.load(resource)
-            updatePlayback()
-        }
-        .onDisappear {
-            visible = false
-            playback.player.pause()
-        }
-        .onChange(of: resource) { _, name in playback.load(name); updatePlayback() }
-        .onChange(of: scenePhase) { _, _ in updatePlayback() }
-        .onChange(of: reduceMotion) { _, _ in updatePlayback() }
-    }
-
-    private func updatePlayback() {
-        if visible && scenePhase == .active && !userPaused && !reduceMotion { playback.player.play() }
-        else { playback.player.pause() }
-    }
-}
-
-private struct DragonPlayerLayer: UIViewRepresentable {
-    let player: AVPlayer
-
-    func makeUIView(context: Context) -> PlayerView {
-        let view = PlayerView()
-        view.playerLayer.videoGravity = .resizeAspectFill
-        view.playerLayer.player = player
-        return view
-    }
-
-    func updateUIView(_ uiView: PlayerView, context: Context) { uiView.playerLayer.player = player }
-
-    static func dismantleUIView(_ uiView: PlayerView, coordinator: ()) { uiView.playerLayer.player = nil }
-
-    final class PlayerView: UIView {
-        override class var layerClass: AnyClass { AVPlayerLayer.self }
-        var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+        let snapshot = PostureActivityAttributes.ContentState(
+            status: monitor.postureStatus, safeSeconds: 0, totalSeconds: 0,
+            dayStart: .distantPast, updatedAt: .distantPast, language: copy.text("en", "zh-Hant"))
+        return snapshot.statusTitle(isStale: false)
     }
 }

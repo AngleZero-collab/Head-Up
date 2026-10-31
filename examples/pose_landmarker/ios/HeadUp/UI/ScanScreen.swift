@@ -110,6 +110,11 @@ struct ScanScreen: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(HeadUpStyle.color(for: monitor.metrics?.zone))
                 }
+                if monitor.postureStatus == .attention || monitor.postureStatus == .liftHead {
+                    Text(copy.text("Raise your phone and sit upright. Keep your face and both shoulders in view.", "請抬高手機並坐正，讓臉部與雙肩保持入鏡。"))
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(monitor.postureStatus.dragonTint)
+                }
                 if let metrics = monitor.metrics {
                     ProgressView(value: Double(metrics.landmarkConfidence), total: 1)
                         .tint(HeadUpStyle.cyan)
@@ -162,6 +167,8 @@ private struct FloatingWindowControls: View {
                 Label(copy.text("Monitor while using other apps", "使用其他 App 時繼續偵測"), systemImage: "pip")
                     .font(.headline)
                 Text(copy.text("Start monitoring, then open the small camera window before switching apps. Keep your face and shoulders visible. Closing or hiding the window may pause detection.", "開始偵測後，先開啟相機小視窗，再切換至其他 App。請讓臉部與雙肩入鏡；關閉或隱藏視窗可能暫停偵測。"))
+                    .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
+                Text(copy.text("Blue dragon: good posture. Yellow icon: check your posture. Angry red dragon: lift your head. Gray dragon: no current posture reading.", "藍龍：目前姿勢良好。黃色圖示：請注意姿勢。生氣紅龍：請抬頭調整。灰龍：目前沒有有效的姿勢判定。"))
                     .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
                 Button {
                     if window.state == .stopped { monitor.openPictureInPicture() }

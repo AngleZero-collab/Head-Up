@@ -45,6 +45,12 @@ The user requested implementation only and stopped further local/device validati
 
 When validation resumes, run `HeadUpTests/PostureActivityServiceTests`, `HeadUpTests/PostureActivityIntegrationTests`, `HeadUpUITests/testLiveActivityPreferenceAndTodayLink`, and the opt-in device test `HeadUpUITests/testDeviceDynamicIslandTodayAndPause`. The device test requires an unlocked iPhone with Dynamic Island, Live Activities enabled for Heads Up, and an unobstructed system activity surface. Its coordinate-based expansion step may need adjustment to the current system UI; do not interpret it as a successful feature check until the assertions pass.
 
+## Supplied Vision Dragon artwork — 2026-11-01
+
+- Imported the supplied transparent blue/angry PNGs and their blue/red WebP animations without changing image bytes. App and widget use the same asset catalog; animation files are app-only. Replaced the legacy movie stills and Challenge player presentation, while retaining the old movie files as reference.
+- Unified the persistent banner, Challenge dragon, PiP footer and Live Activity around the existing coordinator status, including the two-second/rapid-fall alert and non-detecting states. PiP refreshes after calibration/no-pose transitions even when Live Activities are disabled. Added bilingual phone-position guidance and a dragon-state legend on Scan.
+- Source/diff and asset-provenance review only. At the user's request, **no build, simulator test or physical-device test was run for this change**. WebP playback, small-size appearance, VoiceOver, Reduce Motion, PiP footer geometry and continuous camera/Live Activity behavior still need runtime validation. The earlier failed Dynamic Island interaction attempt remains unresolved.
+
 ## Repeat validation
 
 Run the commands in `README.md`. All tests use isolated in-memory data or a temporary disk database. UI tests launch with `--uitesting`; normal app launches use persistent SwiftData storage. The standalone core package can be tested without an iOS simulator or MediaPipe downloads.

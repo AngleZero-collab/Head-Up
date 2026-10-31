@@ -109,7 +109,11 @@ private struct MonitoringBanner: View {
         switch monitor.status {
         case .idle: return copy.text("Ready when you are", "準備開始姿勢守護")
         case .starting: return copy.text("Starting camera…", "正在啟動鏡頭…")
-        case .monitoring: return copy.zone(monitor.metrics?.zone)
+        case .monitoring:
+            let snapshot = PostureActivityAttributes.ContentState(
+                status: monitor.postureStatus, safeSeconds: 0, totalSeconds: 0,
+                dayStart: .distantPast, updatedAt: .distantPast, language: copy.text("en", "zh-Hant"))
+            return snapshot.statusTitle(isStale: false)
         case .noPose: return copy.text("Keep your face and shoulders in view", "請讓臉部與雙肩清楚入鏡")
         case .calibrating: return copy.text("Sit upright · \(monitor.calibrationRemaining)", "請坐正 · \(monitor.calibrationRemaining)")
         case .paused: return copy.text("Monitoring paused", "姿勢偵測已暫停")
@@ -140,10 +144,14 @@ private struct MonitoringBanner: View {
     }
 
     private var status: some View {
-        Label(statusText, systemImage: monitor.isMonitoring ? "camera.fill" : "pause.circle")
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(monitor.warningActive ? HeadUpStyle.danger : HeadUpStyle.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: 10) {
+            PostureDragonView(status: monitor.postureStatus, size: 44)
+            Label(statusText, systemImage: monitor.postureStatus.symbol)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(monitor.postureStatus.dragonTint)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var control: some View {

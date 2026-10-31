@@ -31,7 +31,7 @@ struct HeadUpLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.center) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Little Blue").font(.caption).foregroundStyle(.secondary)
+                        Text(context.state.text("Vision Dragon", "視力龍")).font(.caption).foregroundStyle(.secondary)
                         PostureStatus(state: context.state, stale: context.isStale)
                     }
                 }
@@ -67,12 +67,7 @@ struct HeadUpLiveActivity: Widget {
 
 private func activityColor(_ state: PostureActivityAttributes.ContentState, stale: Bool) -> Color {
     guard !state.isOutdated(stale) else { return .gray }
-    switch state.status {
-    case .good: return Color(red: 144 / 255, green: 232 / 255, blue: 160 / 255)
-    case .attention: return Color(red: 255 / 255, green: 209 / 255, blue: 102 / 255)
-    case .liftHead: return Color(red: 255 / 255, green: 107 / 255, blue: 107 / 255)
-    default: return .gray
-    }
+    return state.status.dragonTint
 }
 
 private struct ActivityDragon: View {
@@ -80,24 +75,10 @@ private struct ActivityDragon: View {
     let stale: Bool
     let size: CGFloat
 
-    private var inactive: Bool { state.isOutdated(stale) || ![.good, .attention, .liftHead].contains(state.status) }
-
     var body: some View {
-        Image(state.status == .liftHead && !inactive ? "dragonAngry" : "dragonBlue")
-            .resizable().scaledToFit()
-            .frame(width: size, height: size)
-            .clipShape(Circle())
-            .saturation(inactive ? 0 : 1)
-            .opacity(inactive ? 0.65 : 1)
-            .overlay(alignment: .bottomTrailing) {
-                if state.status != .good || inactive {
-                    Image(systemName: state.isOutdated(stale) ? "clock" : state.status.symbol)
-                        .font(.system(size: max(9, size * 0.28), weight: .bold))
-                        .foregroundStyle(activityColor(state, stale: stale))
-                        .background(.black, in: Circle())
-                }
-            }
-            .accessibilityLabel("Little Blue · \(state.statusTitle(isStale: stale))")
+        PostureDragonView(status: state.status, isStale: stale, size: size)
+            .accessibilityHidden(false)
+            .accessibilityLabel("\(state.text("Vision Dragon", "視力龍")) · \(state.statusTitle(isStale: stale))")
     }
 }
 
@@ -123,7 +104,7 @@ private struct PostureActivityCard: View {
             HStack(spacing: 12) {
                 ActivityDragon(state: context.state, stale: context.isStale, size: 48)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Heads Up · Little Blue").font(.caption).foregroundStyle(.secondary)
+                    Text(context.state.text("Heads Up · Vision Dragon", "Heads Up · 視力龍")).font(.caption).foregroundStyle(.secondary)
                     PostureStatus(state: context.state, stale: context.isStale)
                     Text("\(context.state.dayLabel()) · \(context.state.goalText)")
                         .font(.caption).foregroundStyle(.secondary)
