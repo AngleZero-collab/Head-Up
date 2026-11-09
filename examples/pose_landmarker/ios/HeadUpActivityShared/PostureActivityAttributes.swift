@@ -47,6 +47,7 @@ struct PostureActivityAttributes: ActivityAttributes {
 
         var percentText: String { goodPercent.map { "\($0)%" } ?? "—" }
         var trackedDuration: String {
+            if totalSeconds < 60 { return text("\(max(0, totalSeconds))s", "\(max(0, totalSeconds)) 秒") }
             let minutes = max(0, totalSeconds) / 60
             if minutes >= 60 { return text("\(minutes / 60)h \(minutes % 60)m", "\(minutes / 60) 小時 \(minutes % 60) 分") }
             return text("\(minutes)m", "\(minutes) 分鐘")

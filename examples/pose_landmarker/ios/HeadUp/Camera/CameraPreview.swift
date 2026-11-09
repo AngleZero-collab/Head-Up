@@ -19,7 +19,7 @@ struct CameraPreview: UIViewRepresentable {
         monitor.pictureInPicture.attach(source: view, session: monitor.camera.session)
         view.front = monitor.isFrontCamera
         view.rotationOverride = monitor.isFloatingWindowOpen ? monitor.captureRotation : nil
-        view.points = monitor.landmarks
+        view.points = monitor.showsSkeleton ? monitor.landmarks : []
         view.imageSize = monitor.frameSize
         view.setNeedsLayout()
     }

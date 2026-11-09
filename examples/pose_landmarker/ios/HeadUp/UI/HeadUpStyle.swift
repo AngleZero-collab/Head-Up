@@ -50,6 +50,7 @@ struct HeadUpCopy {
     }
 
     func duration(_ seconds: Int64) -> String {
+        if seconds < 60 { return text("\(max(0, seconds)) sec", "\(max(0, seconds)) 秒") }
         let minutes = max(0, seconds) / 60
         if minutes >= 60 {
             return text("\(minutes / 60) hr \(minutes % 60) min", "\(minutes / 60) 小時 \(minutes % 60) 分")

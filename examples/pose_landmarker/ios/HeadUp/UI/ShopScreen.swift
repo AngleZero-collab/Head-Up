@@ -2,40 +2,95 @@ import SwiftUI
 
 struct ShopScreen: View {
     @ObservedObject var store: HeadUpStore
+    var onChallenges: () -> Void = {}
+    @State private var collectionOnly = false
+    @State private var pendingItem: ShopItem?
     @State private var purchasedName: String?
+    @Environment(\.dynamicTypeSize) private var typeSize
     private var copy: HeadUpCopy { HeadUpCopy(language: store.language) }
+    private var visibleItems: [ShopItem] { store.shopItems.filter { !collectionOnly || $0.isOwned } }
 
     var body: some View {
         HeadUpPage {
             HeadUpSectionTitle(title: copy.text("Good habits, well rewarded", "好習慣，值得獎勵"), symbol: "bag")
             HeadUpCard {
-                HStack(spacing: 18) {
-                    Image(systemName: "star.circle.fill")
-                        .font(.system(size: 48)).foregroundStyle(HeadUpStyle.warning)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(copy.text("Health points", "健康積分")).foregroundStyle(HeadUpStyle.secondary)
-                        Text(store.coins.formatted()).font(.largeTitle.bold()).monospacedDigit().foregroundStyle(HeadUpStyle.warning)
+                VStack(alignment: .leading, spacing: 14) {
+                    Label(copy.text("Available points", "可用積分"), systemImage: "star.circle.fill")
+                        .foregroundStyle(HeadUpStyle.secondary)
+                    Text(store.coins.formatted())
+                        .font(.largeTitle.bold()).monospacedDigit().foregroundStyle(HeadUpStyle.warning)
+                    ViewThatFits(in: .horizontal) {
+                        HStack { collectionCount; Spacer(minLength: 16); earnButton }
+                            .fixedSize(horizontal: true, vertical: false)
+                        VStack(alignment: .leading, spacing: 8) { collectionCount; earnButton }
                     }
-                    Spacer()
                 }
             }
-            HeadUpSectionTitle(title: copy.text("Vision Dragon collection", "視力龍收藏"), symbol: "sparkles")
-            ForEach(store.shopItems.filter { $0.id == "starlight_armor" || $0.id == "ocean_background" }) { item in
-                shopRow(item)
+            if let purchasedName {
+                Label(copy.text("Added to your collection: \(purchasedName)", "已加入收藏：\(purchasedName)"), systemImage: "checkmark.seal.fill")
+                    .font(.subheadline.weight(.medium)).foregroundStyle(HeadUpStyle.safe)
+                    .accessibilityIdentifier("purchaseSuccess")
             }
-            HeadUpSectionTitle(title: copy.text("Rewards", "獎勵兌換"), symbol: "gift")
-            ForEach(store.shopItems.filter { $0.id == "eye_time_ticket" || $0.id == "focus_badge" }) { item in
-                shopRow(item)
+            if typeSize.isAccessibilitySize {
+                collectionPicker.pickerStyle(.menu)
+                    .frame(minHeight: 44)
+            } else {
+                collectionPicker.pickerStyle(.segmented)
             }
-            Text(copy.text("Earn points by completing daily tasks. Rewards are saved to your collection; no payment is required.", "完成每日任務即可累積積分。兌換項目會儲存於你的收藏，不需要付款。"))
+            if visibleItems.isEmpty {
+                ContentUnavailableView {
+                    Label(copy.text("Your collection starts here", "開始你的收藏"), systemImage: "gift")
+                } description: {
+                    Text(copy.text("Complete daily challenges, claim points, then choose a reward.", "完成每日挑戰並領取積分，再挑選喜歡的獎勵。"))
+                } actions: {
+                    earnButton
+                }
+            } else {
+                ForEach(visibleItems) { item in shopRow(item) }
+            }
+            Text(copy.text("Points and collectibles are saved on this device. No payment is required. Collectibles do not change the dragon's appearance or unlock phone usage.", "積分與收藏儲存在本機，不需要付款。收藏不會改變視力龍外觀，也不會解鎖手機使用時間。"))
                 .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
         }
         .accessibilityIdentifier("shopScreen")
-        .alert(copy.text("Added to your collection", "已加入你的收藏"), isPresented: Binding(get: { purchasedName != nil }, set: { if !$0 { purchasedName = nil } })) {
-            Button(copy.text("Done", "完成"), role: .cancel) { purchasedName = nil }
-        } message: {
-            Text(purchasedName ?? "")
+        .onDisappear { purchasedName = nil; pendingItem = nil }
+        .onChange(of: store.ownedShopItems) { _, owned in
+            if owned.isEmpty { purchasedName = nil }
         }
+        .alert(copy.text("Confirm redemption", "確認兌換"), isPresented: Binding(
+            get: { pendingItem != nil }, set: { if !$0 { pendingItem = nil } }
+        ), presenting: pendingItem) { item in
+            Button(copy.text("Redeem for \(item.cost) points", "使用 \(item.cost) 點兌換")) {
+                // The store rechecks ownership/balance and saves the debit atomically.
+                if store.purchaseItem(item.id) { purchasedName = title(item.id) }
+                pendingItem = nil
+            }
+            .disabled(store.coins < item.cost || store.ownedShopItems.contains(item.id))
+            Button(copy.text("Cancel", "取消"), role: .cancel) { pendingItem = nil }
+        } message: { item in
+            Text(copy.text("\(title(item.id))\nCost: \(item.cost) points\nRemaining: \(max(0, store.coins - item.cost)) points", "\(title(item.id))\n需要：\(item.cost) 點\n兌換後剩餘：\(max(0, store.coins - item.cost)) 點"))
+        }
+    }
+
+    private var collectionPicker: some View {
+        Picker(copy.text("Rewards filter", "獎勵篩選"), selection: $collectionOnly) {
+            Text(copy.text("All rewards", "所有獎勵")).tag(false)
+            Text(copy.text("My collection", "我的收藏")).tag(true)
+        }
+        .accessibilityIdentifier("shopCollectionFilter")
+    }
+
+    private var collectionCount: some View {
+        Text(copy.text("\(store.ownedShopItems.count) collected", "已收藏 \(store.ownedShopItems.count) 項"))
+            .font(.subheadline).foregroundStyle(HeadUpStyle.secondary)
+    }
+
+    private var earnButton: some View {
+        Button(action: onChallenges) {
+            Label(copy.text("Earn points", "前往挑戰賺積分"), systemImage: "arrow.right.circle")
+                .frame(minHeight: 44)
+        }
+        .buttonStyle(.bordered)
+        .accessibilityIdentifier("shopEarnPoints")
     }
 
     private func shopRow(_ item: ShopItem) -> some View {
@@ -53,23 +108,35 @@ struct ShopScreen: View {
                     }
                     Spacer(minLength: 0)
                 }
-                HStack {
-                    Label(copy.text("\(item.cost) points", "\(item.cost) 點"), systemImage: "star.fill")
-                        .font(.subheadline.bold()).foregroundStyle(HeadUpStyle.warning)
-                    Spacer()
-                    Button {
-                        if store.purchaseItem(item.id) { purchasedName = title(item.id) }
-                    } label: {
-                        Label(buttonTitle(item), systemImage: item.isOwned ? "checkmark" : "gift")
-                            .font(.subheadline.bold())
+                ViewThatFits(in: .horizontal) {
+                    HStack {
+                        price(item); Spacer(minLength: 16); redemptionButton(item)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(item.isOwned ? HeadUpStyle.safe : HeadUpStyle.cyan)
-                    .disabled(item.isOwned || store.coins < item.cost)
-                    .accessibilityIdentifier("purchase_\(item.id)")
+                    .fixedSize(horizontal: true, vertical: false)
+                    VStack(alignment: .leading, spacing: 8) { price(item); redemptionButton(item) }
+                }
+                if !item.isOwned && store.coins < item.cost {
+                    Text(copy.text("\(item.cost - store.coins) more points needed. Earn them in Challenges.", "還差 \(item.cost - store.coins) 點，可在挑戰頁累積。"))
+                        .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
                 }
             }
         }
+    }
+
+    private func price(_ item: ShopItem) -> some View {
+        Label(copy.text("\(item.cost) points", "\(item.cost) 點"), systemImage: "star.fill")
+            .font(.subheadline.bold()).foregroundStyle(HeadUpStyle.warning)
+    }
+
+    private func redemptionButton(_ item: ShopItem) -> some View {
+        Button { purchasedName = nil; pendingItem = item } label: {
+            Label(buttonTitle(item), systemImage: item.isOwned ? "checkmark" : "gift")
+                .font(.subheadline.bold()).frame(minHeight: 44)
+        }
+        .buttonStyle(.bordered)
+        .tint(item.isOwned ? HeadUpStyle.safe : HeadUpStyle.cyan)
+        .disabled(item.isOwned || store.coins < item.cost)
+        .accessibilityIdentifier("purchase_\(item.id)")
     }
 
     private func buttonTitle(_ item: ShopItem) -> String {
@@ -89,9 +156,9 @@ struct ShopScreen: View {
 
     private func detail(_ id: String) -> String {
         switch id {
-        case "starlight_armor": return copy.text("A Vision Dragon collectible", "視力龍造型收藏")
-        case "ocean_background": return copy.text("An ocean-inspired collectible", "海藍柔光主題收藏")
-        case "eye_time_ticket": return copy.text("A 30-minute entertainment reward", "30 分鐘娛樂時間獎勵")
+        case "starlight_armor": return copy.text("A keepsake for caring for your posture", "紀念你照顧姿勢的收藏品")
+        case "ocean_background": return copy.text("An ocean-inspired collectible card", "海藍主題收藏卡")
+        case "eye_time_ticket": return copy.text("A 30-minute reward to arrange yourself; it does not control screen time.", "可自行安排的 30 分鐘獎勵紀念券，不會控制螢幕使用時間。")
         default: return copy.text("Celebrate your focus", "為專注努力留下紀念")
         }
     }

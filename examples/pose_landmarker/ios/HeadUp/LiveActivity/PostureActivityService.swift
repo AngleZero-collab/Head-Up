@@ -1,5 +1,6 @@
 import ActivityKit
 import Foundation
+import Combine
 
 @MainActor
 protocol PostureActivityClient {
@@ -54,7 +55,10 @@ final class SystemPostureActivityClient: PostureActivityClient {
 /// Serializes ActivityKit writes, coalesces frame traffic, and never resurrects a
 /// dismissed activity within the same monitoring session.
 @MainActor
-final class PostureActivityService {
+final class PostureActivityService: ObservableObject {
+    enum Presentation { case idle, active, dismissed, notAllowed, failed }
+    @Published private(set) var presentation: Presentation = .idle
+    @Published private(set) var systemEnabled = true
     private let client: PostureActivityClient
     private let now: () -> Date
     private var tail: Task<Void, Never>?
@@ -70,8 +74,20 @@ final class PostureActivityService {
         let client = client ?? SystemPostureActivityClient()
         self.client = client
         self.now = now
+        systemEnabled = client.enabled
         let oldIDs = client.existingIDs
         enqueue { for id in oldIDs { await client.end(id, content: nil, immediately: true) } }
+    }
+
+    func refreshAvailability() {
+        let enabled = client.enabled
+        if systemEnabled != enabled { systemEnabled = enabled }
+        if let id = activityID, !client.isActive(id) {
+            revision += 1
+            activityID = nil
+            suppressedSession = sessionID
+            presentation = .dismissed
+        }
     }
 
     func offer(sessionID: UUID, content: PostureActivityAttributes.ContentState, canStart: Bool, force: Bool = false) {
@@ -81,17 +97,12 @@ final class PostureActivityService {
             suppressedSession = nil
             requestFailed = false
         }
+        refreshAvailability()
         guard suppressedSession != sessionID else { return }
-        if let id = activityID, !client.isActive(id) {
-            // User dismissal/system expiry is terminal for this session.
-            revision += 1
-            activityID = nil
-            suppressedSession = sessionID
-            return
-        }
         guard client.enabled else {
             if activityID != nil { end(immediately: true) }
             suppressedSession = sessionID
+            presentation = .notAllowed
             return
         }
         guard activityID != nil || canStart else { return }
@@ -107,8 +118,14 @@ final class PostureActivityService {
             guard let self, self.revision == version, self.sessionID == sessionID, self.client.enabled else { return }
             if self.activityID == nil {
                 guard canStart, self.suppressedSession != sessionID else { return }
-                do { self.activityID = try self.client.request(sessionID: sessionID, content: content) }
-                catch { self.requestFailed = true; self.suppressedSession = sessionID }
+                do {
+                    self.activityID = try self.client.request(sessionID: sessionID, content: content)
+                    self.presentation = .active
+                } catch {
+                    self.requestFailed = true
+                    self.suppressedSession = sessionID
+                    self.presentation = .failed
+                }
             } else if let id = self.activityID {
                 await self.client.update(id, content: content)
             }
@@ -120,6 +137,7 @@ final class PostureActivityService {
         let id = activityID
         let content = lastContent
         activityID = nil
+        presentation = .idle
         sessionID = nil
         lastContent = nil
         lastSubmittedAt = nil

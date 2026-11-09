@@ -7,7 +7,7 @@ Native iPhone and iPad app, iOS/iPadOS 17+. The product project is **HeadUp.xcod
 1. Open `HeadUp.xcodeproj` in Xcode on an Apple silicon Mac. Allow Swift Package Manager to resolve dependencies. The first download can be large because the official MediaPipe package includes its repository and binary frameworks.
 2. Select the `HeadUp` scheme and an iPhone or iPad simulator, then Run. No signing team is required for the simulator. It supports the full UI and local storage; camera monitoring requires a physical device.
 3. For a physical device, select your Apple development team under **HeadUp → Signing & Capabilities** and use a unique bundle identifier if required. Connect and trust the unlocked device, enable Developer Mode, select it and Run.
-4. Tap **Start**, allow camera access and use **3-second calibration** while sitting upright about 45 cm from the screen, with your face and shoulders visible. Front and rear cameras are supported; changing lens or orientation invalidates the calibration, so calibrate again.
+4. Tap **Start monitoring**, allow camera access and use **Prepare calibration → Start 3-second calibration** while sitting upright about 45 cm from the screen, with your face and shoulders visible. Front and rear cameras are supported; changing lens or orientation invalidates the calibration, so calibrate again.
 
 The app display name is **Heads Up** in both languages. Internal Xcode project/scheme names and the bundle identifier remain stable so existing installations and local data continue to work. The default bundle identifier is `org.anglezero.HeadUp`. No credentials or signing team are committed. English and Traditional Chinese are available in Settings.
 
@@ -16,7 +16,7 @@ The app display name is **Heads Up** in both languages. Internal Xcode project/s
 For the iPhone feasibility build, select **HeadUp PiP Preview** in Xcode and run on a physical **iPhone with iOS 18 or later**. Your local signing team is retained when regenerating the project.
 
 1. Start monitoring and complete calibration on the Scan tab.
-2. Scroll to **Monitor while using other apps / 使用其他 App 時繼續偵測** and tap **Open small window / 開啟小視窗**.
+2. Scroll to **Monitor while using other apps / 使用其他 App 時繼續偵測** and tap **Open camera window / 開啟相機小視窗**.
 3. Wait for the small window to appear, then open another app. Keep your face and shoulders in camera view. Posture analysis and valid monitoring time continue only while real frames arrive.
 4. Use the system window's return control to return to Scan. Closing the window while Heads Up is in the background stops monitoring. Closing it while Heads Up is foreground continues ordinary monitoring. Locking or hiding the window may interrupt the camera; return to Heads Up to restart.
 
@@ -47,6 +47,16 @@ The app's persistent status banner, Challenge page, camera window and Live Activ
 The Challenge page plays the supplied blue/red WebP animations using native Image I/O, retaining one displayed frame instead of preloading every frame. Playback stops offscreen, outside the active app, during non-detecting states, with Reduce Motion, or when the user taps pause. PiP and the widget use static images. Other characters, hatch stories and Android XML layouts in the pack are outside this posture-reminder change.
 
 For cross-app reminders, start monitoring, calibrate, enable Live Activities, and explicitly open the supported camera window before switching apps. Keep your face and shoulders visible. This assists posture awareness; it cannot guarantee uninterrupted detection or that posture is always correct. Camera availability and system limits still apply.
+
+## Everyday experience
+
+- **Scan:** a dragon-led current status, actionable posture guidance and a full-width start/pause action come first. Camera denial links to system settings; starting can be canceled. Calibration opens preparation instructions before starting the existing three-second flow. Angle/confidence diagnostics are in an optional details disclosure and are blank outside valid pose states.
+- **Camera controls:** skeleton visibility can be switched from the camera or Settings and persists locally. Hiding the skeleton affects the app and PiP overlays, not pose analysis. The small-window card explains prerequisites and surfaces the existing PiP errors. The system Live Activity state is shown separately from the app preference, with restart guidance after dismissal/request failure; closed activities are not silently recreated.
+- **Stats:** today's percentage/time/goal use the same snapshot rules as the Live Activity, including “—” with no records. Under-minute durations use seconds. The seven-day chart switches between good-posture percentage and monitored minutes; day buttons show daily details, with no-record days distinct from measured zero percent. Empty-day and challenge shortcuts navigate to the relevant tab without automatically starting the camera.
+- **Challenge and Shop:** human-readable task progress, ready-to-claim points and navigation shortcuts replace duplicated task lists. Shop has All/My collection filters and confirms the item, cost and remaining balance before the store rechecks and deducts points. Collection-only behavior is explicit; rewards do not unlock device screen time or change dragon equipment. A manually recorded eye break only shows success when persistence succeeds.
+- **Accessibility:** icon + text states, 44pt primary actions, vertical fallback layouts and menu filters at accessibility text sizes. The guide is available from Scan and Settings without a blocking first-launch flow. A significant time/date change refreshes today's summaries even when monitoring is paused.
+
+The design follows [Apple's button guidance](https://developer.apple.com/design/human-interface-guidelines/buttons) for clear primary actions and touch targets. Runtime layout, VoiceOver and large-text verification remain pending; see `VALIDATION.md`.
 
 ## Behavior and data
 

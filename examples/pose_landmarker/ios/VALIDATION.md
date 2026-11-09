@@ -51,6 +51,20 @@ When validation resumes, run `HeadUpTests/PostureActivityServiceTests`, `HeadUpT
 - Unified the persistent banner, Challenge dragon, PiP footer and Live Activity around the existing coordinator status, including the two-second/rapid-fall alert and non-detecting states. PiP refreshes after calibration/no-pose transitions even when Live Activities are disabled. Added bilingual phone-position guidance and a dragon-state legend on Scan.
 - Source/diff and asset-provenance review only. At the user's request, **no build, simulator test or physical-device test was run for this change**. WebP playback, small-size appearance, VoiceOver, Reduce Motion, PiP footer geometry and continuous camera/Live Activity behavior still need runtime validation. The earlier failed Dynamic Island interaction attempt remains unresolved.
 
+## UI/UX and everyday flow update — 2026-11-09
+
+Implemented: status-first Scan, reusable getting-started guide, calibration preparation sheet, persistent skeleton toggle for app/PiP, Live Activity authorization/presentation feedback, daily/weekly Stats with day selection, task/reward shortcuts, points-spending confirmation, owned-item filter, and reliable eye-break save feedback. Existing alert thresholds, camera visibility policy, task rewards and shop prices are unchanged. The new optional skeleton preference defaults to on for existing saved profiles.
+
+**Checks performed:** source review, Swift syntax parsing (`swiftc -frontend -parse`, no type checking/linking), project resource inventory, staged whitespace/scope check. **No app build, unit/UI test, simulator launch or physical-device run was performed**, following the user's instruction. These checks do not establish that the new layouts render correctly or that all new flows pass at runtime. Existing unresolved Dynamic Island device-interaction validation still applies.
+
+When runtime validation is authorized, cover:
+
+- Both languages, iPhone/iPad, largest accessibility text and VoiceOver: Scan hero, details, guide, calibration preparation, all tab shortcuts and owned-reward filter.
+- Camera denied → Settings → return; cancel start; calibrate/cancel from Scan and Settings; pause during calibration; toggle skeleton while PiP active; relaunch to confirm preference and Reset to restore defaults.
+- Live Activities disabled at system/app level, failed request, system/user dismissal, explicit pause/new start and foreground refresh. The preference must not claim a successfully displayed island when the system denies it.
+- No records, less than one minute, less than ten minutes, measured 0%, daily 80% threshold, seven-day metric/date selection and midnight while paused. Compare daily summary values with the Live Activity.
+- Redeem cancel/confirm, insufficient points, repeated confirmation, owned filter and persistence failure. Check that points change only on a successful final store transaction and failed eye-break saves never show success.
+
 ## Repeat validation
 
 Run the commands in `README.md`. All tests use isolated in-memory data or a temporary disk database. UI tests launch with `--uitesting`; normal app launches use persistent SwiftData storage. The standalone core package can be tested without an iOS simulator or MediaPipe downloads.

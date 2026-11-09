@@ -4,25 +4,91 @@ import HeadUpCore
 struct ScanScreen: View {
     @ObservedObject var store: HeadUpStore
     @ObservedObject var monitor: MonitoringCoordinator
+    var onCalibrate: () -> Void = {}
+    var onGuide: () -> Void = {}
+    @State private var showsDetails = false
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     private var copy: HeadUpCopy { HeadUpCopy(language: store.language) }
 
     var body: some View {
         HeadUpPage {
-            HeadUpSectionTitle(title: copy.text("Posture scan", "姿勢掃描"), symbol: "viewfinder")
+            HStack {
+                HeadUpSectionTitle(title: copy.text("Posture companion", "姿勢守護"), symbol: "viewfinder")
+                Spacer(minLength: 4)
+                Button(action: onGuide) {
+                    Image(systemName: "questionmark.circle").font(.title3).frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(copy.text("Getting started", "使用指南"))
+                .accessibilityIdentifier("monitoringGuide")
+            }
+            statusCard
             if sizeClass == .regular && !typeSize.isAccessibilitySize {
                 HStack(alignment: .top, spacing: 20) {
                     cameraCard.frame(maxWidth: .infinity)
-                    results.frame(maxWidth: .infinity)
+                    VStack(spacing: 20) { setupCard; floatingControls; results }
+                        .frame(maxWidth: .infinity)
                 }
             } else {
+                setupCard
                 cameraCard
+                floatingControls
                 results
             }
-            FloatingWindowControls(monitor: monitor, window: monitor.pictureInPicture, copy: copy)
         }
         .accessibilityIdentifier("scanScreen")
+    }
+
+    private var statusCard: some View {
+        HeadUpCard {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 16) {
+                    if !typeSize.isAccessibilitySize {
+                        PostureDragonView(status: monitor.postureStatus, size: 76)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(copy.monitoringTitle(monitor), systemImage: monitor.postureStatus.symbol)
+                            .font(.title2.bold()).foregroundStyle(monitor.postureStatus.dragonTint)
+                        Text(copy.monitoringHint(monitor))
+                            .font(.subheadline).foregroundStyle(HeadUpStyle.secondary)
+                    }
+                }
+                MonitoringAction(monitor: monitor, copy: copy, fillsWidth: true)
+                Label(copy.text("Tracked today · \(copy.duration(store.today.totalTrackedSeconds))",
+                                "今日有效監測・\(copy.duration(store.today.totalTrackedSeconds))"), systemImage: "clock")
+                    .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
+                if let error = monitor.errorMessage, !error.isEmpty {
+                    Text(error).font(.footnote).foregroundStyle(HeadUpStyle.warning).textSelection(.enabled)
+                }
+            }
+        }
+    }
+
+    private var setupCard: some View {
+        HeadUpCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Label(copy.text(store.calibration == nil ? "Personalize your detection" : "Your baseline is ready",
+                                store.calibration == nil ? "建立你的姿勢基準" : "個人姿勢基準已就緒"),
+                      systemImage: store.calibration == nil ? "scope" : "checkmark.seal.fill")
+                    .font(.headline).foregroundStyle(store.calibration == nil ? HeadUpStyle.cyan : HeadUpStyle.safe)
+                if monitor.isCalibrating {
+                    ProgressView().accessibilityLabel(copy.text("Calibrating", "校準中"))
+                    Text(copy.text("Hold still · \(monitor.calibrationRemaining)", "請保持穩定・\(monitor.calibrationRemaining)"))
+                        .font(.headline).monospacedDigit()
+                } else if store.calibration == nil {
+                    Text(copy.text("Sit upright with your face and shoulders visible. A three-second calibration helps tailor the readings to you.", "先坐正並讓臉部與雙肩入鏡，再用三秒校準建立個人基準。"))
+                        .font(.subheadline).foregroundStyle(HeadUpStyle.secondary)
+                } else {
+                    Text(copy.text("Recalibrate if your camera or phone orientation changes.", "切換鏡頭或旋轉手機後，請重新校準。"))
+                        .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
+                }
+                calibrationButton
+            }
+        }
+    }
+
+    private var floatingControls: some View {
+        FloatingWindowControls(store: store, monitor: monitor, window: monitor.pictureInPicture, copy: copy)
     }
 
     private var cameraCard: some View {
@@ -63,6 +129,14 @@ struct ScanScreen: View {
             }
 
             HStack(spacing: 8) {
+                Button { monitor.setSkeletonEnabled(!store.skeletonEnabled) } label: {
+                    Image(systemName: store.skeletonEnabled ? "figure.stand" : "person.fill")
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(copy.text(store.skeletonEnabled ? "Hide posture skeleton" : "Show posture skeleton",
+                                               store.skeletonEnabled ? "隱藏姿勢骨架" : "顯示姿勢骨架"))
+                .accessibilityValue(copy.text(store.skeletonEnabled ? "On" : "Off", store.skeletonEnabled ? "已開啟" : "已關閉"))
+                .accessibilityIdentifier("skeletonToggle")
                 Button { store.setAlarmEnabled(!store.alarmEnabled) } label: {
                     Image(systemName: store.alarmEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
                         .frame(width: 44, height: 44)
@@ -81,7 +155,7 @@ struct ScanScreen: View {
             .background(.ultraThinMaterial, in: Capsule())
             .padding(12)
         }
-        .frame(height: sizeClass == .regular ? 430 : 360)
+        .frame(height: typeSize.isAccessibilitySize ? 430 : sizeClass == .regular ? 430 : 300)
         .clipShape(RoundedRectangle(cornerRadius: 26))
         .overlay(RoundedRectangle(cornerRadius: 26).strokeBorder(HeadUpStyle.cyan.opacity(0.35), lineWidth: 1))
         .overlay(alignment: .bottomLeading) {
@@ -96,49 +170,44 @@ struct ScanScreen: View {
 
     private var results: some View {
         HeadUpCard {
-            VStack(alignment: .leading, spacing: 18) {
-                ViewThatFits(in: .horizontal) {
-                    HStack { Text(copy.text("Your posture", "姿勢掃描結果")).font(.title3.bold()); Spacer(); calibrationButton }
-                    VStack(alignment: .leading, spacing: 10) { Text(copy.text("Your posture", "姿勢掃描結果")).font(.title3.bold()); calibrationButton }
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 14) {
-                    Text(monitor.metrics.map { "\($0.angleDegrees)°" } ?? "—")
-                        .font(.system(size: 60, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(HeadUpStyle.color(for: monitor.metrics?.zone))
-                    Text(copy.zone(monitor.metrics?.zone))
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(HeadUpStyle.color(for: monitor.metrics?.zone))
-                }
-                if monitor.postureStatus == .attention || monitor.postureStatus == .liftHead {
-                    Text(copy.text("Raise your phone and sit upright. Keep your face and both shoulders in view.", "請抬高手機並坐正，讓臉部與雙肩保持入鏡。"))
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(monitor.postureStatus.dragonTint)
-                }
-                if let metrics = monitor.metrics {
-                    ProgressView(value: Double(metrics.landmarkConfidence), total: 1)
-                        .tint(HeadUpStyle.cyan)
-                        .accessibilityLabel(copy.text("Detection confidence", "偵測信心"))
-                    Text(copy.text("Detection confidence \(Int(metrics.landmarkConfidence * 100))%", "偵測信心 \(Int(metrics.landmarkConfidence * 100))%"))
-                        .font(.caption).foregroundStyle(HeadUpStyle.secondary)
-                }
-                Divider().overlay(.white.opacity(0.08))
-                metricRow(copy.text("Head forward tilt", "頭部前傾"), symbol: "person.crop.circle", value: monitor.metrics.map { "\($0.relativeAngleDegrees)°" } ?? "—")
-                metricRow(copy.text("Neck flexion", "頸部彎曲"), symbol: "figure.seated.side", value: monitor.metrics.map { "\($0.neckFlexionDegrees)°" } ?? "—")
-                metricRow(copy.text("Shoulder balance", "肩膀平衡"), symbol: "arrow.left.and.right", value: monitor.metrics.map { "\($0.shoulderBalanceDegrees)°" } ?? "—")
-                metricRow(copy.text("Estimated screen distance", "估算螢幕距離"), symbol: "arrow.up.left.and.arrow.down.right", value: monitor.metrics?.screenDistanceCm.map { copy.text("\($0) cm", "\($0) 公分") } ?? "—")
-                if store.calibration == nil {
-                    Text(copy.text("Calibrate while sitting upright, about 45 cm from the screen, to personalize your posture and distance estimates.", "請坐正並與螢幕保持約 45 公分，再完成校準，以建立個人姿勢基準與距離估算。"))
+            DisclosureGroup(isExpanded: $showsDetails) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(copy.text("These estimates explain the posture reading. Follow the dragon's guidance above.", "以下估算數據用來說明判定結果；請以上方視力龍的提醒調整姿勢。"))
                         .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
+                    metricRow(copy.text("Posture angle", "姿勢角度"), symbol: "angle",
+                              value: liveMetrics.map { "\($0.angleDegrees)°" } ?? "—")
+                    metricRow(copy.text("Head forward tilt", "頭部前傾"), symbol: "person.crop.circle",
+                              value: liveMetrics.map { "\($0.relativeAngleDegrees)°" } ?? "—")
+                    metricRow(copy.text("Neck flexion", "頸部彎曲"), symbol: "figure.seated.side",
+                              value: liveMetrics.map { "\($0.neckFlexionDegrees)°" } ?? "—")
+                    metricRow(copy.text("Shoulder balance", "肩膀平衡"), symbol: "arrow.left.and.right",
+                              value: liveMetrics.map { "\($0.shoulderBalanceDegrees)°" } ?? "—")
+                    metricRow(copy.text("Estimated screen distance", "估算螢幕距離"), symbol: "arrow.up.left.and.arrow.down.right",
+                              value: liveMetrics?.screenDistanceCm.map { copy.text("\($0) cm", "\($0) 公分") } ?? "—")
+                    if let metrics = liveMetrics {
+                        ProgressView(value: Double(metrics.landmarkConfidence), total: 1)
+                            .tint(HeadUpStyle.cyan)
+                            .accessibilityLabel(copy.text("Detection confidence", "偵測信心"))
+                        Text(copy.text("Detection confidence \(Int(metrics.landmarkConfidence * 100))%", "偵測信心 \(Int(metrics.landmarkConfidence * 100))%"))
+                            .font(.caption).foregroundStyle(HeadUpStyle.secondary)
+                    }
                 }
+                .padding(.top, 16)
+            } label: {
+                Label(copy.text("Posture details", "姿勢詳細數據"), systemImage: "slider.horizontal.3")
+                    .font(.headline).frame(minHeight: 44)
             }
+            .accessibilityIdentifier("postureDetails")
         }
     }
 
+    private var liveMetrics: PostureMetrics? { monitor.postureStatus.hasLivePose ? monitor.metrics : nil }
+
     private var calibrationButton: some View {
-        Button { monitor.startCalibration() } label: {
-            Label(copy.text("Calibrate", "3 秒校準"), systemImage: "scope")
-                .font(.subheadline.bold())
+        Button(action: onCalibrate) {
+            Label(copy.text(store.calibration == nil ? "Prepare calibration" : "Recalibrate",
+                            store.calibration == nil ? "準備三秒校準" : "重新校準"), systemImage: "scope")
+                .font(.subheadline.bold()).frame(minHeight: 44)
         }
         .buttonStyle(.bordered)
         .disabled(monitor.isCalibrating)
@@ -146,7 +215,7 @@ struct ScanScreen: View {
     }
 
     private func metricRow(_ title: String, symbol: String, value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Image(systemName: symbol).foregroundStyle(HeadUpStyle.cyan).frame(width: 22)
             Text(title).font(.subheadline).foregroundStyle(HeadUpStyle.secondary)
             Spacer(minLength: 8)
@@ -157,6 +226,7 @@ struct ScanScreen: View {
 }
 
 private struct FloatingWindowControls: View {
+    @ObservedObject var store: HeadUpStore
     @ObservedObject var monitor: MonitoringCoordinator
     @ObservedObject var window: PosturePictureInPicture
     let copy: HeadUpCopy
@@ -168,17 +238,23 @@ private struct FloatingWindowControls: View {
                     .font(.headline)
                 Text(copy.text("Start monitoring, then open the small camera window before switching apps. Keep your face and shoulders visible. Closing or hiding the window may pause detection.", "開始偵測後，先開啟相機小視窗，再切換至其他 App。請讓臉部與雙肩入鏡；關閉或隱藏視窗可能暫停偵測。"))
                     .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
-                Text(copy.text("Blue dragon: good posture. Yellow icon: check your posture. Angry red dragon: lift your head. Gray dragon: no current posture reading.", "藍龍：目前姿勢良好。黃色圖示：請注意姿勢。生氣紅龍：請抬頭調整。灰龍：目前沒有有效的姿勢判定。"))
-                    .font(.footnote).foregroundStyle(HeadUpStyle.secondary)
+                if !monitor.isMonitoring {
+                    Label(copy.text("First, tap Start monitoring above.", "請先按上方「開始偵測」。"), systemImage: "arrow.up.circle")
+                        .font(.subheadline).foregroundStyle(HeadUpStyle.warning)
+                } else if monitor.isCalibrating {
+                    Text(copy.text("Finish calibration before opening the window.", "請先完成校準，再開啟小視窗。"))
+                        .font(.subheadline).foregroundStyle(HeadUpStyle.warning)
+                }
                 Button {
                     if window.state == .stopped { monitor.openPictureInPicture() }
                     else { window.stop() }
                 } label: {
-                    Label(copy.text(window.state == .stopped ? "Open small window" : "Close small window",
-                                    window.state == .stopped ? "開啟小視窗" : "關閉小視窗"),
+                    Label(copy.text(window.state == .stopped ? "Open camera window" : window.state == .starting ? "Cancel opening" : "Close camera window",
+                                    window.state == .stopped ? "開啟相機小視窗" : window.state == .starting ? "取消開啟" : "關閉相機小視窗"),
                           systemImage: window.state == .stopped ? "pip.enter" : "pip.exit")
+                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .disabled(window.state == .stopped && (!monitor.isMonitoring || monitor.isCalibrating || monitor.status == .starting))
                 .accessibilityIdentifier("pictureInPictureToggle")
                 if window.state == .starting {
@@ -190,6 +266,11 @@ private struct FloatingWindowControls: View {
                 if let message = window.errorMessage {
                     Text(message).font(.footnote).foregroundStyle(HeadUpStyle.danger)
                 }
+                Divider().overlay(.white.opacity(0.08))
+                Toggle(copy.text("Island reminders", "靈動島提醒"),
+                       isOn: Binding(get: { store.liveActivitiesEnabled }, set: monitor.setLiveActivitiesEnabled))
+                    .accessibilityIdentifier("scanLiveActivitiesToggle")
+                LiveActivityAvailability(store: store, service: monitor.liveActivity, copy: copy)
                 #if targetEnvironment(simulator)
                 Text(copy.text("A physical device is required to test camera monitoring in the small window.", "小視窗相機偵測需以實體裝置測試。"))
                     .font(.footnote).foregroundStyle(HeadUpStyle.secondary)

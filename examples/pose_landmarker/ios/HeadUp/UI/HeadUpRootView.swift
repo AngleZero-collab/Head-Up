@@ -5,29 +5,36 @@ struct HeadUpRootView: View {
     @ObservedObject var store: HeadUpStore
     @ObservedObject var monitor: MonitoringCoordinator
     @State private var selection = 0
-    @State private var showsSettings = false
+    private enum Sheet: String, Identifiable {
+        case settings, guide, calibration
+        var id: String { rawValue }
+    }
+    @State private var sheet: Sheet?
+    @State private var calibrationAfterSettings = false
 
     private var copy: HeadUpCopy { HeadUpCopy(language: store.language) }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                MonitoringBanner(monitor: monitor, copy: copy)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 10)
-                    .frame(maxWidth: 1090)
+                if selection != 0 {
+                    MonitoringBanner(monitor: monitor, copy: copy, onScan: { selection = 0 })
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 10)
+                        .frame(maxWidth: 1090)
+                }
 
                 TabView(selection: $selection) {
-                    ScanScreen(store: store, monitor: monitor)
+                    ScanScreen(store: store, monitor: monitor, onCalibrate: { sheet = .calibration }, onGuide: { sheet = .guide })
                         .tabItem { Label(copy.text("Scan", "掃描"), systemImage: "viewfinder") }
                         .tag(0)
-                    StatsScreen(store: store, monitor: monitor)
+                    StatsScreen(store: store, monitor: monitor, onStart: { selection = 0 }, onChallenges: { selection = 2 })
                         .tabItem { Label(copy.text("Stats", "數據"), systemImage: "chart.bar.xaxis") }
                         .tag(1)
-                    ChallengeScreen(store: store, monitor: monitor)
+                    ChallengeScreen(store: store, monitor: monitor, onShop: { selection = 3 })
                         .tabItem { Label(copy.text("Challenge", "挑戰"), systemImage: "sparkles") }
                         .tag(2)
-                    ShopScreen(store: store)
+                    ShopScreen(store: store, onChallenges: { selection = 2 })
                         .tabItem { Label(copy.text("Shop", "商店"), systemImage: "bag") }
                         .tag(3)
                 }
@@ -49,7 +56,7 @@ struct HeadUpRootView: View {
                     .accessibilityElement(children: .combine)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showsSettings = true } label: {
+                    Button { sheet = .settings } label: {
                         Image(systemName: "gearshape")
                             .frame(width: 44, height: 44)
                     }
@@ -64,15 +71,18 @@ struct HeadUpRootView: View {
         .tint(HeadUpStyle.cyan)
         .preferredColorScheme(.dark)
         .environment(\.locale, copy.locale)
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            store.refresh()
+        }
         .onOpenURL { url in
             guard url.scheme == "headup", ["today", "scan"].contains(url.host) else { return }
-            showsSettings = false
+            sheet = nil
             selection = url.host == "today" ? 1 : 0
         }
         .onReceive(monitor.pictureInPicture.$restoreRequest) { request in
             guard request > 0 else { return }
             selection = 0
-            showsSettings = false
+            sheet = nil
         }
         .overlay {
             if monitor.warningActive {
@@ -83,10 +93,31 @@ struct HeadUpRootView: View {
                     .accessibilityHidden(true)
             }
         }
-        .sheet(isPresented: $showsSettings) {
-            HeadUpSettingsView(store: store, monitor: monitor) {
-                selection = 0
-                monitor.startCalibration()
+        .sheet(item: $sheet, onDismiss: {
+            if calibrationAfterSettings {
+                calibrationAfterSettings = false
+                sheet = .calibration
+            }
+        }) { destination in
+            if destination == .settings {
+                HeadUpSettingsView(store: store, monitor: monitor) {
+                    selection = 0
+                    calibrationAfterSettings = true
+                }
+            } else {
+                NavigationStack {
+                    Group {
+                        if destination == .guide { MonitoringGuide(copy: copy) }
+                        else { CalibrationPreparation(copy: copy, onStart: monitor.startCalibration) }
+                    }
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(copy.text("Done", "完成")) { sheet = nil }.frame(minHeight: 44)
+                        }
+                    }
+                }
+                .tint(HeadUpStyle.cyan)
+                .preferredColorScheme(.dark)
             }
         }
         .alert(copy.text("Could not save changes", "無法儲存變更"), isPresented: Binding(
@@ -103,40 +134,15 @@ struct HeadUpRootView: View {
 private struct MonitoringBanner: View {
     @ObservedObject var monitor: MonitoringCoordinator
     let copy: HeadUpCopy
-    @Environment(\.openURL) private var openURL
-
-    private var statusText: String {
-        switch monitor.status {
-        case .idle: return copy.text("Ready when you are", "準備開始姿勢守護")
-        case .starting: return copy.text("Starting camera…", "正在啟動鏡頭…")
-        case .monitoring:
-            let snapshot = PostureActivityAttributes.ContentState(
-                status: monitor.postureStatus, safeSeconds: 0, totalSeconds: 0,
-                dayStart: .distantPast, updatedAt: .distantPast, language: copy.text("en", "zh-Hant"))
-            return snapshot.statusTitle(isStale: false)
-        case .noPose: return copy.text("Keep your face and shoulders in view", "請讓臉部與雙肩清楚入鏡")
-        case .calibrating: return copy.text("Sit upright · \(monitor.calibrationRemaining)", "請坐正 · \(monitor.calibrationRemaining)")
-        case .paused: return copy.text("Monitoring paused", "姿勢偵測已暫停")
-        case .permissionDenied: return copy.text("Camera permission is needed", "請允許使用相機")
-        case .unavailable: return copy.text("Camera is unavailable", "目前無法使用相機")
-        case .failed: return copy.text("Could not start monitoring", "無法啟動姿勢偵測")
-        }
-    }
+    let onScan: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) { status; Spacer(minLength: 8); control }
-                VStack(alignment: .leading, spacing: 12) { status; control }
-            }
-            if case .permissionDenied = monitor.status {
-                Button(copy.text("Open Settings", "開啟設定")) {
-                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-                }
-                .font(.subheadline.bold())
-            }
-            if let error = monitor.errorMessage, !error.isEmpty {
-                Text(error).font(.caption).foregroundStyle(HeadUpStyle.secondary).textSelection(.enabled)
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) { status; control }
+            } else {
+                HStack(spacing: 12) { status; Spacer(minLength: 0); control }
             }
         }
         .padding(12)
@@ -144,24 +150,32 @@ private struct MonitoringBanner: View {
     }
 
     private var status: some View {
-        HStack(spacing: 10) {
-            PostureDragonView(status: monitor.postureStatus, size: 44)
-            Label(statusText, systemImage: monitor.postureStatus.symbol)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(monitor.postureStatus.dragonTint)
-                .fixedSize(horizontal: false, vertical: true)
+        Button(action: onScan) {
+            HStack(spacing: 10) {
+                PostureDragonView(status: monitor.postureStatus, size: 40)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(copy.monitoringTitle(monitor)).font(.subheadline.weight(.medium))
+                        .foregroundStyle(monitor.postureStatus.dragonTint)
+                    Text(copy.text("Open Scan for details", "前往掃描查看詳情"))
+                        .font(.caption).foregroundStyle(HeadUpStyle.secondary)
+                }
+            }
+            .frame(minHeight: 44)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("returnToScan")
     }
 
     private var control: some View {
         Button {
-            if monitor.isMonitoring { monitor.pause() } else { monitor.start() }
+            if monitor.isMonitoring || monitor.status == .starting { monitor.pause() }
+            else { onScan() }
         } label: {
-            Label(copy.text(monitor.isMonitoring ? "Pause" : "Start", monitor.isMonitoring ? "暫停" : "開始"),
-                  systemImage: monitor.isMonitoring ? "pause.fill" : "play.fill")
-                .font(.subheadline.bold())
-                .padding(.vertical, 4)
+            Label(copy.text(monitor.isMonitoring || monitor.status == .starting ? "Pause" : "Scan",
+                            monitor.isMonitoring || monitor.status == .starting ? "暫停" : "掃描"),
+                  systemImage: monitor.isMonitoring || monitor.status == .starting ? "pause.fill" : "viewfinder")
+                .font(.subheadline.bold()).frame(minHeight: 44)
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("monitoringToggle")
@@ -187,9 +201,15 @@ struct HeadUpSettingsView: View {
                     }
                     .accessibilityIdentifier("languagePicker")
                     Toggle(copy.text("Warning sound", "姿勢提醒音效"), isOn: Binding(get: { store.alarmEnabled }, set: store.setAlarmEnabled))
+                    Toggle(copy.text("Show posture skeleton", "顯示姿勢骨架"),
+                           isOn: Binding(get: { store.skeletonEnabled }, set: monitor.setSkeletonEnabled))
+                        .accessibilityIdentifier("skeletonSetting")
                     Toggle(copy.text("Dynamic Island and Lock Screen", "靈動島與鎖定畫面"),
                            isOn: Binding(get: { store.liveActivitiesEnabled }, set: monitor.setLiveActivitiesEnabled))
                         .accessibilityIdentifier("liveActivitiesToggle")
+                }
+                Section {
+                    LiveActivityAvailability(store: store, service: monitor.liveActivity, copy: copy)
                 }
                 Section {
                     Button(copy.text("3-second posture calibration", "3 秒個人姿勢校準")) {
@@ -208,6 +228,11 @@ struct HeadUpSettingsView: View {
                     Text(copy.text("Sit upright with your face and both shoulders visible, about 45 cm from the screen. Distance readings are estimates.", "請坐正，讓臉部與雙肩清楚入鏡，並與螢幕保持約 45 公分。距離數值為估算結果。"))
                 }
                 Section {
+                    NavigationLink {
+                        MonitoringGuide(copy: copy)
+                    } label: {
+                        Label(copy.text("Getting started & dragon states", "使用指南與視力龍狀態"), systemImage: "questionmark.circle")
+                    }
                     Label(copy.text("Monitoring with Heads Up or its camera window", "透過 Heads Up 或相機小視窗偵測"), systemImage: "camera")
                     Text(copy.text("To monitor while using other apps, first open the camera window. Dynamic Island shows posture updates but does not keep the camera running. Locking or camera interruptions pause monitoring and tracked time.", "使用其他 App 時，請先開啟相機小視窗。靈動島顯示姿勢狀態，本身不會讓相機持續運作。鎖屏或相機中斷時會暫停偵測與時間紀錄。"))
                         .font(.footnote).foregroundStyle(HeadUpStyle.secondary)

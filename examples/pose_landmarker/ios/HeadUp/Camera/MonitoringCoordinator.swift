@@ -18,6 +18,7 @@ final class MonitoringCoordinator: ObservableObject {
     @Published private(set) var warningActive = false
     @Published private(set) var isFrontCamera = true
     @Published private(set) var isFloatingWindowOpen = false
+    @Published private(set) var showsSkeleton = true
     // Exposed only by the opt-in device test UI; counts real inference callbacks, not poses.
     @Published private(set) var backgroundFrameCount = 0
     @Published private(set) var frameSize = CGSize(width: 480, height: 640)
@@ -52,6 +53,7 @@ final class MonitoringCoordinator: ObservableObject {
 
     init(store: HeadUpStore) {
         self.store = store
+        showsSkeleton = store.skeletonEnabled
         MonitoringIntentRouter.shared.handler = { [weak self] sessionID in
             guard let self, self.monitoringSessionID == sessionID else { return }
             self.pause()
@@ -178,9 +180,16 @@ final class MonitoringCoordinator: ObservableObject {
         else { publishActivity(force: true) }
     }
 
+    func setSkeletonEnabled(_ enabled: Bool) {
+        store.setSkeletonEnabled(enabled)
+        showsSkeleton = store.skeletonEnabled
+        updatePictureInPicture()
+    }
+
     func setScene(_ scene: MonitoringVisibility.Scene) {
         visibility.scene = scene
         if scene == .active {
+            liveActivity.refreshAvailability()
             visibility.protectedDataAvailable = UIApplication.shared.isProtectedDataAvailable
             store.refresh()
             if wantsMonitoring { start() }
@@ -235,6 +244,7 @@ final class MonitoringCoordinator: ObservableObject {
         pause()
         liveActivity.end(immediately: true)
         store.resetAllData()
+        showsSkeleton = store.skeletonEnabled
     }
 
     private func beginCapture() {
@@ -357,7 +367,7 @@ final class MonitoringCoordinator: ObservableObject {
     }
 
     private func updatePictureInPicture() {
-        pictureInPicture.update(metrics: metrics, points: landmarks, size: frameSize,
+        pictureInPicture.update(metrics: metrics, points: showsSkeleton ? landmarks : [], size: frameSize,
                                 front: isFrontCamera, rotation: rotation, status: postureStatus,
                                 copy: HeadUpCopy(language: store.language))
     }
